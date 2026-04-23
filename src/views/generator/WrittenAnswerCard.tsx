@@ -183,6 +183,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
             disabled={isMarking}
             placeholder='Draft your solution here...'
             className='min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/20 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30'
+            style={{ fontSize: 'var(--question-text-size)' }}
           />
         ) : (
           <></>

@@ -251,25 +251,32 @@ mod tests {
     #[test]
     fn keeps_canonical_subtopic_when_already_canonical() {
         let mut topic = "Mathematical Methods".to_string();
-        let mut subtopic = Some("functions and function notation".to_string());
+        let mut subtopic = Some("functions, relations and notation".to_string());
         let selected_topics = vec!["Mathematical Methods".to_string()];
 
         normalise_topic_and_subtopic(&mut topic, &mut subtopic, &selected_topics, None);
 
         assert_eq!(topic, "Mathematical Methods");
-        assert_eq!(subtopic.as_deref(), Some("Functions and Function Notation"));
+        assert_eq!(
+            subtopic.as_deref(),
+            Some("Functions, Relations and Notation")
+        );
     }
 
     #[test]
     fn strips_scoped_subtopic_during_normalization() {
         let mut topic = "Mathematical Methods".to_string();
-        let mut subtopic = Some("Graphing Circular Functions@@unit3-functions#12".to_string());
+        let mut subtopic =
+            Some("Graphs of Sine and Cosine Functions@@unit3-functions#12".to_string());
         let selected_topics = vec!["Mathematical Methods".to_string()];
 
         normalise_topic_and_subtopic(&mut topic, &mut subtopic, &selected_topics, None);
 
         assert_eq!(topic, "Mathematical Methods");
-        // It should match "Graphing Circular Functions" in the catalog
-        assert_eq!(subtopic.as_deref(), Some("Graphing Circular Functions"));
+        // It should match "Graphs of Sine and Cosine Functions" in the catalog
+        assert_eq!(
+            subtopic.as_deref(),
+            Some("Graphs of Sine and Cosine Functions")
+        );
     }
 }

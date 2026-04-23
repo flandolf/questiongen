@@ -6,7 +6,10 @@ import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
 import { useModelStats } from '@/hooks/useModelStats';
 import { cn } from '@/lib/utils';
-import { PRESET_MODELS } from '@/views/settings/constants';
+import {
+  MARKER_STYLE_OPTIONS,
+  PRESET_MODELS,
+} from '@/views/settings/constants';
 import { fmt } from '@/views/settings/formatters';
 import { ImageModelSelectRow } from '@/views/settings/ImageModelSelectRow';
 import { ModelSearchPanel } from '@/views/settings/ModelSearchPanel';
@@ -198,6 +201,8 @@ export function ModelsSection() {
     useSeparateMarkingModel: settings.useSeparateMarkingModel,
     useSeparateImageMarkingModel: settings.useSeparateImageMarkingModel,
     includeExamContext: settings.includeExamContext,
+    markerStyle: settings.markerStyle,
+    customMarkerStyle: settings.customMarkerStyle,
   });
 
   const [showCustom, setShowCustom] = useState<Record<string, boolean>>({});
@@ -219,6 +224,8 @@ export function ModelsSection() {
       useSeparateMarkingModel: settings.useSeparateMarkingModel,
       useSeparateImageMarkingModel: settings.useSeparateImageMarkingModel,
       includeExamContext: settings.includeExamContext,
+      markerStyle: settings.markerStyle,
+      customMarkerStyle: settings.customMarkerStyle,
     }));
   }, [
     settings.model,
@@ -228,6 +235,8 @@ export function ModelsSection() {
     settings.useSeparateMarkingModel,
     settings.useSeparateImageMarkingModel,
     settings.includeExamContext,
+    settings.markerStyle,
+    settings.customMarkerStyle,
   ]);
 
   // Sync from local state to store
@@ -608,6 +617,83 @@ export function ModelsSection() {
           label='Reference local exam PDFs'
           description='Uses your local materials to ensure alignment with VCE standards.'
         />
+      </ConfigSection>
+
+      <ConfigSection key='marker-style-section' className='space-y-4'>
+        <SectionHeader
+          key='marker-style-header'
+          title='Marking Style'
+          description='Choose how strictly answers are graded.'
+        />
+        <FieldGroup
+          key='marker-style-field'
+          label='Marker style'
+          htmlFor='marker-style-select'
+        >
+          <div className='flex flex-col gap-3'>
+            {MARKER_STYLE_OPTIONS.map((opt) => (
+              <label
+                key={opt.id}
+                className={cn(
+                  'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all hover:bg-muted/30',
+                  localState.markerStyle === opt.id
+                    ? 'border-primary/60 bg-primary/5'
+                    : 'border-border/40 bg-background/30',
+                )}
+              >
+                <input
+                  type='radio'
+                  name='marker-style'
+                  value={opt.id}
+                  checked={localState.markerStyle === opt.id}
+                  onChange={() =>
+                    updateSetting(
+                      'markerStyle',
+                      opt.id as 'strict' | 'relaxed' | 'targeted' | 'custom',
+                    )
+                  }
+                  className='mt-1 h-4 w-4 text-primary accent-primary'
+                />
+                <div className='flex-1 space-y-1'>
+                  <p className='text-sm font-semibold'>{opt.name}</p>
+                  <p className='text-xs text-muted-foreground'>
+                    {opt.description}
+                  </p>
+                </div>
+              </label>
+            ))}
+            {localState.markerStyle === 'custom' && (
+              <div className='mt-2'>
+                <FieldGroup
+                  key='custom-marker-style-field'
+                  label='Custom marking instructions'
+                  htmlFor='custom-marker-style-input'
+                  hint='Describe how to mark (e.g. "Be lenient but penalize factual errors.")'
+                >
+                  <textarea
+                    id='custom-marker-style-input'
+                    value={localState.customMarkerStyle}
+                    onChange={(e) =>
+                      setLocalState((prev) => ({
+                        ...prev,
+                        customMarkerStyle: e.target.value,
+                      }))
+                    }
+                    onBlur={() =>
+                      updateSetting(
+                        'customMarkerStyle',
+                        localState.customMarkerStyle,
+                      )
+                    }
+                    placeholder='Define your custom marking style...'
+                    rows={3}
+                    className='min-h-20 w-full rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm font-medium shadow-inner transition-colors hover:bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y'
+                  />
+                </FieldGroup>
+              </div>
+            )}
+          </div>
+        </FieldGroup>
       </ConfigSection>
 
       <div className='py-4'>

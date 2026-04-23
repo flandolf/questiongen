@@ -1,9 +1,13 @@
 {
   "name": "Physical Education",
   "icon": "Dumbbell",
-  "examPdfs": ["2025-PhysicalEducation.pdf"],
-  "reportPdfs": ["2025-PhysEd-report.pdf"],
-  "examGuidance": "VCAA Physical Education questions focus on qualitative analysis, evaluation, and justification. While simple formulas (F=ma, VO2 max) are used, responses should be in prose (paragraphs/bullet points). Use VCE command verbs: define, identify, explain, apply, analyze, evaluate, and justify. Connect physiological and biomechanical principles to specific sporting scenarios. Data interpretation (graphs/tables) is common. Focus on yield, rate, and duration for energy systems, and avoid in-depth biochemical pathways or advanced anatomy beyond what's in the Study Design. Ensure distinction between chronic adaptations and acute responses.",
+  "examPdfs": [
+    "2025-PhysicalEducation.pdf"
+  ],
+  "reportPdfs": [
+    "2025-PhysEd-report.pdf"
+  ],
+  "examGuidance": "VCAA Physical Education questions focus on qualitative analysis, evaluation, and justification. While simple formulas (F=ma, VO2 max) are used, responses should be in prose (paragraphs/bullet points). Use VCE command verbs: define, identify, explain, apply, analyze, evaluate, and justify. Connect physiological and biomechanical principles to specific sporting scenarios. Data interpretation (graphs/tables) is common. Focus on yield, rate, and duration for energy systems, and avoid in-depth biochemical pathways or advanced anatomy beyond what's in the Study Design. Ensure distinction between chronic adaptations and acute responses. Ensure student responses are accompanied with sufficient real-life sporting examples.",
   "out_of_scope": [
     "In-depth anatomy (naming every bone/muscle)",
     "Coaching strategies for elite professional teams (focus on community/VCAA contexts)",
@@ -18,7 +22,9 @@
       "technique_notes": {
         "core_concepts": "Axial vs appendicular skeleton. Functions: support, protection, movement, mineral storage, and blood cell production.",
         "exam_style_guidelines": "Link skeletal structure (e.g., long bones) to movement efficiency and lever systems.",
-        "anti_prompts": ["Do not ask for a full list of all bones."]
+        "anti_prompts": [
+          "Do not ask for a full list of all bones."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -27,7 +33,9 @@
       "technique_notes": {
         "core_concepts": "Fibrous (immovable), cartilaginous (slightly movable), and synovial (freely movable) joints.",
         "exam_style_guidelines": "Focus on synovial joints as the primary drivers of athletic movement.",
-        "anti_prompts": ["Do not confuse joint stability with joint mobility."]
+        "anti_prompts": [
+          "Do not confuse joint stability with joint mobility."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -91,7 +99,9 @@
       "technique_notes": {
         "core_concepts": "Heart (Atria/Ventricles), Blood vessels (Arteries, Veins, Capillaries). Cardiac Cycle.",
         "exam_style_guidelines": "Trace the path of blood through the heart and lungs. Link structure to efficient oxygen transport.",
-        "anti_prompts": ["Do not confuse pulmonary and systemic circulation."]
+        "anti_prompts": [
+          "Do not confuse pulmonary and systemic circulation."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -210,7 +220,9 @@
       "technique_notes": {
         "core_concepts": "Declining participation in late adolescence. Influence of technology and urbanisation.",
         "exam_style_guidelines": "Interpret data tables showing participation trends across different sports and age groups.",
-        "anti_prompts": ["N/A"]
+        "anti_prompts": [
+          "N/A"
+        ]
       },
       "group": "unit2-physical-activity-society"
     },
@@ -219,7 +231,9 @@
       "technique_notes": {
         "core_concepts": "Gross/Fine, Open/Closed, Discrete/Serial/Continuous. Multi-continuum analysis.",
         "exam_style_guidelines": "Justify classification using environmental predictability and muscle group size. Use the VCAA pattern: define -> classify -> justify -> link to performance.",
-        "anti_prompts": ["Do not confuse open/closed with skill complexity."]
+        "anti_prompts": [
+          "Do not confuse open/closed with skill complexity."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -261,7 +275,9 @@
       "technique_notes": {
         "core_concepts": "Intrinsic vs Augmented (Knowledge of Results vs Knowledge of Performance). Concurrent vs Terminal.",
         "exam_style_guidelines": "Recommend frequency strategy to avoid feedback dependency. Evaluate the 'guidance hypothesis'.",
-        "anti_prompts": ["Distinguish clearly between KR and KP."]
+        "anti_prompts": [
+          "Distinguish clearly between KR and KP."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -270,7 +286,9 @@
       "technique_notes": {
         "core_concepts": "Displacement, velocity, acceleration. Momentum ($p=mv$). Impulse ($I=Ft$). Change in momentum.",
         "exam_style_guidelines": "Explain how increasing contact time (e.g., landing) or force increases impulse. Use force-time curves.",
-        "anti_prompts": ["Link impulse clearly to 'change in momentum'."]
+        "anti_prompts": [
+          "Link impulse clearly to 'change in momentum'."
+        ]
       },
       "group": "unit3-biomechanics"
     },
@@ -301,7 +319,9 @@
       "technique_notes": {
         "core_concepts": "Factors: release angle, height, and speed. Speed is most influential.",
         "exam_style_guidelines": "Optimal angle changes with release height. 45 degrees is only optimal when release and landing heights are equal.",
-        "anti_prompts": ["Do not state 45 degrees is always optimal."]
+        "anti_prompts": [
+          "Do not state 45 degrees is always optimal."
+        ]
       },
       "group": "unit3-biomechanics"
     },
@@ -310,7 +330,9 @@
       "technique_notes": {
         "core_concepts": "COG, Base of Support (BOS), and line of gravity. Stability-mobility trade-off.",
         "exam_style_guidelines": "Explain how stance adjustments (e.g., widening feet) improve stability but may reduce mobility.",
-        "anti_prompts": ["Do not confuse stability with balance."]
+        "anti_prompts": [
+          "Do not confuse stability with balance."
+        ]
       },
       "group": "unit3-biomechanics"
     },
@@ -330,9 +352,47 @@
       "technique_notes": {
         "core_concepts": "Stages: Preparation, Observation, Evaluation, and Error Correction.",
         "exam_style_guidelines": "Diagnose errors using biomechanical principles and recommend sound corrections.",
-        "anti_prompts": ["Do not skip the 'Preparation' stage."]
+        "anti_prompts": [
+          "Do not skip the 'Preparation' stage."
+        ]
       },
       "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Acute Cardiovascular Responses to Exercise (Unit 3)",
+      "technique_notes": {
+        "core_concepts": "Increased Heart Rate (HR), Stroke Volume (SV),Cardiac Output (Q), and Blood Pressure. Blood redistribution (shunting).",
+        "exam_style_guidelines": "Explain how these responses meet the increased oxygen demand of working muscles.",
+        "anti_prompts": [
+          "Submaximal Q remains constant after training, but SV and HR change - don't confuse acute vs chronic here.",
+          "Do not forget the role of blood redistribution in meeting muscle demands."
+        ]
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Acute Respiratory Responses to Exercise (Unit 3)",
+      "technique_notes": {
+        "core_concepts": "Increased Tidal Volume (TV), Respiratory Frequency (Rf), and Ventilation (V).",
+        "exam_style_guidelines": "Describe the change from rest to sub-maximal and maximal exercise intensity.",
+        "anti_prompts": [
+          "Ventilation increases linearly with intensity until the ventilatory threshold."
+        ]
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Acute Muscular Responses to Exercise",
+      "technique_notes": {
+        "core_concepts": "Increased motor unit recruitment, muscle temperature, and lactate production. Decreased fuel levels (ATP, Phosphocreatine).",
+        "exam_style_guidelines": "Link increased recruitment to greater force production. Explain how temperature increases enzyme activity and muscle elasticity.",
+        "anti_prompts": [
+          "Lactate production is a normal response to anaerobic metabolism, not just a fatigue marker.",
+          "Do not say 'lactic acid'; use 'lactate' or 'H+ ions'.",
+          "Phosphocreatine is depleted during high-intensity efforts, not just ATP."
+        ]
+      },
+      "group": "unit3-energy-systems"
     },
     {
       "name": "ATP-CP System",
@@ -340,7 +400,9 @@
         "core_concepts": "Fuel: PC. Yield: Very low. Rate: Fastest. Duration: 0-10s. Recovery: 3 mins for 100%.",
         "exam_style_guidelines": "Identify dominance in explosive efforts. Recommend 1:10+ work:rest for training.",
         "anti_prompts": [
-          "Ensure recovery time for PC replenishment is accurate."
+          "Ensure recovery time for PC replenishment is accurate.",
+          "Do not say 'anaerobic alactic'; focus on the fuel and duration.",
+          "Avoid overemphasizing ATP depletion; PC is the primary fuel for this system."
         ]
       },
       "group": "unit3-energy-systems"
@@ -351,7 +413,9 @@
         "core_concepts": "Fuel: Glycogen. Yield: Low. Rate: Fast. Duration: 10-60/90s. By-product: H+ ions (fatiguing).",
         "exam_style_guidelines": "Explain fatigue mechanism (H+ ions interference). Link to high-intensity efforts above LIP.",
         "anti_prompts": [
-          "Do NOT say 'lactic acid'; use 'H+ ions' or 'lactate'."
+          "Do NOT say 'lactic acid'; use 'H+ ions' or 'lactate'.",
+          "Glycolysis can contribute beyond 60s, especially in untrained individuals or when aerobic system is compromised.",
+          "Avoid saying the anaerobic glycolysis system 'shuts down' after 60s; it can still contribute, but aerobic becomes dominant."
         ]
       },
       "group": "unit3-energy-systems"
@@ -362,7 +426,8 @@
         "core_concepts": "Fuels: Glycogen/Fats. Yield: Very High. Rate: Slowest. Duration: 2min+.",
         "exam_style_guidelines": "Explain dominance in long-duration activity and recovery. Discuss fuel shift (glycogen sparing).",
         "anti_prompts": [
-          "Do not forget the role of the aerobic system in recovering anaerobic systems."
+          "Do not forget the role of the aerobic system in recovering anaerobic systems.",
+          "Avoid saying the aerobic system 'turns on' after 2 minutes; it is active from the start but becomes dominant as intensity decreases."
         ]
       },
       "group": "unit3-energy-systems"
@@ -372,7 +437,9 @@
       "technique_notes": {
         "core_concepts": "Simultaneous contribution. Dominance shifts based on intensity and duration.",
         "exam_style_guidelines": "Analyze scenarios (e.g., a lacrosse match) and identify which system is dominant at different phases.",
-        "anti_prompts": ["Avoid saying systems 'turn on' or 'turn off'."]
+        "anti_prompts": [
+          "Avoid saying systems 'turn on' or 'turn off'."
+        ]
       },
       "group": "unit3-energy-systems"
     },
@@ -392,7 +459,9 @@
       "technique_notes": {
         "core_concepts": "VO2 Max: Max oxygen rate. LIP: Highest sustainable intensity without rapid H+ accumulation.",
         "exam_style_guidelines": "Distinguish between absolute (L/min) and relative (ml/kg/min) VO2 max. LIP is the best performance predictor for endurance.",
-        "anti_prompts": ["Do not confuse VO2 max with LIP."]
+        "anti_prompts": [
+          "Do not confuse VO2 max with LIP."
+        ]
       },
       "group": "unit3-energy-systems"
     },
@@ -423,7 +492,9 @@
       "technique_notes": {
         "core_concepts": "Specificity to movement patterns and energy systems. Reliability, Validity, and Accuracy.",
         "exam_style_guidelines": "Justify test selection (e.g., Yo-Yo vs Beep Test for team sports). State how to improve reliability (standard protocols).",
-        "anti_prompts": ["Do not confuse reliability with validity."]
+        "anti_prompts": [
+          "Do not confuse reliability with validity."
+        ]
       },
       "group": "unit4-foundations"
     },
@@ -487,7 +558,9 @@
       "technique_notes": {
         "core_concepts": "Respiratory: Increased pulmonary diffusion and alveolar surface area. Muscular: Mitochondrial density (aerobic) vs Hypertrophy (anaerobic).",
         "exam_style_guidelines": "Link pulmonary diffusion to increased VO2 max. Distinguish between neural and structural muscular gains.",
-        "anti_prompts": ["Hypertrophy is increased fiber size, not number."]
+        "anti_prompts": [
+          "Hypertrophy is increased fiber size, not number."
+        ]
       },
       "group": "unit4-adaptations"
     },

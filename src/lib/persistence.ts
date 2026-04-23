@@ -49,6 +49,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   tutorModel: 'openai/gpt-5.4-mini',
   shuffleSubtopics: false,
   shuffleQuestions: false,
+  markerStyle: 'strict',
+  customMarkerStyle: '',
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -314,6 +316,8 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       typeof data.shuffleQuestions === 'boolean'
         ? data.shuffleQuestions
         : DEFAULT_SETTINGS.shuffleQuestions,
+    markerStyle: normalizeMarkerStyle(data.markerStyle),
+    customMarkerStyle: asString(data.customMarkerStyle),
   } as PersistedSettings;
 }
 
@@ -483,6 +487,15 @@ function normalizeNonEmptyString(
 }
 
 const VALID_ROUNDINGS = new Set(['sm', 'md', 'lg', 'xl']);
+
+const VALID_MARKER_STYLES = new Set(['strict', 'relaxed', 'targeted', 'custom']);
+
+function normalizeMarkerStyle(
+  value: unknown,
+): 'strict' | 'relaxed' | 'targeted' | 'custom' {
+  const text = asString(value).trim().toLowerCase();
+  return VALID_MARKER_STYLES.has(text) ? text as 'strict' | 'relaxed' | 'targeted' | 'custom' : 'strict';
+}
 
 function normalizeRounding(
   value: unknown,

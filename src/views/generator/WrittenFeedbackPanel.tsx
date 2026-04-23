@@ -2,7 +2,6 @@ import { ChevronDown, ChevronUp, Loader2, ShieldAlert } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { MarkdownMath } from '@/components/MarkdownMath';
-import { UnifiedQuestionPromptCard } from '@/components/question/UnifiedQuestionBlocks';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { scoreColorClass } from '@/lib/score-utils';
@@ -33,7 +32,71 @@ type WrittenFeedbackPanelProps = {
   ) => void;
 };
 
-// eslint-disable-next-line complexity
+const TopBanner = memo(function TopBanner({
+  achievedMarks,
+  maxMarks,
+  verdict,
+  markingDurationLabel,
+  scoreColor,
+  isCorrect,
+  pct,
+}: {
+  achievedMarks: number;
+  maxMarks: number;
+  verdict?: string;
+  markingDurationMs?: number;
+  markingDurationLabel?: string;
+  scoreColor: string;
+  isCorrect: boolean;
+  pct: number;
+}) {
+  return (
+    <header className='shrink-0 z-30 flex items-center justify-between px-6 pb-4 border-b border-border bg-background/95 backdrop-blur-sm'>
+      <div className='flex items-center gap-10'>
+        <div className='flex flex-col'>
+          <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-0.5'>
+            Achieved Marks
+          </span>
+          <div className='flex items-baseline gap-2 font-mono'>
+            <span
+              className={`text-4xl font-black tabular-nums tracking-tighter ${scoreColor}`}
+            >
+              {achievedMarks}
+            </span>
+            <span className='text-xl font-medium text-muted-foreground/30'>
+              / {maxMarks}
+            </span>
+          </div>
+        </div>
+
+        <div className='flex flex-col'>
+          <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-1'>
+            Final Verdict
+          </span>
+          <div
+            className={`text-sm px-3 py-1.5 rounded border shadow-sm ${
+              isCorrect
+                ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                : pct >= 0.5
+                  ? 'bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400'
+                  : 'bg-rose-500/5 border-rose-500/20 text-rose-600 dark:text-rose-400'
+            }`}
+          >
+            {verdict}
+          </div>
+        </div>
+      </div>
+
+      {markingDurationLabel && (
+        <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-[11px] font-mono text-muted-foreground tracking-tighter'>
+          <Loader2 className='w-3 h-3 animate-spin opacity-50' />
+          PROCESSED IN {markingDurationLabel.toUpperCase()}
+        </div>
+      )}
+    </header>
+  );
+});
+
 export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   promptMarkdown,
   answer,
@@ -42,10 +105,6 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   markingDurationMs,
   appealText,
   isMarking,
-  distinctness,
-  multiStepDepth,
-  verbDiversityCount,
-  scaffoldPattern,
   onAppealChange,
   onArgueForMark,
   onCriterionChange,
@@ -66,54 +125,21 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
   return (
     <div className='h-full w-full flex flex-col overflow-hidden bg-background text-foreground selection:bg-primary/10'>
       {/* TOP BANNER: Clinical Score & Verdict */}
-      <header className='shrink-0 z-30 flex items-center justify-between px-6 pb-4 border-b border-border bg-background/95 backdrop-blur-sm'>
-        <div className='flex items-center gap-10'>
-          <div className='flex flex-col'>
-            <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-0.5'>
-              Achieved Marks
-            </span>
-            <div className='flex items-baseline gap-2 font-mono'>
-              <span
-                className={`text-4xl font-black tabular-nums tracking-tighter ${scoreColor}`}
-              >
-                {feedback.achievedMarks}
-              </span>
-              <span className='text-xl font-medium text-muted-foreground/30'>
-                / {feedback.maxMarks}
-              </span>
-            </div>
-          </div>
-
-          <div className='flex flex-col'>
-            <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-1'>
-              Final Verdict
-            </span>
-            <div
-              className={`text-sm px-3 py-1.5 rounded border shadow-sm ${
-                isCorrect
-                  ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                  : pct >= 0.5
-                    ? 'bg-amber-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400'
-                    : 'bg-rose-500/5 border-rose-500/20 text-rose-600 dark:text-rose-400'
-              }`}
-            >
-              {feedback.verdict}
-            </div>
-          </div>
-        </div>
-
-        {markingDurationLabel && (
-          <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-[11px] font-mono text-muted-foreground tracking-tighter'>
-            <Loader2 className='w-3 h-3 animate-spin opacity-50' />
-            PROCESSED IN {markingDurationLabel.toUpperCase()}
-          </div>
-        )}
-      </header>
+      <TopBanner
+        achievedMarks={feedback.achievedMarks}
+        maxMarks={feedback.maxMarks}
+        verdict={feedback.verdict}
+        markingDurationMs={markingDurationMs}
+        markingDurationLabel={markingDurationLabel}
+        scoreColor={scoreColor}
+        isCorrect={isCorrect}
+        pct={pct}
+      />
 
       <main className='flex-1 flex flex-col min-h-0'>
         {/* QUESTION PROMPT: Full Width Context */}
         <div className='shrink-0 border-b border-border/40 bg-muted/5 px-4 sm:px-8 py-6 sm:py-10'>
-          <div className='flex items-center justify-between mb-6'>
+          <div className='flex items-center justify-between mb-2'>
             <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
               Question
             </h3>
@@ -133,13 +159,9 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
           </div>
           {isQuestionOpen && (
             <div className='max-w-6xl'>
-              <UnifiedQuestionPromptCard
-                promptMarkdown={promptMarkdown}
-                distinctness={distinctness}
-                multiStepDepth={multiStepDepth}
-                verbDiversityCount={verbDiversityCount}
-                scaffoldPattern={scaffoldPattern}
-                className='space-y-6'
+              <MarkdownMath
+                content={promptMarkdown}
+                className='prose dark:prose-invert text-foreground leading-relaxed font-medium'
               />
             </div>
           )}
@@ -151,7 +173,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
           <aside className='lg:w-[42%] h-full overflow-y-auto border-r border-border bg-muted/2 scroll-smooth'>
             <div className='p-6 space-y-12'>
               {/* INTERACTIVE RUBRIC */}
-              <section className='space-y-8'>
+              <section className='space-y-4'>
                 <div className='flex items-center gap-3 border-b border-border/50 pb-4'>
                   <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
                     Reference Rubric
@@ -247,7 +269,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               </section>
 
               {/* IDEAL SOLUTION (Always Visible) */}
-              <section className='space-y-8'>
+              <section className='space-y-4'>
                 <div className='flex items-center gap-3 border-b border-border/50 pb-4 pt-6'>
                   <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
                     Exemplar Answer
@@ -271,16 +293,16 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
           {/* RIGHT: THE ATTEMPT (Submission & Feedback) */}
           <section className='flex-1 h-full overflow-y-auto bg-background scroll-smooth'>
-            <div className='p-6 space-y-16'>
+            <div className='p-6 space-y-4'>
               {/* STUDENT SUBMISSION */}
-              <section className='space-y-8'>
+              <section className='space-y-4'>
                 <div className='flex items-center gap-3 border-b border-border/50 pb-4'>
                   <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
                     Student Submission
                   </h3>
                 </div>
 
-                <div className='space-y-6'>
+                <div className='space-y-4'>
                   {answer.trim().length > 0 ? (
                     <div
                       className='px-2 prose dark:prose-invert text-foreground leading-relaxed font-medium shadow-sm transition-all hover:bg-muted/5'
@@ -310,7 +332,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
               </section>
 
               {/* AI GENERAL FEEDBACK */}
-              <section className='space-y-8'>
+              <section className='space-y-4'>
                 <div className='flex items-center justify-between border-b border-border/50 pb-4'>
                   <div className='flex items-center gap-3'>
                     <h3 className='text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground'>
@@ -343,7 +365,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
 
               {/* ADJUSTMENTS & APPEALS */}
               <section className='pt-12 border-t border-border/30'>
-                <div className='space-y-6'>
+                <div className='space-y-4'>
                   <div className='flex flex-col gap-1'>
                     <span className='text-[11px] font-bold uppercase tracking-[0.25em] text-muted-foreground'>
                       Appeal
@@ -353,7 +375,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
                       you can submit an appeal justifying why.
                     </span>
                   </div>
-                  <div className='px-2 space-y-6'>
+                  <div className='px-2 space-y-4'>
                     <Textarea
                       placeholder='Justify why this submission deserves a different mark...'
                       className='min-h-40 text-sm resize-none bg-muted/3 border-border/60 focus:border-primary rounded-xl p-4 transition-all focus:shadow-inner'

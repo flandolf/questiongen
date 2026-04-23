@@ -53,6 +53,8 @@ export interface AppState {
   headingFont: string;
   tutorPersona: string;
   tutorModel: string;
+  markerStyle: 'strict' | 'relaxed' | 'targeted' | 'custom';
+  customMarkerStyle: string;
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -169,6 +171,8 @@ export interface AppActions {
   setHeadingFont: (font: string) => void;
   setTutorPersona: (persona: string) => void;
   setTutorModel: (model: string) => void;
+  setMarkerStyle: (style: 'strict' | 'relaxed' | 'targeted' | 'custom') => void;
+  setCustomMarkerStyle: (style: string) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;

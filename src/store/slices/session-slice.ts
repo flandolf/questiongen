@@ -318,6 +318,8 @@ export const createSessionSlice: StateCreator<
           studentAnswerImageDataUrl: image?.dataUrl,
           model: markingModel,
           apiKey: s.apiKey,
+          markerStyle: s.markerStyle,
+          customMarkerStyle: s.customMarkerStyle,
         },
       });
 
@@ -411,6 +413,8 @@ export const createSessionSlice: StateCreator<
           studentAnswerImageDataUrl: image?.dataUrl,
           model: markingModel,
           apiKey: s.apiKey,
+          markerStyle: s.markerStyle,
+          customMarkerStyle: s.customMarkerStyle,
         },
       });
 
