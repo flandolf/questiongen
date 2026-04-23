@@ -1043,8 +1043,6 @@ function ReattemptView({
   );
 }
 
-
-
 // ─── Main view ────────────────────────────────────────────────────────────────
 function computeAllWrongEntries(
   questionHistory: QuestionHistoryEntry[],
@@ -1226,7 +1224,7 @@ export default function WrongQuestionView() {
 
   if (viewMode === 'reattempt') {
     return (
-      <div className='h-full flex flex-col px-3 sm:px-5 py-4'>
+      <div className='h-full flex flex-col'>
         <ReattemptView
           questions={reattemptQueue}
           apiKey={apiKey}
@@ -1247,13 +1245,18 @@ export default function WrongQuestionView() {
     const correct = reattemptResults.filter((r) => r.correct).length;
     const total = reattemptQueue.length;
     const accuracyPercent = total > 0 ? (correct / total) * 100 : 0;
-    const totalTimeSeconds = reattemptResults.reduce((sum, r) => sum + (r.timeSeconds ?? 0), 0);
+    const totalTimeSeconds = reattemptResults.reduce(
+      (sum, r) => sum + (r.timeSeconds ?? 0),
+      0,
+    );
     const minutes = Math.floor(totalTimeSeconds / 60);
     const seconds = totalTimeSeconds % 60;
     const formattedTime = `${minutes}:${String(seconds).padStart(2, '0')}`;
 
-const isWritten = reattemptQueue[0]?.kind === 'written';
-    const questionMode: 'written' | 'multiple-choice' = isWritten ? 'written' : 'multiple-choice';
+    const isWritten = reattemptQueue[0]?.kind === 'written';
+    const questionMode: 'written' | 'multiple-choice' = isWritten
+      ? 'written'
+      : 'multiple-choice';
 
     const writtenRows = reattemptQueue.map((q) => {
       const r = reattemptResults.find((rr) => rr.id === q.id);
@@ -1278,7 +1281,8 @@ const isWritten = reattemptQueue[0]?.kind === 'written';
         subtopic: q.question.subtopic,
         correct: isCorrect,
         selected: q.kind === 'multiple-choice' ? q.selectedAnswer : '',
-        correctAnswer: q.kind === 'multiple-choice' ? q.question.correctAnswer : '',
+        correctAnswer:
+          q.kind === 'multiple-choice' ? q.question.correctAnswer : '',
       };
     });
 

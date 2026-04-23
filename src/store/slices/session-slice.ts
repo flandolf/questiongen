@@ -552,13 +552,13 @@ export const createSessionSlice: StateCreator<
     s.addMcHistoryEntry(entry);
     s.recordCompletion('multiple-choice');
 
-    if (awardedMarks >= 1) {
-      toast.success('Correct!');
-    } else {
-      toast.error(
-        `Incorrect. The correct answer was ${activeMcQuestion.correctAnswer}.`,
-      );
-    }
+    // if (awardedMarks >= 1) {
+    //   toast.success('Correct!');
+    // } else {
+    //   toast.error(
+    //     `Incorrect. The correct answer was ${activeMcQuestion.correctAnswer}.`,
+    //   );
+    // }
   },
 
   overrideMcMark: () => {
