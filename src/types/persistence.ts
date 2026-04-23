@@ -51,6 +51,10 @@ export type PersistedSettings = {
   headingFont?: string;
   shuffleSubtopics?: boolean;
   shuffleQuestions?: boolean;
+  /** Marker style preset: strict, relaxed, targeted, or custom */
+  markerStyle?: 'strict' | 'relaxed' | 'targeted' | 'custom';
+  /** Custom marker style instructions (used when markerStyle is 'custom') */
+  customMarkerStyle?: string;
 };
 
 export type PersistedGeneratorPreferences = {

@@ -29,6 +29,8 @@ export interface SettingsSlice {
   headingFont: string;
   tutorPersona: string;
   tutorModel: string;
+  markerStyle: 'strict' | 'relaxed' | 'targeted' | 'custom';
+  customMarkerStyle: string;
   presets: AppState['presets'];
 
   // Preferences
@@ -75,6 +77,8 @@ export interface SettingsSlice {
   setHeadingFont: (font: string) => void;
   setTutorPersona: (persona: string) => void;
   setTutorModel: (model: string) => void;
+  setMarkerStyle: (style: 'strict' | 'relaxed' | 'targeted' | 'custom') => void;
+  setCustomMarkerStyle: (style: string) => void;
 
   setPresets: (presets: AppState['presets']) => void;
   addPreset: (preset: AppState['presets'][0]) => void;
@@ -144,6 +148,8 @@ export const createSettingsSlice: StateCreator<
   tutorModel:
     EMPTY_PERSISTED_APP_STATE.settings.tutorModel ??
     EMPTY_PERSISTED_APP_STATE.settings.model,
+  markerStyle: (EMPTY_PERSISTED_APP_STATE.settings.markerStyle as 'strict' | 'relaxed' | 'targeted' | 'custom') ?? 'strict',
+  customMarkerStyle: EMPTY_PERSISTED_APP_STATE.settings.customMarkerStyle ?? '',
   presets: [],
 
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -198,6 +204,8 @@ export const createSettingsSlice: StateCreator<
   setHeadingFont: (headingFont) => set({ headingFont }),
   setTutorPersona: (tutorPersona) => set({ tutorPersona }),
   setTutorModel: (tutorModel) => set({ tutorModel }),
+  setMarkerStyle: (markerStyle) => set({ markerStyle }),
+  setCustomMarkerStyle: (customMarkerStyle) => set({ customMarkerStyle }),
   clearApiKey: () => set({ apiKey: '' }),
 
   setPresets: (presets) => set({ presets }),

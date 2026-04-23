@@ -57,20 +57,54 @@ pub fn mc_system() -> String {
     )
 }
 
-pub fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> String {
+pub fn marking_system(
+    max_marks: u8,
+    chem_note: &str,
+    phys_ed_note: &str,
+    marker_style: Option<&str>,
+    custom_marker_style: Option<&str>,
+) -> String {
     // Scale word limits by marks, with sensible floors.
     let worked_words = (max_marks as usize * 200).clamp(500, 2000);
     let comparison_words = (max_marks as usize * 60).clamp(200, 800);
     let feedback_words = (max_marks as usize * 50).clamp(200, 600);
     let rationale_words = (max_marks as usize * 30).clamp(100, 400);
 
+    // Determine the marker identity/rules based on style
+    let (identity, rules) = match marker_style {
+        Some("relaxed") => (
+            "Flexible VCE marker",
+            "MARKING RULES:\n\
+             1. Award marks generously for partial understanding.\n\
+             2. Focus on key concepts, not exact wording.\n\
+             3. Give credit for reasonable attempts.\n\
+             4. Provide encouraging feedback.",
+        ),
+        Some("targeted") => (
+            "Targeted VCE marker",
+            "MARKING RULES:\n\
+             1. Focus on specific syllabus outcomes.\n\
+             2. Assess only what's explicitly taught.\n\
+             3. Reward linkage to key knowledge.\n\
+             4. Provide criterion-referenced feedback.",
+        ),
+        Some("custom") if custom_marker_style.map_or(false, |s| !s.is_empty()) => (
+            "Custom VCE marker",
+            custom_marker_style.unwrap_or(""),
+        ),
+        _ => (
+            "Strict VCE marker",
+            "MARKING RULES:\n\
+             1. Criterion-based (steps, not just answers).\n\
+             2. Award for method even if arithmetic slips.\n\
+             3. 'show that' needs full algebraic steps.\n\
+             5. MC: justify correct and explain all 3 distractors.",
+        ),
+    };
+
     format!(
-        "IDENTITY: Strict VCE marker.\n\n\
-         MARKING RULES:\n\
-         1. Criterion-based (steps, not just answers).\n\
-         2. Award for method even if arithmetic slips.\n\
-         3. 'show that' needs full algebraic steps.\n\
-         5. MC: justify correct and explain all 3 distractors.\n\n\
+        "IDENTITY: {identity}.\n\n\
+         {rules}\n\n\
          {hygiene}\n\
          {latex_rules}\n\
          {mermaid_rules}\n\
@@ -78,15 +112,17 @@ pub fn marking_system(max_marks: u8, chem_note: &str, phys_ed_note: &str) -> Str
          REPORTS: PDFs are PRIMARY authority for criteria.\n\n\
          LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words} words).\n\n\
          FEEDBACK STYLE: Use ONLY ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers.",
-         rationale_words = rationale_words,
-         comparison_words = comparison_words,
-         feedback_words = feedback_words,
-         worked_words = worked_words,
-         hygiene = constants::GLOBAL_HYGIENE_RULES,
-         latex_rules = constants::LATEX_RULES,
-         mermaid_rules = constants::MERMAID_RULES,
-         chem_note = chem_note,
-         phys_ed_note = phys_ed_note
+        identity = identity,
+        rules = rules,
+        rationale_words = rationale_words,
+        comparison_words = comparison_words,
+        feedback_words = feedback_words,
+        worked_words = worked_words,
+        hygiene = constants::GLOBAL_HYGIENE_RULES,
+        latex_rules = constants::LATEX_RULES,
+        mermaid_rules = constants::MERMAID_RULES,
+        chem_note = chem_note,
+        phys_ed_note = phys_ed_note
     )
 }
 
@@ -738,10 +774,29 @@ mod tests {
 
     #[test]
     fn marking_system_scales_word_limits_with_marks() {
-        let sys_1 = marking_system(1, "", "");
+        let sys_1 = marking_system(1, "", "", None, None);
         assert!(sys_1.contains("≤100 words"));
-        let sys_10 = marking_system(10, "", "");
+        let sys_10 = marking_system(10, "", "", None, None);
         assert!(sys_10.contains("≤2000 words"));
+    }
+
+    #[test]
+    fn marking_system_injects_marker_styles() {
+        let strict = marking_system(5, "", "", Some("strict"), None);
+        assert!(strict.contains("IDENTITY: Strict VCE marker"));
+        let relaxed = marking_system(5, "", "", Some("relaxed"), None);
+        assert!(relaxed.contains("IDENTITY: Flexible VCE marker"));
+        let targeted = marking_system(5, "", "", Some("targeted"), None);
+        assert!(targeted.contains("IDENTITY: Targeted VCE marker"));
+        let custom = marking_system(5, "", "", Some("custom"), Some("Be lenient and encouraging."));
+        assert!(custom.contains("IDENTITY: Custom VCE marker"));
+        assert!(custom.contains("Be lenient and encouraging."));
+    }
+
+    #[test]
+    fn marking_system_defaults_to_strict() {
+        let sys = marking_system(5, "", "", None, None);
+        assert!(sys.contains("IDENTITY: Strict VCE marker"));
     }
 
     #[test]

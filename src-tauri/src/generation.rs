@@ -1197,7 +1197,7 @@ impl GenerationService {
         content_parts.extend(report_parts);
 
         let user_content = serde_json::Value::Array(content_parts);
-        const MAX_TOKENS_CAP: u32 = 128_000;
+        const MAX_TOKENS_CAP: u32 = 256_000;
         let max_tokens = ((max_marks as u32) * 2000 + 4000).min(MAX_TOKENS_CAP);
         let plugins = if has_reports {
             let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
@@ -1210,7 +1210,13 @@ impl GenerationService {
             OpenRouterRequestConfig::new(
                 &request.api_key,
                 &request.model,
-                &prompts::marking_system(max_marks, chem_note, pe_note),
+                &prompts::marking_system(
+                    max_marks,
+                    chem_note,
+                    pe_note,
+                    request.marker_style.as_deref(),
+                    request.custom_marker_style.as_deref(),
+                ),
                 user_content,
                 schemas::marking_format(&request.model),
                 max_tokens,
@@ -1581,8 +1587,8 @@ mod tests {
             "Mathematical Methods".to_string(),
         ];
         let subtopics = vec![
-            "Graphing Circular Functions@@unit3-functions#12".to_string(),
-            "Graphing Circular Functions".to_string(),
+            "Graphs of Sine and Cosine Functions@@unit3-functions#12".to_string(),
+            "Graphs of Sine and Cosine Functions".to_string(),
         ];
         let custom_focus_area = Some("  Focus area  ".to_string());
         let prior_prompts = vec![
@@ -1605,7 +1611,7 @@ mod tests {
         assert_eq!(prepared.topics, vec!["Chemistry", "Mathematical Methods"]);
         assert_eq!(
             prepared.subtopics,
-            Some(vec!["Graphing Circular Functions".to_string()])
+            Some(vec!["Graphs of Sine and Cosine Functions".to_string()])
         );
         assert_eq!(prepared.custom_focus_area.as_deref(), Some("Focus area"));
         assert_eq!(

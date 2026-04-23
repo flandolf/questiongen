@@ -252,6 +252,10 @@ export function useAppSettings() {
       setTutorPersona: s.setTutorPersona,
       tutorModel: s.tutorModel,
       setTutorModel: s.setTutorModel,
+      markerStyle: s.markerStyle,
+      setMarkerStyle: s.setMarkerStyle,
+      customMarkerStyle: s.customMarkerStyle,
+      setCustomMarkerStyle: s.setCustomMarkerStyle,
       clearApiKey: s.clearApiKey,
     })),
   );

@@ -49,7 +49,7 @@ import {
   TOPICS,
 } from '@/types';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
-import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
+import { McAnswerCard } from '@/views/generator/McAnswerCard';
 import { SetupPanel } from '@/views/generator/SetupPanel';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
 
@@ -1225,7 +1225,12 @@ export function GeneratorView() {
             mode='written'
             sketchpadActive={writtenSketchpadActive}
             leftSlot={
-              <div className='prose dark:prose-invert max-w-none'>
+              <div
+                className='prose dark:prose-invert max-w-none'
+                style={{
+                  fontSize: 'var(--question-text-size)',
+                }}
+              >
                 <MarkdownMath content={activeQuestion.promptMarkdown} />
               </div>
             }
@@ -1250,35 +1255,32 @@ export function GeneratorView() {
             mode='mc'
             sketchpadActive={mcSketchpadActive}
             leftSlot={
-              <div className='space-y-6'>
-                <div className='prose dark:prose-invert max-w-none'>
-                  <MarkdownMath content={activeMcQuestion.promptMarkdown} />
-                </div>
-                <McAnswerCard
-                  questionId={activeMcQuestion.id}
-                  options={activeMcQuestion.options}
-                  selectedAnswer={activeMcAnswer}
-                  correctAnswer={activeMcQuestion.correctAnswer}
-                  onSelectAnswer={handleMcAnswer}
-                  explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                  isSketchpadOpen={mcSketchpadActive}
-                  onToggleSketchpad={() =>
-                    setMcSketchpadActive(!mcSketchpadActive)
-                  }
-                  sketchSessionKey={activeMcSketchSessionKey}
-                  onApplyOverride={overrideMcMark}
-                  onImageDrop={() => {}}
-                  onImageRemove={() => {}}
-                  renderSketchpadInline={false}
-                />
+              <div
+                className='prose dark:prose-invert max-w-none'
+                style={{
+                  fontSize: 'var(--question-text-size)',
+                }}
+              >
+                <MarkdownMath content={activeMcQuestion.promptMarkdown} />
               </div>
             }
             rightSlot={
-              <McSketchpadPanel
+              <McAnswerCard
                 questionId={activeMcQuestion.id}
+                options={activeMcQuestion.options}
+                selectedAnswer={activeMcAnswer}
+                correctAnswer={activeMcQuestion.correctAnswer}
+                onSelectAnswer={handleMcAnswer}
+                explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                isSketchpadOpen={mcSketchpadActive}
+                onToggleSketchpad={() =>
+                  setMcSketchpadActive(!mcSketchpadActive)
+                }
                 sketchSessionKey={activeMcSketchSessionKey}
+                onApplyOverride={overrideMcMark}
                 onImageDrop={() => {}}
                 onImageRemove={() => {}}
+                renderSketchpadInline={false}
               />
             }
           />
@@ -1287,7 +1289,12 @@ export function GeneratorView() {
             mode='mc'
             sketchpadActive={mcSketchpadActive}
             leftSlot={
-              <div className='prose dark:prose-invert max-w-none'>
+              <div
+                className='prose dark:prose-invert max-w-none'
+                style={{
+                  fontSize: 'var(--question-text-size)',
+                }}
+              >
                 <MarkdownMath content={activeMcQuestion.promptMarkdown} />
               </div>
             }

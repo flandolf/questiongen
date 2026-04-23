@@ -217,6 +217,8 @@ pub struct MarkAnswerRequest {
     pub student_answer_image_data_url: Option<String>,
     pub model: String,
     pub api_key: String,
+    pub marker_style: Option<String>,
+    pub custom_marker_style: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

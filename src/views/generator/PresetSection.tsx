@@ -289,7 +289,13 @@ export function PresetSection({
                           {preset.preferences.questionCount
                             ? ` · ${preset.preferences.questionCount} Qs`
                             : ''}
-                          {preset.preferences.techMode !== 'tech-free'
+                          {preset.preferences.techMode !== 'tech-free' &&
+                          (preset.preferences.selectedTopics.includes(
+                            'Mathematical Methods',
+                          ) ||
+                            preset.preferences.selectedTopics.includes(
+                              'Specialist Mathematics',
+                            ))
                             ? ` · Tech-Active calculator`
                             : ''}
                         </p>

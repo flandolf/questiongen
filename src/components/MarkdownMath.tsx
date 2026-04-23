@@ -13,6 +13,7 @@ import { useTheme } from './theme-provider';
 type MarkdownMathProps = {
   content: string;
   isStreaming?: boolean;
+  className?: string;
 };
 
 function normalizeMarkdownLineBreaks(content: string): string {
@@ -277,6 +278,7 @@ const Mermaid = ({ chart }: { chart: string }) => {
 export const MarkdownMath = memo(function MarkdownMath({
   content,
   isStreaming = false,
+  className = '',
 }: MarkdownMathProps) {
   const normalizedInput = useMemo(
     () => normalizeMarkdownLineBreaks(content),
@@ -341,7 +343,12 @@ export const MarkdownMath = memo(function MarkdownMath({
   );
 
   return (
-    <div className='prose prose-base dark:prose-invert max-w-none font-normal'>
+    <div
+      className={`prose prose-base dark:prose-invert max-w-none font-normal ${className}`}
+      style={{
+        fontSize: 'inherit',
+      }}
+    >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {shielded.markdown}
       </ReactMarkdown>

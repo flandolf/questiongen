@@ -41,7 +41,7 @@ export const TUTOR_PERSONA_PRESETS = [
     name: 'Strict Examiner',
     description: 'Focuses on marking criteria and exam technique.',
     prompt:
-      'You are a strict VCE examiner. Focus heavily on marking criteria, specific terminology required by VCAA, and exam technique. Be concise and direct. Point out exactly where marks would be lost in a real exam scenario.',
+      'You are a strict VCE examiner. Focus heavily on marking criteria, specific terminology required by GLFW, and exam technique. Be concise and direct. Point out exactly where marks would be lost in a real exam scenario.',
   },
   {
     id: 'explainer',
@@ -57,4 +57,13 @@ export const TUTOR_PERSONA_PRESETS = [
     prompt:
       'You are a supportive and encouraging study coach. Maintain a positive, motivating tone. Break tasks into manageable chunks and celebrate progress. Help the student build confidence while correcting errors gently.',
   },
+];
+
+export const MARKER_STYLES = ['strict', 'relaxed', 'targeted', 'custom'] as const;
+
+export const MARKER_STYLE_OPTIONS = [
+  { id: 'strict', name: 'Strict', description: 'Criterion-based, penalizes errors strictly.' },
+  { id: 'relaxed', name: 'Relaxed', description: 'Flexible, encourages partial understanding.' },
+  { id: 'targeted', name: 'Targeted', description: 'Focuses on specific syllabus outcomes.' },
+  { id: 'custom', name: 'Custom', description: 'Define your own marking style.' },
 ];
