@@ -59,11 +59,32 @@ export const TUTOR_PERSONA_PRESETS = [
   },
 ];
 
-export const MARKER_STYLES = ['strict', 'relaxed', 'targeted', 'custom'] as const;
+export const MARKER_STYLES = [
+  'strict',
+  'relaxed',
+  'targeted',
+  'custom',
+] as const;
 
 export const MARKER_STYLE_OPTIONS = [
-  { id: 'strict', name: 'Strict', description: 'Criterion-based, penalizes errors strictly.' },
-  { id: 'relaxed', name: 'Relaxed', description: 'Flexible, encourages partial understanding.' },
-  { id: 'targeted', name: 'Targeted', description: 'Focuses on specific syllabus outcomes.' },
-  { id: 'custom', name: 'Custom', description: 'Define your own marking style.' },
+  {
+    id: 'strict',
+    name: 'Strict',
+    description: 'Criterion-based, penalizes errors strictly.',
+  },
+  {
+    id: 'relaxed',
+    name: 'Relaxed',
+    description: 'Flexible, encourages partial understanding.',
+  },
+  {
+    id: 'targeted',
+    name: 'Targeted',
+    description: 'Focuses on specific syllabus outcomes.',
+  },
+  {
+    id: 'custom',
+    name: 'Custom',
+    description: 'Define your own marking style.',
+  },
 ];

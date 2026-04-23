@@ -42,7 +42,6 @@ import {
   MATH_METHODS_SUBTOPICS,
   PHYSICAL_EDUCATION_SUBTOPICS,
   SPECIALIST_MATH_SUBTOPICS,
-  type Topic,
   TOPICS,
 } from '../../../types';
 import {
@@ -1186,7 +1185,7 @@ export function CleanupSection() {
         count++;
         updateQuestionHistoryEntry({
           ...entry,
-          question: { ...entry.question, topic: mappedTopic as Topic },
+          question: { ...entry.question, topic: mappedTopic },
           lastModified: Date.now(),
         });
       }
@@ -1198,7 +1197,7 @@ export function CleanupSection() {
         count++;
         updateMcHistoryEntry({
           ...entry,
-          question: { ...entry.question, topic: mappedTopic as Topic },
+          question: { ...entry.question, topic: mappedTopic },
           lastModified: Date.now(),
         });
       }

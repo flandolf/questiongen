@@ -334,7 +334,7 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
     ...data,
     difficulty,
     questionMode,
-  } as PersistedGeneratorPreferences;
+  };
 }
 
 function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
@@ -342,7 +342,7 @@ function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
   return {
     ...DEFAULT_WRITTEN_SESSION,
     ...data,
-  } as PersistedWrittenSession;
+  };
 }
 
 function normalizeMcSession(raw: unknown): PersistedMcSession {
@@ -350,7 +350,7 @@ function normalizeMcSession(raw: unknown): PersistedMcSession {
   return {
     ...DEFAULT_MC_SESSION,
     ...data,
-  } as PersistedMcSession;
+  };
 }
 
 export function normalizeSavedSets(raw: unknown): SavedQuestionSet[] {
@@ -441,12 +441,12 @@ export function normalizeMcHistory(raw: unknown): McHistoryEntry[] {
 
 function normalizeStudyGoals(raw: unknown): StudyGoals {
   if (!isRecord(raw)) return DEFAULT_STUDY_GOALS;
-  return { ...DEFAULT_STUDY_GOALS, ...raw } as StudyGoals;
+  return { ...DEFAULT_STUDY_GOALS, ...raw };
 }
 
 function normalizeStreakData(raw: unknown): StreakData {
   if (!isRecord(raw)) return DEFAULT_STREAK_DATA;
-  return { ...DEFAULT_STREAK_DATA, ...raw } as StreakData;
+  return { ...DEFAULT_STREAK_DATA, ...raw };
 }
 
 function normalizePresets(raw: unknown): Preset[] {
@@ -488,13 +488,20 @@ function normalizeNonEmptyString(
 
 const VALID_ROUNDINGS = new Set(['sm', 'md', 'lg', 'xl']);
 
-const VALID_MARKER_STYLES = new Set(['strict', 'relaxed', 'targeted', 'custom']);
+const VALID_MARKER_STYLES = new Set([
+  'strict',
+  'relaxed',
+  'targeted',
+  'custom',
+]);
 
 function normalizeMarkerStyle(
   value: unknown,
 ): 'strict' | 'relaxed' | 'targeted' | 'custom' {
   const text = asString(value).trim().toLowerCase();
-  return VALID_MARKER_STYLES.has(text) ? text as 'strict' | 'relaxed' | 'targeted' | 'custom' : 'strict';
+  return VALID_MARKER_STYLES.has(text)
+    ? (text as 'strict' | 'relaxed' | 'targeted' | 'custom')
+    : 'strict';
 }
 
 function normalizeRounding(

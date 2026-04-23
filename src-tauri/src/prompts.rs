@@ -88,10 +88,9 @@ pub fn marking_system(
              3. Reward linkage to key knowledge.\n\
              4. Provide criterion-referenced feedback.",
         ),
-        Some("custom") if custom_marker_style.map_or(false, |s| !s.is_empty()) => (
-            "Custom VCE marker",
-            custom_marker_style.unwrap_or(""),
-        ),
+        Some("custom") if custom_marker_style.is_some_and(|s| !s.is_empty()) => {
+            ("Custom VCE marker", custom_marker_style.unwrap_or(""))
+        }
         _ => (
             "Strict VCE marker",
             "MARKING RULES:\n\
@@ -788,7 +787,13 @@ mod tests {
         assert!(relaxed.contains("IDENTITY: Flexible VCE marker"));
         let targeted = marking_system(5, "", "", Some("targeted"), None);
         assert!(targeted.contains("IDENTITY: Targeted VCE marker"));
-        let custom = marking_system(5, "", "", Some("custom"), Some("Be lenient and encouraging."));
+        let custom = marking_system(
+            5,
+            "",
+            "",
+            Some("custom"),
+            Some("Be lenient and encouraging."),
+        );
         assert!(custom.contains("IDENTITY: Custom VCE marker"));
         assert!(custom.contains("Be lenient and encouraging."));
     }

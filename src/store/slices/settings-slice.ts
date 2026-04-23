@@ -148,7 +148,12 @@ export const createSettingsSlice: StateCreator<
   tutorModel:
     EMPTY_PERSISTED_APP_STATE.settings.tutorModel ??
     EMPTY_PERSISTED_APP_STATE.settings.model,
-  markerStyle: (EMPTY_PERSISTED_APP_STATE.settings.markerStyle as 'strict' | 'relaxed' | 'targeted' | 'custom') ?? 'strict',
+  markerStyle:
+    (EMPTY_PERSISTED_APP_STATE.settings.markerStyle as
+      | 'strict'
+      | 'relaxed'
+      | 'targeted'
+      | 'custom') ?? 'strict',
   customMarkerStyle: EMPTY_PERSISTED_APP_STATE.settings.customMarkerStyle ?? '',
   presets: [],
 

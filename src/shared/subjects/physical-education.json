@@ -1,12 +1,8 @@
 {
   "name": "Physical Education",
   "icon": "Dumbbell",
-  "examPdfs": [
-    "2025-PhysicalEducation.pdf"
-  ],
-  "reportPdfs": [
-    "2025-PhysEd-report.pdf"
-  ],
+  "examPdfs": ["2025-PhysicalEducation.pdf"],
+  "reportPdfs": ["2025-PhysEd-report.pdf"],
   "examGuidance": "VCAA Physical Education questions focus on qualitative analysis, evaluation, and justification. While simple formulas (F=ma, VO2 max) are used, responses should be in prose (paragraphs/bullet points). Use VCE command verbs: define, identify, explain, apply, analyze, evaluate, and justify. Connect physiological and biomechanical principles to specific sporting scenarios. Data interpretation (graphs/tables) is common. Focus on yield, rate, and duration for energy systems, and avoid in-depth biochemical pathways or advanced anatomy beyond what's in the Study Design. Ensure distinction between chronic adaptations and acute responses. Ensure student responses are accompanied with sufficient real-life sporting examples.",
   "out_of_scope": [
     "In-depth anatomy (naming every bone/muscle)",
@@ -22,9 +18,7 @@
       "technique_notes": {
         "core_concepts": "Axial vs appendicular skeleton. Functions: support, protection, movement, mineral storage, and blood cell production.",
         "exam_style_guidelines": "Link skeletal structure (e.g., long bones) to movement efficiency and lever systems.",
-        "anti_prompts": [
-          "Do not ask for a full list of all bones."
-        ]
+        "anti_prompts": ["Do not ask for a full list of all bones."]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -33,9 +27,7 @@
       "technique_notes": {
         "core_concepts": "Fibrous (immovable), cartilaginous (slightly movable), and synovial (freely movable) joints.",
         "exam_style_guidelines": "Focus on synovial joints as the primary drivers of athletic movement.",
-        "anti_prompts": [
-          "Do not confuse joint stability with joint mobility."
-        ]
+        "anti_prompts": ["Do not confuse joint stability with joint mobility."]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -99,9 +91,7 @@
       "technique_notes": {
         "core_concepts": "Heart (Atria/Ventricles), Blood vessels (Arteries, Veins, Capillaries). Cardiac Cycle.",
         "exam_style_guidelines": "Trace the path of blood through the heart and lungs. Link structure to efficient oxygen transport.",
-        "anti_prompts": [
-          "Do not confuse pulmonary and systemic circulation."
-        ]
+        "anti_prompts": ["Do not confuse pulmonary and systemic circulation."]
       },
       "group": "unit1-human-body-in-motion"
     },
@@ -220,9 +210,7 @@
       "technique_notes": {
         "core_concepts": "Declining participation in late adolescence. Influence of technology and urbanisation.",
         "exam_style_guidelines": "Interpret data tables showing participation trends across different sports and age groups.",
-        "anti_prompts": [
-          "N/A"
-        ]
+        "anti_prompts": ["N/A"]
       },
       "group": "unit2-physical-activity-society"
     },
@@ -231,9 +219,7 @@
       "technique_notes": {
         "core_concepts": "Gross/Fine, Open/Closed, Discrete/Serial/Continuous. Multi-continuum analysis.",
         "exam_style_guidelines": "Justify classification using environmental predictability and muscle group size. Use the VCAA pattern: define -> classify -> justify -> link to performance.",
-        "anti_prompts": [
-          "Do not confuse open/closed with skill complexity."
-        ]
+        "anti_prompts": ["Do not confuse open/closed with skill complexity."]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -275,9 +261,7 @@
       "technique_notes": {
         "core_concepts": "Intrinsic vs Augmented (Knowledge of Results vs Knowledge of Performance). Concurrent vs Terminal.",
         "exam_style_guidelines": "Recommend frequency strategy to avoid feedback dependency. Evaluate the 'guidance hypothesis'.",
-        "anti_prompts": [
-          "Distinguish clearly between KR and KP."
-        ]
+        "anti_prompts": ["Distinguish clearly between KR and KP."]
       },
       "group": "unit3-skill-acquisition"
     },
@@ -286,9 +270,7 @@
       "technique_notes": {
         "core_concepts": "Displacement, velocity, acceleration. Momentum ($p=mv$). Impulse ($I=Ft$). Change in momentum.",
         "exam_style_guidelines": "Explain how increasing contact time (e.g., landing) or force increases impulse. Use force-time curves.",
-        "anti_prompts": [
-          "Link impulse clearly to 'change in momentum'."
-        ]
+        "anti_prompts": ["Link impulse clearly to 'change in momentum'."]
       },
       "group": "unit3-biomechanics"
     },
@@ -319,9 +301,7 @@
       "technique_notes": {
         "core_concepts": "Factors: release angle, height, and speed. Speed is most influential.",
         "exam_style_guidelines": "Optimal angle changes with release height. 45 degrees is only optimal when release and landing heights are equal.",
-        "anti_prompts": [
-          "Do not state 45 degrees is always optimal."
-        ]
+        "anti_prompts": ["Do not state 45 degrees is always optimal."]
       },
       "group": "unit3-biomechanics"
     },
@@ -330,9 +310,7 @@
       "technique_notes": {
         "core_concepts": "COG, Base of Support (BOS), and line of gravity. Stability-mobility trade-off.",
         "exam_style_guidelines": "Explain how stance adjustments (e.g., widening feet) improve stability but may reduce mobility.",
-        "anti_prompts": [
-          "Do not confuse stability with balance."
-        ]
+        "anti_prompts": ["Do not confuse stability with balance."]
       },
       "group": "unit3-biomechanics"
     },
@@ -352,9 +330,7 @@
       "technique_notes": {
         "core_concepts": "Stages: Preparation, Observation, Evaluation, and Error Correction.",
         "exam_style_guidelines": "Diagnose errors using biomechanical principles and recommend sound corrections.",
-        "anti_prompts": [
-          "Do not skip the 'Preparation' stage."
-        ]
+        "anti_prompts": ["Do not skip the 'Preparation' stage."]
       },
       "group": "unit3-biomechanics"
     },
@@ -437,9 +413,7 @@
       "technique_notes": {
         "core_concepts": "Simultaneous contribution. Dominance shifts based on intensity and duration.",
         "exam_style_guidelines": "Analyze scenarios (e.g., a lacrosse match) and identify which system is dominant at different phases.",
-        "anti_prompts": [
-          "Avoid saying systems 'turn on' or 'turn off'."
-        ]
+        "anti_prompts": ["Avoid saying systems 'turn on' or 'turn off'."]
       },
       "group": "unit3-energy-systems"
     },
@@ -459,9 +433,7 @@
       "technique_notes": {
         "core_concepts": "VO2 Max: Max oxygen rate. LIP: Highest sustainable intensity without rapid H+ accumulation.",
         "exam_style_guidelines": "Distinguish between absolute (L/min) and relative (ml/kg/min) VO2 max. LIP is the best performance predictor for endurance.",
-        "anti_prompts": [
-          "Do not confuse VO2 max with LIP."
-        ]
+        "anti_prompts": ["Do not confuse VO2 max with LIP."]
       },
       "group": "unit3-energy-systems"
     },
@@ -492,9 +464,7 @@
       "technique_notes": {
         "core_concepts": "Specificity to movement patterns and energy systems. Reliability, Validity, and Accuracy.",
         "exam_style_guidelines": "Justify test selection (e.g., Yo-Yo vs Beep Test for team sports). State how to improve reliability (standard protocols).",
-        "anti_prompts": [
-          "Do not confuse reliability with validity."
-        ]
+        "anti_prompts": ["Do not confuse reliability with validity."]
       },
       "group": "unit4-foundations"
     },
@@ -558,9 +528,7 @@
       "technique_notes": {
         "core_concepts": "Respiratory: Increased pulmonary diffusion and alveolar surface area. Muscular: Mitochondrial density (aerobic) vs Hypertrophy (anaerobic).",
         "exam_style_guidelines": "Link pulmonary diffusion to increased VO2 max. Distinguish between neural and structural muscular gains.",
-        "anti_prompts": [
-          "Hypertrophy is increased fiber size, not number."
-        ]
+        "anti_prompts": ["Hypertrophy is increased fiber size, not number."]
       },
       "group": "unit4-adaptations"
     },

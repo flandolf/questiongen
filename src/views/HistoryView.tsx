@@ -123,7 +123,8 @@ const StatsBar = memo(function StatsBar({ entries }: { entries: AnyEntry[] }) {
     const writtenCorrect = written.filter(
       (e) =>
         e.kind === 'written' &&
-        e.markResponse.verdict.toLowerCase() === 'correct',
+        e.markResponse.achievedMarks / Math.max(e.markResponse.maxMarks, 1) >=
+          1,
     ).length;
     const mcCorrect = mc.filter(
       (e) => e.kind === 'mc' && (e.awardedMarks ?? (e.correct ? 1 : 0)) >= 1,
@@ -315,7 +316,7 @@ const CloudStatusIndicator = memo(function CloudStatusIndicator({
     );
   }
 
-  if (isUploaded) {
+  if (isUploaded === true) {
     return (
       <div
         className='flex items-center text-sky-500'
@@ -428,7 +429,7 @@ const McEntryCard = memo(function McEntryCard({
                 </span>
                 <Badge
                   variant='secondary'
-                  className='shrink-0 text-[10px] font-bold bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-primary dark:border-primary/30 py-0.5 h-auto'
+                  className='shrink-0 text-[10px] font-bold bg-purple-500/20 text-purple-800 dark:bg-purple-500/30 dark:text-purple-300 py-0.5 h-auto'
                 >
                   Multiple Choice
                 </Badge>
@@ -617,7 +618,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                 </span>
                 <Badge
                   variant='secondary'
-                  className='shrink-0 text-[10px] font-bold bg-sky-500/5 text-sky-600 border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/30 py-0.5 h-auto'
+                  className='shrink-0 text-[10px] font-bold bg-sky-500/20 text-sky-800 dark:bg-sky-500/30 dark:text-sky-300 py-0.5 h-auto'
                 >
                   Written
                 </Badge>

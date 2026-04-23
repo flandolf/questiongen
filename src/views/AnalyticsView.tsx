@@ -578,7 +578,7 @@ export function AnalyticsView() {
   }
 
   return (
-    <div className='min-h-full px-6 pt-6 pb-12 space-y-4 bg-background'>
+    <div className='min-h-0 flex-1 px-6 pt-6 pb-12 space-y-4 bg-background'>
       <PageHeader
         title='Analytics'
         description='In-depth performance insights and trends.'

@@ -143,6 +143,7 @@ export function useSync(): UseSyncReturn {
             orderBy('updatedAt', 'desc'),
             limit(100),
           ),
+          { includeMetadataChanges: true },
           (snapshot) => {
             if (
               lastSnapshotSizesRef.current.questionHistory !== snapshot.size
@@ -191,6 +192,7 @@ export function useSync(): UseSyncReturn {
             orderBy('updatedAt', 'desc'),
             limit(100),
           ),
+          { includeMetadataChanges: true },
           (snapshot) => {
             if (lastSnapshotSizesRef.current.mcHistory !== snapshot.size) {
               console.info(
@@ -232,6 +234,7 @@ export function useSync(): UseSyncReturn {
             orderBy('updatedAt', 'desc'),
             limit(100),
           ),
+          { includeMetadataChanges: true },
           (snapshot) => {
             if (
               lastSnapshotSizesRef.current.generationHistory !== snapshot.size

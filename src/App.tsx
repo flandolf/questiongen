@@ -123,7 +123,7 @@ function ensureMathJaxLoaded(): Promise<void> {
       },
     };
 
-    window.MathJax = defaultConfig as Window['MathJax'];
+    window.MathJax = defaultConfig;
   }
 
   const runtime = window.MathJax as unknown as MathJaxRuntime;
@@ -164,11 +164,11 @@ function ensureMathJaxLoaded(): Promise<void> {
 
     const script =
       existing ??
-      (Object.assign(document.createElement('script'), {
+      Object.assign(document.createElement('script'), {
         id: MATHJAX_SCRIPT_ID,
         async: true,
         src: MATHJAX_CDN_URL,
-      }) as HTMLScriptElement);
+      });
 
     script.addEventListener('load', () => {
       // For MathJax 4, script 'load' only means the core is there.
