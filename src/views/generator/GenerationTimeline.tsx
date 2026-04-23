@@ -237,11 +237,7 @@ function TimelineStages({
   return (
     <div className='relative flex flex-col gap-1.5 pl-0.5'>
       {STAGE_ORDER.map((stage) => {
-        const phase = phaseForStage(
-          stage,
-          currentStage as KnownStage,
-          isFailed,
-        );
+        const phase = phaseForStage(stage, currentStage, isFailed);
         if (phase === 'waiting' && !isGenerating && !isDone && !isFailed)
           return null;
         return (

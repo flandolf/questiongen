@@ -200,7 +200,7 @@ describe('question-cache', () => {
           promptMarkdown: 'A',
           maxMarks: 1,
         }, // Duplicate
-        { id: 'q3', topic: '' as Topic, promptMarkdown: 'B', maxMarks: 1 }, // Invalid (no topic)
+        { id: 'q3', topic: '', promptMarkdown: 'B', maxMarks: 1 }, // Invalid (no topic)
       ];
 
       const { cleanedQuestions, issuesFound } =

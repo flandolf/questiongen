@@ -37,7 +37,7 @@ const db = (() => {
     return initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true,
       localCache: persistentLocalCache({
-        tabManager: persistentSingleTabManager(),
+        tabManager: persistentSingleTabManager({}),
       }),
     });
   } catch (error) {

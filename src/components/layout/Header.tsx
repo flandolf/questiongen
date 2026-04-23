@@ -218,7 +218,7 @@ function GoalsPopover({
                 <motion.div
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className='rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-3 py-2.5 text-center'
+                  className='rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-3 py-2.5 text-center m-1'
                 >
                   <p className='text-[11px] font-semibold text-emerald-400'>
                     🎉 All goals complete — keep the streak alive!

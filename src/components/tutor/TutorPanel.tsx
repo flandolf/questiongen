@@ -51,11 +51,6 @@ import { useTutorStore } from '@/store/tutor';
 import type { StudentAnswerImage } from '@/types';
 import { PRESET_IMAGE_MODELS, PRESET_MODELS } from '@/views/settings/constants';
 
-type SketchRetriever = (
-  sessionKey: string,
-  options?: { forceLightTheme?: boolean },
-) => Promise<string | undefined>;
-
 interface TutorPanelProps {
   questionId: string;
   contextPrompt: string;
@@ -1265,7 +1260,7 @@ export function TutorPanel({
     // Always export fresh from the live canvas at send time — never use sketchDataUrl
     // state, which was captured at "Attach Sketch" button press and may be stale.
     console.log(`[Tutor] Requesting sketch for key: ${effectiveSessionKey}`);
-    const retrieveLatestSketch = getLatestSketch as SketchRetriever;
+    const retrieveLatestSketch = getLatestSketch;
     const dataUrl = await retrieveLatestSketch(effectiveSessionKey, {
       forceLightTheme: true,
     });

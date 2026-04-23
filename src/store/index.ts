@@ -50,7 +50,7 @@ export const useAppStore = create<AppState & AppActions>()(
 
     importState: (imported) => {
       const s = get();
-      const merged = mergeImportedState(s as AppState, imported);
+      const merged = mergeImportedState(s, imported);
       set(merged as Partial<AppState & AppActions>);
       void persistAndRehydrate(get());
     },
