@@ -86,6 +86,7 @@ function isInteractiveDescendant(target: EventTarget | null): boolean {
 
 function getEntryScore(item: AnyEntry): number {
   if (item.kind === 'written') {
+    if (!item.markResponse) return 0;
     return (
       item.markResponse.achievedMarks / Math.max(item.markResponse.maxMarks, 1)
     );
@@ -120,12 +121,11 @@ const StatsBar = memo(function StatsBar({ entries }: { entries: AnyEntry[] }) {
   const stats = useMemo(() => {
     const written = entries.filter((e) => e.kind === 'written');
     const mc = entries.filter((e) => e.kind === 'mc');
-    const writtenCorrect = written.filter(
-      (e) =>
-        e.kind === 'written' &&
-        e.markResponse.achievedMarks / Math.max(e.markResponse.maxMarks, 1) >=
-          1,
-    ).length;
+    const writtenCorrect = written.filter((e) => {
+      if (e.kind !== 'written' || !e.markResponse) return false;
+      const max = Math.max(e.markResponse.maxMarks, 1);
+      return e.markResponse.achievedMarks / max >= 1;
+    }).length;
     const mcCorrect = mc.filter(
       (e) => e.kind === 'mc' && (e.awardedMarks ?? (e.correct ? 1 : 0)) >= 1,
     ).length;
@@ -562,6 +562,7 @@ const McEntryCard = memo(function McEntryCard({
 // WrittenEntryCard
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line complexity
 const WrittenEntryCard = memo(function WrittenEntryCard({
   item,
   isExpanded,
@@ -581,11 +582,10 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
   onExport: () => void;
   isSyncEnabled: boolean;
 }) {
+  const mr = item.markResponse;
   const pct =
-    item.markResponse.maxMarks > 0
-      ? Math.round(
-          (item.markResponse.achievedMarks / item.markResponse.maxMarks) * 100,
-        )
+    mr && mr.maxMarks > 0
+      ? Math.round((mr.achievedMarks / mr.maxMarks) * 100)
       : 0;
   const accessibleLabel = `Select history item ${item.question.topic}${item.question.subtopic ? ` - ${item.question.subtopic}` : ''} from ${getRelativeTime(item.createdAt)}`;
 
@@ -645,8 +645,8 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
             onClick={(e) => e.stopPropagation()}
           >
             <ScorePill
-              awarded={item.markResponse.achievedMarks}
-              max={item.markResponse.maxMarks}
+              awarded={mr?.achievedMarks ?? 0}
+              max={mr?.maxMarks ?? 0}
             />
             <ToggleButton isExpanded={isExpanded} onToggle={onToggle} />
             <button
@@ -691,7 +691,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
             )}
           </span>
           <span className='text-border'>·</span>
-          <span>{item.markResponse.vcaaMarkingScheme.length} criteria</span>
+          <span>{(mr?.vcaaMarkingScheme ?? []).length} criteria</span>
           <span className='text-border'>·</span>
           <span
             className={`font-semibold ${
@@ -702,7 +702,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
                   : 'text-red-600 dark:text-red-400'
             }`}
           >
-            {item.markResponse.achievedMarks}/{item.markResponse.maxMarks} marks
+            {mr?.achievedMarks ?? 0}/{mr?.maxMarks ?? 0} marks
           </span>
         </div>
 
@@ -745,7 +745,9 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
               <div className='space-y-2 mt-2'>
                 <SectionLabel>AI Feedback</SectionLabel>
                 <div className='text-sm bg-muted/20 rounded-sm border border-border/30 px-3 py-2.5'>
-                  <MarkdownMath content={item.markResponse.feedbackMarkdown} />
+                  <MarkdownMath
+                    content={mr?.feedbackMarkdown ?? '*No feedback available*'}
+                  />
                 </div>
               </div>
             </div>
@@ -754,7 +756,7 @@ const WrittenEntryCard = memo(function WrittenEntryCard({
             <div>
               <SectionLabel>Mark Breakdown</SectionLabel>
               <div className='space-y-2'>
-                {item.markResponse.vcaaMarkingScheme.map((criterion, idx) => {
+                {(mr?.vcaaMarkingScheme ?? []).map((criterion, idx) => {
                   const isFullMarks =
                     criterion.achievedMarks === criterion.maxMarks;
                   return (
@@ -964,7 +966,8 @@ export function HistoryView() {
     try {
       let answerText = '';
       if (item.kind === 'written') {
-        answerText = `${item.markResponse.feedbackMarkdown}\n\n### Worked Solution\n${item.workedSolutionMarkdown}`;
+        const mr = item.markResponse;
+        answerText = `${mr?.feedbackMarkdown ?? 'No feedback provided'}\n\n### Worked Solution\n${item.workedSolutionMarkdown}`;
       } else {
         answerText = `Correct Answer: ${item.question.correctAnswer}\n\n${item.question.explanationMarkdown}`;
       }
@@ -1020,12 +1023,6 @@ export function HistoryView() {
   // Reset virtualizer size cache when list item identities/order change.
   useLayoutEffect(() => {
     rowVirtualizer.measure();
-    const rafId = requestAnimationFrame(() => {
-      rowVirtualizer.measure();
-    });
-    return () => {
-      cancelAnimationFrame(rafId);
-    };
   }, [filteredHistoryIdsKey, rowVirtualizer]);
 
   const toggleEntryExpanded = useCallback((entryKey: string) => {
@@ -1389,7 +1386,7 @@ export function HistoryView() {
         style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}
       >
         <div
-          key={activeFilterKey}
+          key={`${activeFilterKey}-${filteredHistory.length}`}
           ref={parentRef}
           style={{
             height: '100%',
