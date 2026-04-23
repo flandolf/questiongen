@@ -907,6 +907,7 @@ export function HistoryView() {
   const [pendingDeleteEntry, setPendingDeleteEntry] = useState<AnyEntry | null>(
     null,
   );
+  const pendingDeleteEntryRef = useRef<AnyEntry | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMode, setConfirmMode] = useState<'clear' | 'bulkDelete'>(
     'bulkDelete',
@@ -1071,13 +1072,17 @@ export function HistoryView() {
   }, [selectedEntryKeys, deleteQuestionHistoryEntry, deleteMcHistoryEntry]);
 
   function performSingleDeleteConfirmed() {
-    if (!pendingDeleteEntry) return;
-    if (pendingDeleteEntry.kind === 'written') {
-      deleteQuestionHistoryEntry(pendingDeleteEntry.id);
-    } else {
-      deleteMcHistoryEntry(pendingDeleteEntry.id);
+    const entry = pendingDeleteEntryRef.current;
+    if (!entry) {
+      setDeleteConfirmOpen(false);
+      return;
     }
-    const thatKey = `${pendingDeleteEntry.kind}-${pendingDeleteEntry.id}`;
+    if (entry.kind === 'written') {
+      deleteQuestionHistoryEntry(entry.id);
+    } else {
+      deleteMcHistoryEntry(entry.id);
+    }
+    const thatKey = `${entry.kind}-${entry.id}`;
     setExpandedEntryKeys((cur) => {
       const next = new Set(cur);
       next.delete(thatKey);
@@ -1089,6 +1094,7 @@ export function HistoryView() {
       return next;
     });
     setPendingDeleteEntry(null);
+    pendingDeleteEntryRef.current = null;
     setDeleteConfirmOpen(false);
     toast.success('Entry removed from history');
   }
@@ -1426,6 +1432,7 @@ export function HistoryView() {
                     onSelect={() => toggleEntrySelected(entryKey)}
                     onDelete={() => {
                       setPendingDeleteEntry(item);
+                      pendingDeleteEntryRef.current = item;
                       setDeleteConfirmOpen(true);
                     }}
                     onExport={() => void handleExportToAnki(item)}
