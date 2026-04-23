@@ -59,6 +59,7 @@ import {
 } from '../SettingsUI';
 
 const CANONICAL_TOPICS: string[] = [...TOPICS];
+const CANONICAL_TOPICS_SET = new Set(CANONICAL_TOPICS);
 
 const CANONICAL_SUBTOPICS: string[] = [
   ...MATH_METHODS_SUBTOPICS,
@@ -68,6 +69,7 @@ const CANONICAL_SUBTOPICS: string[] = [
   ...BIOLOGY_SUBTOPICS,
   ...GENERAL_MATHEMATICS_SUBTOPICS,
 ];
+const CANONICAL_SUBTOPICS_SET = new Set(CANONICAL_SUBTOPICS);
 
 type TopicsCleanupResponse = {
   topicMapping: Record<string, string>;
@@ -107,21 +109,34 @@ type MatchResult = {
 };
 
 const similarityCache = new Map<string, number>();
+const MAX_CACHE_SIZE = 10000;
+const CONFIDENCE_THRESHOLD = 0.4;
+
+function evictSimilarityCache() {
+  if (similarityCache.size >= MAX_CACHE_SIZE) {
+    const entriesToRemove = Math.floor(MAX_CACHE_SIZE * 0.25);
+    const keyArray = Array.from(similarityCache.keys());
+    for (let i = 0; i < entriesToRemove; i++) {
+      similarityCache.delete(keyArray[i]);
+    }
+  }
+}
 
 function similarity(a: string, b: string): number {
   const la = a.toLowerCase().trim();
   const lb = b.toLowerCase().trim();
 
+  if (la === lb) return 1;
+
   const cacheKey = la < lb ? `${la}|||${lb}` : `${lb}|||${la}`;
-  if (similarityCache.has(cacheKey)) {
-    return similarityCache.get(cacheKey)!;
-  }
+  const cached = similarityCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  evictSimilarityCache();
 
   let result: number;
 
-  if (la === lb) {
-    result = 1;
-  } else if (lb.includes(la) || la.includes(lb)) {
+  if (lb.includes(la) || la.includes(lb)) {
     result = 0.85;
   } else {
     const lenA = la.length;
@@ -129,24 +144,47 @@ function similarity(a: string, b: string): number {
     if (lenA === 0 || lenB === 0) {
       result = 0;
     } else {
-      let prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
-      const currRow: number[] = new Array<number>(lenB + 1);
+      const maxLen = Math.max(lenA, lenB);
+      if (maxLen > 50) {
+        const prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
+        const currRow: number[] = new Array<number>(lenB + 1);
 
-      for (let i = 1; i <= lenA; i++) {
-        currRow[0] = i;
-        for (let j = 1; j <= lenB; j++) {
-          const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
-          currRow[j] = Math.min(
-            prevRow[j] + 1,
-            currRow[j - 1] + 1,
-            prevRow[j - 1] + cost,
-          );
+        for (let i = 1; i <= lenA; i++) {
+          currRow[0] = i;
+          for (let j = 1; j <= lenB; j++) {
+            const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
+            let minVal = prevRow[j] + 1;
+            const fromLeft = currRow[j - 1] + 1;
+            if (fromLeft < minVal) minVal = fromLeft;
+            const fromDiag = prevRow[j - 1] + cost;
+            if (fromDiag < minVal) minVal = fromDiag;
+            currRow[j] = minVal;
+          }
+          prevRow.splice(0, prevRow.length, ...currRow);
         }
-        prevRow = [...currRow];
-      }
 
-      const distance = prevRow[lenB];
-      result = 1 - distance / Math.max(lenA, lenB);
+        const distance = prevRow[lenB];
+        result = 1 - distance / maxLen;
+      } else {
+        const prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
+        const currRow: number[] = new Array<number>(lenB + 1);
+
+        for (let i = 1; i <= lenA; i++) {
+          currRow[0] = i;
+          for (let j = 1; j <= lenB; j++) {
+            const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
+            currRow[j] = Math.min(
+              prevRow[j] + 1,
+              currRow[j - 1] + 1,
+              prevRow[j - 1] + cost,
+            );
+          }
+          prevRow.splice(0, prevRow.length, ...currRow);
+        }
+
+        const distance = prevRow[lenB];
+        result = 1 - distance / maxLen;
+      }
     }
   }
 
@@ -166,7 +204,7 @@ function getMatchRationale(a: string, b: string, score: number): string {
   const lenB = lb.length;
   if (lenA === 0 || lenB === 0) return 'Empty';
 
-  let prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
+  const prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
   const currRow: number[] = new Array<number>(lenB + 1);
 
   for (let i = 1; i <= lenA; i++) {
@@ -179,7 +217,7 @@ function getMatchRationale(a: string, b: string, score: number): string {
         prevRow[j - 1] + cost,
       );
     }
-    prevRow = [...currRow];
+    prevRow.splice(0, prevRow.length, ...currRow);
   }
 
   const distance = prevRow[lenB];
@@ -219,10 +257,6 @@ function findBestMatch(item: string, options: string[]): MatchResult | null {
     isTie,
   };
 }
-
-const CONFIDENCE_THRESHOLD = 0.4;
-
-// ─── Shared Components ────────────────────────────────────────────────────────
 
 function DataLabel({
   children,
@@ -1134,11 +1168,11 @@ export function CleanupSection() {
       const t = entry.question.topic;
       const st = entry.question.subtopic;
       let isUnk = false;
-      if (t && !CANONICAL_TOPICS.includes(t)) {
+      if (t && !CANONICAL_TOPICS_SET.has(t)) {
         topicSet.add(t);
         isUnk = true;
       }
-      if (st && !CANONICAL_SUBTOPICS.includes(st)) {
+      if (st && !CANONICAL_SUBTOPICS_SET.has(st)) {
         subtopicSet.add(st);
         isUnk = true;
       }
@@ -1148,11 +1182,11 @@ export function CleanupSection() {
       const t = entry.question.topic;
       const st = entry.question.subtopic;
       let isUnk = false;
-      if (t && !CANONICAL_TOPICS.includes(t)) {
+      if (t && !CANONICAL_TOPICS_SET.has(t)) {
         topicSet.add(t);
         isUnk = true;
       }
-      if (st && !CANONICAL_SUBTOPICS.includes(st)) {
+      if (st && !CANONICAL_SUBTOPICS_SET.has(st)) {
         subtopicSet.add(st);
         isUnk = true;
       }

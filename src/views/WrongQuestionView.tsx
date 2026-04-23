@@ -2,10 +2,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { invoke } from '@tauri-apps/api/core';
 import {
   BookOpen,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Clock,
   PlusCircle,
   RotateCcw,
   Share2,
@@ -14,7 +12,6 @@ import {
   Trash,
   Trash2,
   Trophy,
-  XCircle,
 } from 'lucide-react';
 import {
   memo,
@@ -52,6 +49,7 @@ import type {
   QuestionHistoryEntry,
   StudentAnswerImage,
 } from '@/types';
+import { CompletionScreen } from '@/views/generator/CompletionScreen';
 import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
 import { QuestionSplitLayout } from '@/views/generator/QuestionSplitLayout';
 import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
@@ -283,7 +281,7 @@ export function VirtualizedWrongList({
     return () => {
       cancelAnimationFrame(rafId);
     };
-  }, [setIdsKey, rowVirtualizer]);
+  }, [setIdsKey, entries.length, rowVirtualizer]);
 
   return (
     <div ref={parentRef} className='flex-1 overflow-auto min-h-0'>
@@ -1045,235 +1043,7 @@ function ReattemptView({
   );
 }
 
-// ─── Summary screen ───────────────────────────────────────────────────────────
 
-interface ReattemptSummaryProps {
-  results: ReattemptResult[];
-  questions: WrongEntry[];
-  onRetry: () => void;
-  onBack: () => void;
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function ReattemptSummary({
-  results,
-  questions,
-  onRetry,
-  onBack,
-}: ReattemptSummaryProps) {
-  const correct = results.filter((r) => r.correct).length;
-  const total = questions.length;
-  const accuracyPercent = total > 0 ? (correct / total) * 100 : 0;
-  const totalTime = results.reduce((sum, r) => sum + (r.timeSeconds ?? 0), 0);
-  const [showDetails, setShowDetails] = useState(false);
-
-  const ringColor =
-    accuracyPercent >= 80
-      ? '#10b981'
-      : accuracyPercent >= 60
-        ? '#f59e0b'
-        : '#f43f5e';
-  const ringLabel =
-    accuracyPercent >= 80
-      ? 'Excellent'
-      : accuracyPercent >= 60
-        ? 'Good'
-        : 'Needs work';
-
-  // Per-question detail rows
-  const rows = useMemo(() => {
-    return questions.map((q, i) => {
-      const r = results.find((rr) => rr.id === q.id);
-      return {
-        index: i + 1,
-        id: q.id,
-        topic: q.question.topic,
-        subtopic: q.question.subtopic,
-        kind: q.kind,
-        correct: r?.correct ?? false,
-        timeSeconds: r?.timeSeconds ?? 0,
-        prompt: q.question.promptMarkdown,
-      };
-    });
-  }, [questions, results]);
-
-  // Topic breakdown
-  const topicStats = useMemo(() => {
-    const map = new Map<string, { correct: number; total: number }>();
-    for (const row of rows) {
-      const b = map.get(row.topic) ?? { correct: 0, total: 0 };
-      b.total += 1;
-      if (row.correct) b.correct += 1;
-      map.set(row.topic, b);
-    }
-    return Array.from(map.entries())
-      .map(([topic, b]) => ({
-        topic,
-        correct: b.correct,
-        total: b.total,
-        pct: b.total > 0 ? (b.correct / b.total) * 100 : 0,
-      }))
-      .sort((a, b) => a.pct - b.pct);
-  }, [rows]);
-
-  const weakTopics = topicStats.filter((t) => t.pct < 100);
-
-  return (
-    <div className='max-w-2xl mx-auto py-6 px-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500'>
-      {/* Header */}
-      <div className='text-center space-y-3'>
-        <div className='relative w-28 h-28 mx-auto'>
-          <svg viewBox='0 0 100 100' className='w-full h-full -rotate-90'>
-            <circle
-              cx='50'
-              cy='50'
-              r='42'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='8'
-              className='text-muted/30'
-            />
-            <circle
-              cx='50'
-              cy='50'
-              r='42'
-              fill='none'
-              stroke={ringColor}
-              strokeWidth='8'
-              strokeLinecap='round'
-              strokeDasharray={`${accuracyPercent * 2.64} 264`}
-              className='transition-all duration-1000 ease-out'
-            />
-          </svg>
-          <div className='absolute inset-0 flex flex-col items-center justify-center'>
-            <span
-              className='text-3xl font-black tabular-nums'
-              style={{ color: ringColor }}
-            >
-              {accuracyPercent.toFixed(0)}%
-            </span>
-            <span className='text-[10px] font-semibold text-muted-foreground'>
-              {ringLabel}
-            </span>
-          </div>
-        </div>
-        <h2 className='text-xl font-bold'>Reattempt Complete</h2>
-        <div className='flex items-center justify-center gap-4 text-sm text-muted-foreground'>
-          <span>
-            <span className='font-semibold text-foreground'>
-              {correct}/{total}
-            </span>{' '}
-            correct
-          </span>
-          <span className='text-muted-foreground/40'>·</span>
-          <span className='flex items-center gap-1'>
-            <Clock className='w-3.5 h-3.5' />
-            <span className='font-semibold text-foreground'>
-              {formatTime(totalTime)}
-            </span>
-          </span>
-        </div>
-      </div>
-
-      {/* Weak topics */}
-      {weakTopics.length > 0 && (
-        <div className='rounded-sm border border-amber-500/20 bg-amber-500/5 p-4 space-y-2'>
-          <p className='text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400'>
-            Topics to review
-          </p>
-          {topicStats
-            .filter((t) => t.pct < 100)
-            .map(({ topic, correct: c, total: t, pct }) => (
-              <div key={topic} className='flex items-center gap-3 text-xs'>
-                <span className='flex-1 font-medium text-foreground truncate'>
-                  {topic}
-                </span>
-                <span className='tabular-nums text-muted-foreground'>
-                  {c}/{t}
-                </span>
-                <span
-                  className={`shrink-0 tabular-nums font-semibold w-10 text-right ${pct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}
-                >
-                  {pct.toFixed(0)}%
-                </span>
-              </div>
-            ))}
-        </div>
-      )}
-
-      {/* Details toggle */}
-      <div className='border-t pt-3'>
-        <button
-          type='button'
-          onClick={() => setShowDetails((v) => !v)}
-          className='w-full flex items-center justify-between py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
-        >
-          <span>Question breakdown</span>
-          <ChevronDown
-            className={`w-4 h-4 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`}
-          />
-        </button>
-        {showDetails && (
-          <div className='rounded-sm border divide-y divide-border/40 overflow-hidden mt-2'>
-            {rows.map((r) => (
-              <div
-                key={r.id}
-                className={`flex items-center gap-3 px-3 py-2.5 text-xs ${r.correct ? 'bg-emerald-500/5' : 'bg-rose-500/5'}`}
-              >
-                <span className='shrink-0 w-5 text-muted-foreground font-mono'>
-                  {r.index}
-                </span>
-                <div
-                  className={`shrink-0 w-5 h-5 rounded-sm flex items-center justify-center ${r.kind === 'written' ? 'bg-sky-500/10' : 'bg-violet-500/10'}`}
-                >
-                  {r.kind === 'written' ? (
-                    <BookOpen className='w-2.5 h-2.5 text-sky-500' />
-                  ) : (
-                    <Target className='w-2.5 h-2.5 text-violet-500' />
-                  )}
-                </div>
-                <div className='flex-1 min-w-0'>
-                  <span className='font-medium text-foreground truncate block'>
-                    {r.topic}
-                  </span>
-                  {r.subtopic && (
-                    <span className='text-muted-foreground truncate block'>
-                      {r.subtopic}
-                    </span>
-                  )}
-                </div>
-                <span className='shrink-0 tabular-nums text-muted-foreground font-mono'>
-                  {formatTime(r.timeSeconds)}
-                </span>
-                {r.correct ? (
-                  <CheckCircle2 className='w-4 h-4 text-emerald-500 shrink-0' />
-                ) : (
-                  <XCircle className='w-4 h-4 text-rose-400 shrink-0' />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className='flex items-center justify-center gap-3 pt-2'>
-        <Button onClick={onRetry} className='gap-1.5'>
-          <RotateCcw className='w-3.5 h-3.5' />
-          Retry
-        </Button>
-        <Button variant='outline' onClick={onBack}>
-          Back to list
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main view ────────────────────────────────────────────────────────────────
 function computeAllWrongEntries(
@@ -1298,6 +1068,7 @@ function computeAllWrongEntries(
   );
 }
 
+// eslint-disable-next-line complexity
 export default function WrongQuestionView() {
   const questionHistory = useAppStore((s) => s.questionHistory);
   const mcHistory = useAppStore((s) => s.mcHistory);
@@ -1473,22 +1244,64 @@ export default function WrongQuestionView() {
   }
 
   if (viewMode === 'summary' && reattemptResults) {
+    const correct = reattemptResults.filter((r) => r.correct).length;
+    const total = reattemptQueue.length;
+    const accuracyPercent = total > 0 ? (correct / total) * 100 : 0;
+    const totalTimeSeconds = reattemptResults.reduce((sum, r) => sum + (r.timeSeconds ?? 0), 0);
+    const minutes = Math.floor(totalTimeSeconds / 60);
+    const seconds = totalTimeSeconds % 60;
+    const formattedTime = `${minutes}:${String(seconds).padStart(2, '0')}`;
+
+const isWritten = reattemptQueue[0]?.kind === 'written';
+    const questionMode: 'written' | 'multiple-choice' = isWritten ? 'written' : 'multiple-choice';
+
+    const writtenRows = reattemptQueue.map((q) => {
+      const r = reattemptResults.find((rr) => rr.id === q.id);
+      const isCorrect = r?.correct ?? false;
+      return {
+        id: q.id,
+        topic: q.question.topic,
+        subtopic: q.question.subtopic,
+        scorePercent: isCorrect ? 100 : 0,
+        achieved: isCorrect ? 1 : 0,
+        max: 1,
+        wordCount: 0,
+      };
+    });
+
+    const mcRows = reattemptQueue.map((q) => {
+      const r = reattemptResults.find((rr) => rr.id === q.id);
+      const isCorrect = r?.correct ?? false;
+      return {
+        id: q.id,
+        topic: q.question.topic,
+        subtopic: q.question.subtopic,
+        correct: isCorrect,
+        selected: q.kind === 'multiple-choice' ? q.selectedAnswer : '',
+        correctAnswer: q.kind === 'multiple-choice' ? q.question.correctAnswer : '',
+      };
+    });
+
     return (
-      <div className='min-h-full px-3 sm:px-5 py-4'>
-        <ReattemptSummary
-          results={reattemptResults}
-          questions={reattemptQueue}
-          onRetry={() => {
-            setReattemptQueue(shuffleArray(filteredQuestions));
-            setReattemptResults(null);
-            setViewMode('reattempt');
-          }}
-          onBack={() => {
-            setViewMode('list');
-            setReattemptResults(null);
-          }}
-        />
-      </div>
+      <CompletionScreen
+        questionMode={questionMode}
+        difficulty={reattemptQueue[0]?.difficulty ?? 'Medium'}
+        accuracyPercent={accuracyPercent}
+        formattedElapsedTime={formattedTime}
+        completedCount={correct}
+        totalCount={total}
+        onReview={() => {
+          setViewMode('list');
+          setReattemptResults(null);
+        }}
+        onStartOver={() => {
+          setReattemptQueue(shuffleArray(filteredQuestions));
+          setReattemptResults(null);
+          setViewMode('reattempt');
+        }}
+        sessionWrittenResults={isWritten ? writtenRows : []}
+        sessionMcResults={!isWritten ? mcRows : []}
+      />
     );
   }
 
