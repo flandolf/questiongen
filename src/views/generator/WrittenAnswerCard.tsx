@@ -260,42 +260,38 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
           </div>
         </div>
       )}
-
-      {/* Submit */}
-      {!isExamMode && (
-        <>
-          <Button
-            size='lg'
-            className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
-              hasContent && !isMarking
-                ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
-                : ''
-            }`}
-            onClick={() => void handleSubmitClick()}
-            disabled={!canSubmitFromSketchpad || isMarking}
-          >
-            {isMarking ? (
-              <>
-                <Loader2 className='w-4 h-4 animate-spin' /> Evaluating…
-              </>
-            ) : activeTab === 'sketchpad' && confirmSketchSubmit ? (
-              <>
-                <CheckCircle2 className='w-4 h-4' /> Tap again to confirm sketch
-                submission
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className='w-4 h-4' /> Submit for Marking
-              </>
-            )}
-          </Button>
-          {activeTab === 'sketchpad' && confirmSketchSubmit && !isMarking && (
-            <p className='mt-2 text-center text-xs text-muted-foreground'>
-              Tap again to confirm within 4 seconds.
-            </p>
+      <div className='border-t pt-2'>
+        <Button
+          size='lg'
+          className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
+            hasContent && !isMarking
+              ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
+              : ''
+          }`}
+          onClick={() => void handleSubmitClick()}
+          disabled={!canSubmitFromSketchpad || isMarking}
+        >
+          {isMarking ? (
+            <>
+              <Loader2 className='w-4 h-4 animate-spin' /> Evaluating…
+            </>
+          ) : activeTab === 'sketchpad' && confirmSketchSubmit ? (
+            <>
+              <CheckCircle2 className='w-4 h-4' /> Tap again to confirm sketch
+              submission
+            </>
+          ) : (
+            <>
+              <CheckCircle2 className='w-4 h-4' /> Submit for Marking
+            </>
           )}
-        </>
-      )}
+        </Button>
+        {activeTab === 'sketchpad' && confirmSketchSubmit && !isMarking && (
+          <p className='mt-2 text-center text-xs text-muted-foreground'>
+            Tap again to confirm within 4 seconds.
+          </p>
+        )}
+      </div>
     </UnifiedWrittenResponseCard>
   );
 });
