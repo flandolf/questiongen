@@ -120,9 +120,13 @@ export function StatCard({
           {label}
         </span>
       </div>
-      <div className='text-xl font-black tabular-nums tracking-tight'>{value}</div>
+      <div className='text-xl font-black tabular-nums tracking-tight'>
+        {value}
+      </div>
       {subValue && (
-        <div className='text-[10px] font-normal text-muted-foreground/60'>{subValue}</div>
+        <div className='text-[10px] font-normal text-muted-foreground/60'>
+          {subValue}
+        </div>
       )}
     </div>
   );

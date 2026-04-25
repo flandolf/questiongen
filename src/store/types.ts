@@ -369,7 +369,9 @@ export interface AppActions {
   // PDF Marker Actions
   setPdfMarkerPdfBase64: (pdfBase64: string | null) => void;
   setPdfMarkerQuestions: (questions: GeneratedQuestion[]) => void;
-  setPdfMarkerPageMapping: (mapping: { questionIndex: number; pageIndices: number[] }[]) => void;
+  setPdfMarkerPageMapping: (
+    mapping: { questionIndex: number; pageIndices: number[] }[],
+  ) => void;
   markPdf: () => Promise<void>;
   discoverPdfQuestions: () => Promise<void>;
   resetPdfMarker: () => void;

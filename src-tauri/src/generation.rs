@@ -1129,7 +1129,7 @@ impl GenerationService {
 
         let has_text = !student_answer.trim().is_empty();
         let has_image = image_data_urls.iter().any(|v| !v.trim().is_empty());
-        let has_pdf = pdf_base64.as_ref().map_or(false, |p| !p.trim().is_empty());
+        let has_pdf = pdf_base64.as_ref().is_some_and(|v| !v.trim().is_empty());
 
         if !has_text && !has_image && !has_pdf {
             return Err(AppError::new(
@@ -1203,7 +1203,10 @@ impl GenerationService {
                 let pages: Vec<String> = indices.iter().map(|i| (i + 1).to_string()).collect();
                 format!("The student's response for this question is in the attached PDF file on page(s): {}.\n\n", pages.join(", "))
             }
-            _ if pdf_base64.is_some() => "The student's response for this question is in the attached PDF file.\n\n".to_string(),
+            _ if pdf_base64.is_some() => {
+                "The student's response for this question is in the attached PDF file.\n\n"
+                    .to_string()
+            }
             _ => String::new(),
         };
 
@@ -1373,7 +1376,8 @@ impl GenerationService {
             }
         ]);
 
-        let stats_result = get_model_stats(request.api_key.to_string(), request.model.to_string()).await;
+        let stats_result =
+            get_model_stats(request.api_key.to_string(), request.model.to_string()).await;
         let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
         let plugins = pdf::plugins_for_model(Some(supports_files));
 
@@ -1391,24 +1395,29 @@ impl GenerationService {
         )
         .await?;
 
-        let response: crate::models::DiscoverPdfQuestionsResponse = self.parse_payload(&result.content)?;
+        let response: crate::models::DiscoverPdfQuestionsResponse =
+            self.parse_payload(&result.content)?;
 
         // Convert 1-indexed page numbers to 0-indexed indices
         let mut questions = response.questions;
         for q in &mut questions {
-            if q.page_indices.iter().any(|&p| p == 0) {
-                return Err(AppError::new("VALIDATION_ERROR", "Invalid page number from LLM: page 0 is not valid (must be >= 1)."));
+            if q.page_indices.contains(&0) {
+                return Err(AppError::new(
+                    "VALIDATION_ERROR",
+                    "Invalid page number from LLM: page 0 is not valid (must be >= 1).",
+                ));
             }
-            q.page_indices = q.page_indices.iter().map(|&p| p.saturating_sub(1)).collect();
+            q.page_indices = q
+                .page_indices
+                .iter()
+                .map(|&p| p.saturating_sub(1))
+                .collect();
         }
 
         Ok(crate::models::DiscoverPdfQuestionsResponse { questions })
     }
 
-    pub async fn mark_pdf(
-        &self,
-        request: MarkPdfRequest,
-    ) -> CommandResult<MarkPdfResponse> {
+    pub async fn mark_pdf(&self, request: MarkPdfRequest) -> CommandResult<MarkPdfResponse> {
         self.rust_log(
             "info",
             "Starting PDF marking",
@@ -1432,24 +1441,30 @@ impl GenerationService {
                     results.push(crate::models::MarkPdfResultItem {
                         question_id: format!("unknown-index-{}", mapping.question_index),
                         response: None,
-                        error: Some(format!("Question index {} out of bounds", mapping.question_index)),
+                        error: Some(format!(
+                            "Question index {} out of bounds",
+                            mapping.question_index
+                        )),
                     });
                     continue;
                 }
             };
 
-            match self.perform_marking(
-                &request.api_key,
-                &request.model,
-                question,
-                "", // No text answer for PDF marking, it's in the PDF
-                Vec::new(),
-                Some(request.pdf_base64.clone()),
-                Some(mapping.page_indices),
-                request.marker_style.as_deref(),
-                request.custom_marker_style.as_deref(),
-                abort_signal.clone(),
-            ).await {
+            match self
+                .perform_marking(
+                    &request.api_key,
+                    &request.model,
+                    question,
+                    "", // No text answer for PDF marking, it's in the PDF
+                    Vec::new(),
+                    Some(request.pdf_base64.clone()),
+                    Some(mapping.page_indices),
+                    request.marker_style.as_deref(),
+                    request.custom_marker_style.as_deref(),
+                    abort_signal.clone(),
+                )
+                .await
+            {
                 Ok(response) => {
                     results.push(crate::models::MarkPdfResultItem {
                         question_id: question.id.clone(),
@@ -1849,7 +1864,11 @@ mod tests {
             if q.page_indices.iter().any(|&p| p == 0) {
                 panic!("Should not have page 0");
             }
-            q.page_indices = q.page_indices.iter().map(|&p| p.saturating_sub(1)).collect();
+            q.page_indices = q
+                .page_indices
+                .iter()
+                .map(|&p| p.saturating_sub(1))
+                .collect();
         }
 
         assert_eq!(questions[0].page_indices, vec![0, 1, 2]);
