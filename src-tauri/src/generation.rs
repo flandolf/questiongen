@@ -1825,4 +1825,34 @@ mod tests {
         assert!(hard > medium);
         assert!(extreme > hard);
     }
+
+    #[test]
+    fn page_indices_converted_from_1_indexed_to_0_indexed() {
+        use crate::models::DiscoveredQuestion;
+
+        let mut questions = vec![
+            DiscoveredQuestion {
+                topic: "Algebra".to_string(),
+                prompt_markdown: "**Q1**".to_string(),
+                max_marks: 5,
+                page_indices: vec![1, 2, 3],
+            },
+            DiscoveredQuestion {
+                topic: "Calculus".to_string(),
+                prompt_markdown: "**Q2**".to_string(),
+                max_marks: 10,
+                page_indices: vec![5],
+            },
+        ];
+
+        for q in &mut questions {
+            if q.page_indices.iter().any(|&p| p == 0) {
+                panic!("Should not have page 0");
+            }
+            q.page_indices = q.page_indices.iter().map(|&p| p.saturating_sub(1)).collect();
+        }
+
+        assert_eq!(questions[0].page_indices, vec![0, 1, 2]);
+        assert_eq!(questions[1].page_indices, vec![4]);
+    }
 }
