@@ -73,7 +73,6 @@ export type PdfMarkerHistoryEntry = {
   };
 };
 
-
 export type GenerationRecord = {
   id: string;
   timestamp: string;

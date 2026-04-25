@@ -1,10 +1,7 @@
 {
   "name": "Mathematical Methods",
   "icon": "FunctionSquare",
-  "examPdfs": [
-    "2025-MathMethods1.pdf",
-    "2025-MathMethods2.pdf"
-  ],
+  "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
   "reportPdfs": [
     "2025-MathematicalMethods1-report.pdf",
     "2025-MathematicalMethods2-report.pdf"
@@ -618,9 +615,7 @@
       "technique_notes": {
         "core_concepts": "$f_{avg} = \\frac{1}{b-a} \\int_a^b f(x) dx$ on $[a, b]$.",
         "exam_style_guidelines": "Distinguish between 'average value' and 'average rate of change'. The average value is a $y$-coordinate.",
-        "anti_prompts": [
-          "Do not forget the $\\frac{1}{b-a}$ multiplier."
-        ],
+        "anti_prompts": ["Do not forget the $\\frac{1}{b-a}$ multiplier."],
         "tech_free_rules": "Calculate average value for polynomials and trig functions.",
         "tech_active_rules": "Apply to real-world models (e.g., average power usage)."
       },

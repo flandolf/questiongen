@@ -405,7 +405,9 @@ export function TelemetryTooltip({
   }
   return (
     <div className='flex flex-col gap-2'>
-      <div className='text-[10px] font-bold uppercase tracking-wider text-background'>Question details</div>
+      <div className='text-[10px] font-bold uppercase tracking-wider text-background'>
+        Question details
+      </div>
       {telemetry && (
         <Row
           label='Generation time'
@@ -444,7 +446,9 @@ export function TelemetryTooltip({
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className='flex items-center justify-between gap-3'>
-      <span className='text-[10px] font-bold uppercase tracking-wider text-background/60'>{label}</span>
+      <span className='text-[10px] font-bold uppercase tracking-wider text-background/60'>
+        {label}
+      </span>
       <span className='text-xs font-black text-background'>{value}</span>
     </div>
   );
