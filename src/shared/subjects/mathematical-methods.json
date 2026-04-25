@@ -1,7 +1,10 @@
 {
   "name": "Mathematical Methods",
   "icon": "FunctionSquare",
-  "examPdfs": ["2025-MathMethods1.pdf", "2025-MathMethods2.pdf"],
+  "examPdfs": [
+    "2025-MathMethods1.pdf",
+    "2025-MathMethods2.pdf"
+  ],
   "reportPdfs": [
     "2025-MathematicalMethods1-report.pdf",
     "2025-MathematicalMethods2-report.pdf"
@@ -385,6 +388,67 @@
       "group": "unit3-functions"
     },
     {
+      "name": "Dilations",
+      "technique_notes": {
+        "core_concepts": "Dilation from the $y$-axis: $(x, y) \\to (kx, y)$. Dilation from the $x$-axis: $(x, y) \\to (x, ky)$.",
+        "exam_style_guidelines": "Identify the center of dilation and the scale factor. Show how key points (intercepts, stationary points) are transformed.",
+        "anti_prompts": [
+          "Do not confuse dilation from the $y$-axis with a horizontal stretch/compression.",
+          "Ensure that the scale factor is applied to the correct coordinate."
+        ],
+        "tech_free_rules": "Sketch dilations of simple functions by hand.",
+        "tech_active_rules": "Use CAS to find new coordinates after dilation for complex functions."
+      },
+      "group": "unit3-functions"
+    },
+    {
+      "name": "Reflections",
+      "technique_notes": {
+        "core_concepts": "Reflection in the $x$-axis: $(x, y) \\to (x, -y)$. Reflection in the $y$-axis: $(x, y) \\to (-x, y)$.",
+        "exam_style_guidelines": "Identify the line of reflection. Show how key points are transformed (e.g., $(a, b) \\to (a, -b)$ for $x$-axis reflection).",
+        "anti_prompts": [
+          "Do not confuse reflection with dilation or translation.",
+          "Ensure that the correct coordinate is negated for each type of reflection."
+        ],
+        "tech_free_rules": "Sketch reflections of simple functions by hand.",
+        "tech_active_rules": "Use CAS to find new coordinates after reflection for complex functions."
+      },
+      "group": "unit3-functions"
+    },
+    {
+      "name": "Translations",
+      "technique_notes": {
+        "core_concepts": "Translation parallel to the $x$-axis: $(x, y) \\to (x+h, y)$. Translation parallel to the $y$-axis: $(x, y) \\to (x, y+k)$.",
+        "exam_style_guidelines": "Identify the direction and magnitude of translation. Show how key points are transformed (e.g., $(a, b) \\to (a+h, b)$ for $x$-axis translation).",
+        "anti_prompts": [
+          "Do not confuse translation with dilation or reflection.",
+          "Ensure that the correct coordinate is shifted for each type of translation."
+        ],
+        "tech_free_rules": "Sketch translations of simple functions by hand.",
+        "tech_active_rules": "Use CAS to find new coordinates after translation for complex functions."
+      },
+      "group": "unit3-functions"
+    },
+    {
+      "name": "Combinations of Transformations",
+      "technique_notes": {
+        "core_concepts": "Applying multiple transformations in sequence. Order matters (e.g., Dilation before Translation is different from Translation before Dilation).",
+        "exam_style_guidelines": "Clearly state the order of transformations. Show intermediate steps after each transformation.",
+        "anti_prompts": [
+          "Do not assume transformations commute; always check the order.",
+          "Ensure that each transformation is applied to the result of the previous one."
+        ],
+        "tech_free_rules": "Sketch combinations of 2-3 transformations by hand.",
+        "tech_active_rules": "Use CAS to apply a sequence of transformations and find resulting coordinates."
+      },
+      "complexity_levers": {
+        "easy": "Combine two transformations (e.g., dilation followed by translation).",
+        "medium": "Combine three transformations (e.g., reflection, then dilation, then translation).",
+        "hard": "Combine four or more transformations (e.g., reflection, dilation, translation in both axes)."
+      },
+      "group": "unit3-functions"
+    },
+    {
       "name": "Exponential and Logarithmic Modeling",
       "technique_notes": {
         "core_concepts": "Growth/decay models $A(t) = A_0 e^{kt}$. Newton's Law of Cooling. Logistic models (optional).",
@@ -526,7 +590,9 @@
       "technique_notes": {
         "core_concepts": "$f_{avg} = \\frac{1}{b-a} \\int_a^b f(x) dx$ on $[a, b]$.",
         "exam_style_guidelines": "Distinguish between 'average value' and 'average rate of change'. The average value is a $y$-coordinate.",
-        "anti_prompts": ["Do not forget the $\\frac{1}{b-a}$ multiplier."],
+        "anti_prompts": [
+          "Do not forget the $\\frac{1}{b-a}$ multiplier."
+        ],
         "tech_free_rules": "Calculate average value for polynomials and trig functions.",
         "tech_active_rules": "Apply to real-world models (e.g., average power usage)."
       },
