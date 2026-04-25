@@ -1,4 +1,5 @@
 mod anki;
+pub use anki::export_deck_to_file;
 mod catalog;
 mod cleanup;
 mod constants;
@@ -318,7 +319,7 @@ async fn export_question_to_anki(
     let mut deck = genanki_rs::Deck::new(1607392319, "QuestionGen Deck", "");
     deck.add_note(note);
 
-    anki::export_deck_to_file(deck, &file_path)?;
+    export_deck_to_file(deck, &file_path)?;
 
     #[cfg(target_os = "android")]
     {
