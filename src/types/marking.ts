@@ -18,3 +18,29 @@ export type MarkAnswerResponse = {
   completionTokens?: number;
   totalTokens?: number;
 };
+
+export type MarkPdfPageMapping = {
+  questionIndex: number;
+  pageIndices: number[];
+};
+
+export type MarkPdfResultItem = {
+  questionId: string;
+  response?: MarkAnswerResponse;
+  error?: string;
+};
+
+export type MarkPdfResponse = {
+  results: MarkPdfResultItem[];
+};
+
+export type DiscoveredQuestion = {
+  topic: string;
+  promptMarkdown: string;
+  maxMarks: number;
+  pageIndices: number[];
+};
+
+export type DiscoverPdfQuestionsResponse = {
+  questions: DiscoveredQuestion[];
+};

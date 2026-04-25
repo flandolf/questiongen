@@ -126,6 +126,32 @@ async fn tutor_chat(
 }
 
 #[tauri::command]
+async fn mark_pdf(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AbortSignal>,
+    request: MarkPdfRequest,
+) -> CommandResult<MarkPdfResponse> {
+    state.reset();
+    generation::GenerationService::new(app)
+        .with_abort_signal(state.inner().clone())
+        .mark_pdf(request)
+        .await
+}
+
+#[tauri::command]
+async fn discover_pdf_questions(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AbortSignal>,
+    request: DiscoverPdfQuestionsRequest,
+) -> CommandResult<DiscoverPdfQuestionsResponse> {
+    state.reset();
+    generation::GenerationService::new(app)
+        .with_abort_signal(state.inner().clone())
+        .discover_pdf_questions(request)
+        .await
+}
+
+#[tauri::command]
 fn abort_generation(state: tauri::State<'_, AbortSignal>) {
     state.abort();
 }
@@ -374,6 +400,8 @@ pub fn run() {
             cleanup_subtopics,
             export_question_to_anki,
             abort_generation,
+            mark_pdf,
+            discover_pdf_questions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

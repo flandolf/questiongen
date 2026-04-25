@@ -4,6 +4,7 @@ import {
   ChartColumnIncreasing,
   ChevronRight,
   CircleX,
+  FileText,
   Flame,
   History,
   type LucideIcon,
@@ -210,6 +211,7 @@ export function Sidebar() {
 
   const topLinks = [
     { to: '/', label: 'Generator', icon: Sparkles, showSessionDot: true },
+    { to: '/pdf-marker', label: 'PDF Marker', icon: FileText },
     { to: '/history', label: 'History', icon: History },
     { to: '/analytics', label: 'Analytics', icon: ChartColumnIncreasing },
     { to: '/mistakes', label: 'Mistakes', icon: CircleX },

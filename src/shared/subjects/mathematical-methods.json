@@ -443,8 +443,36 @@
       },
       "complexity_levers": {
         "easy": "Combine two transformations (e.g., dilation followed by translation).",
-        "medium": "Combine three transformations (e.g., reflection, then dilation, then translation).",
-        "hard": "Combine four or more transformations (e.g., reflection, dilation, translation in both axes)."
+        "hard": "Combine three or more transformations (e.g., reflection, dilation, translation, all in both axes).",
+        "extreme": "Combine four or more transformations (e.g., reflection, dilation, translation, all in both axes)."
+      },
+      "group": "unit3-functions"
+    },
+    {
+      "name": "Function Method for Transformations",
+      "technique_notes": {
+        "core_concepts": "Expressing transformations as function compositions. For example, if $f(x)$ is the original function, then a dilation from the $y$-axis by factor $k$ can be represented as $g(x) = f(kx)$.",
+        "exam_style_guidelines": "Identify the parent function and express each transformation as a function composition. Show how the rule changes with each transformation.",
+        "anti_prompts": [
+          "Do not mix up the order of function composition (e.g., $f(g(x))$ is not the same as $g(f(x))$).",
+          "Ensure that the correct variable is modified for each type of transformation (e.g., $x$ for dilation from the $y$-axis, $y$ for dilation from the $x$-axis)."
+        ],
+        "tech_free_rules": "Express simple transformations as function compositions.",
+        "tech_active_rules": "Use CAS to verify the resulting function after a sequence of transformations."
+      },
+      "group": "unit3-functions"
+    },
+    {
+      "name": "Coordinate Method for Transformations",
+      "technique_notes": {
+        "core_concepts": "Applying transformations directly to the coordinates of key points. For example, a translation parallel to the $x$-axis by $h$ units can be represented as $(x, y) \\to (x+h, y)$.",
+        "exam_style_guidelines": "Identify key points (intercepts, stationary points) and show how their coordinates change with each transformation.",
+        "anti_prompts": [
+          "Do not forget to apply the transformation to all key points.",
+          "Ensure that the correct coordinate is modified for each type of transformation (e.g., $x$ for translation parallel to the $x$-axis, $y$ for translation parallel to the $y$-axis)."
+        ],
+        "tech_free_rules": "Apply transformations to key points of simple functions by hand.",
+        "tech_active_rules": "Use CAS to find new coordinates after a sequence of transformations for complex functions."
       },
       "group": "unit3-functions"
     },

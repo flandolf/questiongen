@@ -229,6 +229,25 @@ const SettingsView = lazy(() =>
     import('./views/SettingsView').then((m) => ({ default: m.SettingsView })),
   ),
 );
+const PDFMarkerView = lazy(() =>
+  importWithRetry(() =>
+    import('./views/PDFMarkerView').then((m) => ({ default: m.PDFMarkerView })),
+  ),
+);
+const PDFMarkingResultsView = lazy(() =>
+  importWithRetry(() =>
+    import('./views/PDFMarkingResultsView').then((m) => ({
+      default: m.PDFMarkingResultsView,
+    })),
+  ),
+);
+const PDFMarkerHistoryView = lazy(() =>
+  importWithRetry(() =>
+    import('./views/PDFMarkerHistoryView').then((m) => ({
+      default: m.PDFMarkerHistoryView,
+    })),
+  ),
+);
 const WrongQuestionView = lazy(() =>
   importWithRetry(() => import('./views/WrongQuestionView')),
 );
@@ -255,6 +274,15 @@ function AppRoutes() {
             <Route path='analytics' element={<AnalyticsView />} />
             <Route path='mistakes' element={<WrongQuestionView />} />
             <Route path='saved' element={<SavedView />} />
+            <Route path='pdf-marker' element={<PDFMarkerView />} />
+            <Route
+              path='pdf-marker/results'
+              element={<PDFMarkingResultsView />}
+            />
+            <Route
+              path='pdf-marker/history'
+              element={<PDFMarkerHistoryView />}
+            />
             <Route path='settings' element={<SettingsView />} />
             <Route path='*' element={<NotFound />} />
           </Route>

@@ -11,6 +11,7 @@ import type {
   MarkAnswerResponse,
   McHistoryEntry,
   McQuestion,
+  PdfMarkerHistoryEntry,
   PersistedAppState,
   Preset,
   PresetPreferences,
@@ -139,6 +140,16 @@ export interface AppState {
 
   // ── Logs ──────────────────────────────────────────────────────
   logs: LogEntry[];
+
+  // ── PDF Marker ─────────────────────────────────────────────────────────────
+  pdfMarkerPdfBase64: string | null;
+  pdfMarkerQuestions: GeneratedQuestion[];
+  pdfMarkerPageMapping: { questionIndex: number; pageIndices: number[] }[];
+  pdfMarkerResultsByQuestionId: Record<string, MarkAnswerResponse>;
+  pdfMarkerErrorsByQuestionId: Record<string, string>;
+  pdfMarkerHistory: PdfMarkerHistoryEntry[];
+  isPdfMarkerMarking: boolean;
+  isPdfMarkerDiscovering: boolean;
 }
 
 export interface AppActions {
@@ -354,6 +365,18 @@ export interface AppActions {
 
   // Import / Export
   importState: (imported: PersistedAppState) => void;
+
+  // PDF Marker Actions
+  setPdfMarkerPdfBase64: (pdfBase64: string | null) => void;
+  setPdfMarkerQuestions: (questions: GeneratedQuestion[]) => void;
+  setPdfMarkerPageMapping: (mapping: { questionIndex: number; pageIndices: number[] }[]) => void;
+  markPdf: () => Promise<void>;
+  discoverPdfQuestions: () => Promise<void>;
+  resetPdfMarker: () => void;
+  clearPdfMarkerResults: () => void;
+  deletePdfMarkerHistoryEntry: (id: string) => void;
+  clearPdfMarkerHistory: () => void;
+  loadPdfMarkerHistoryEntry: (id: string) => void;
 }
 
 export type Updater<T> = T | ((prev: T) => T);

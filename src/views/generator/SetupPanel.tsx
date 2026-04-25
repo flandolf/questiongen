@@ -613,7 +613,7 @@ function SetupPanelImpl({
                       type='button'
                       onClick={() => onSetDifficulty(level)}
                       className={cn(
-                        'flex-1 text-center text-[9px] font-bold tracking-wide uppercase transition-colors cursor-pointer truncate',
+                        'flex-1 text-center text-[10px] font-bold tracking-wider uppercase transition-colors cursor-pointer truncate',
                         idx === diffIndex
                           ? activeDifficultyMeta.color
                           : 'text-muted-foreground/30 hover:text-muted-foreground',
@@ -659,7 +659,7 @@ function SetupPanelImpl({
                     onValueChange={(val) => onSetQuestionCount(val[0])}
                     className='cursor-pointer'
                   />
-                  <div className='flex justify-between font-mono text-[9px] text-muted-foreground/40 font-semibold'>
+                  <div className='flex justify-between font-mono text-[10px] text-muted-foreground/40 font-bold uppercase tracking-wider'>
                     <span>1</span>
                     <span>20</span>
                   </div>

@@ -8,7 +8,7 @@ use crate::models::{
     AbortSignal, AnalyzeImageRequest, AnalyzeImageResponse, AppError, CommandResult,
     GenerateMcQuestionsRequest, GenerateMcQuestionsResponse, GenerateQuestionsRequest,
     GenerateQuestionsResponse, GeneratedQuestion, GenerationQualityDiagnostics, MarkAnswerRequest,
-    MarkAnswerResponse, McQuestion,
+    MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, McQuestion,
 };
 use crate::normalization;
 use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
@@ -1080,32 +1080,70 @@ impl GenerationService {
         &self,
         request: MarkAnswerRequest,
     ) -> CommandResult<MarkAnswerResponse> {
+        let mut images = Vec::new();
+        if let Some(url) = request.student_answer_image_data_url {
+            images.push(url);
+        }
+        if let Some(urls) = request.student_answer_image_data_urls {
+            images.extend(urls);
+        }
+
+        self.perform_marking(
+            &request.api_key,
+            &request.model,
+            &request.question,
+            &request.student_answer,
+            images,
+            None,
+            None,
+            request.marker_style.as_deref(),
+            request.custom_marker_style.as_deref(),
+            self.abort_signal.clone().unwrap_or_else(AbortSignal::new),
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn perform_marking(
+        &self,
+        api_key: &str,
+        model: &str,
+        question: &crate::models::GeneratedQuestion,
+        student_answer: &str,
+        image_data_urls: Vec<String>,
+        pdf_base64: Option<String>,
+        pdf_page_indices: Option<Vec<usize>>,
+        marker_style: Option<&str>,
+        custom_marker_style: Option<&str>,
+        abort_signal: AbortSignal,
+    ) -> CommandResult<MarkAnswerResponse> {
         self.rust_log(
             "info",
             "Starting marking for question",
             Some(serde_json::json!({
-                "question_id": request.question.id,
-                "topic": request.question.topic,
-                "model": request.model
+                "question_id": question.id,
+                "topic": question.topic,
+                "model": model
             })),
         );
-        let has_text = !request.student_answer.trim().is_empty();
-        let has_image = request
-            .student_answer_image_data_url
-            .as_ref()
-            .is_some_and(|v| !v.trim().is_empty());
-        if !has_text && !has_image {
+
+        let has_text = !student_answer.trim().is_empty();
+        let has_image = image_data_urls.iter().any(|v| !v.trim().is_empty());
+        let has_pdf = pdf_base64.as_ref().map_or(false, |p| !p.trim().is_empty());
+
+        if !has_text && !has_image && !has_pdf {
             return Err(AppError::new(
                 "VALIDATION_ERROR",
-                "Provide an answer or image.",
+                "Provide an answer, image, or PDF.",
             ));
         }
-        self.validate_params(&request.api_key, &request.model)?;
+
+        self.validate_params(api_key, model)?;
         const MAX_ALLOWED_MARKS: u8 = 50;
-        if request.question.max_marks == 0 {
+        if question.max_marks == 0 {
             return Err(AppError::new("VALIDATION_ERROR", "maxMarks must be > 0."));
         }
-        if request.question.max_marks > MAX_ALLOWED_MARKS {
+        if question.max_marks > MAX_ALLOWED_MARKS {
             return Err(AppError::new(
                 "VALIDATION_ERROR",
                 format!("maxMarks cannot exceed {}.", MAX_ALLOWED_MARKS),
@@ -1114,8 +1152,7 @@ impl GenerationService {
 
         const MAX_ANSWER_CHARS: usize = 12_000;
         let mut answer = sanitize_for_api(
-            request
-                .student_answer
+            student_answer
                 .replace("\r\n", "\n")
                 .lines()
                 .map(str::trim_end)
@@ -1128,10 +1165,10 @@ impl GenerationService {
             answer.push_str("\n\n[Truncated: answer exceeded length limit.]");
         }
 
-        let question_topic = sanitize_for_api(request.question.topic.trim());
+        let question_topic = sanitize_for_api(question.topic.trim());
         let question_subtopic =
-            sanitize_for_api(request.question.subtopic.as_deref().unwrap_or("—").trim());
-        let question_prompt = sanitize_for_api(&request.question.prompt_markdown);
+            sanitize_for_api(question.subtopic.as_deref().unwrap_or("—").trim());
+        let question_prompt = sanitize_for_api(&question.prompt_markdown);
 
         let chem_note = if question_topic.eq_ignore_ascii_case(constants::CHEMISTRY_TOPIC) {
             constants::CHEMISTRY_LATEX_GUIDANCE
@@ -1144,10 +1181,10 @@ impl GenerationService {
             ""
         };
 
-        let max_marks = request.question.max_marks;
+        let max_marks = question.max_marks;
 
         let (stats_result, report_parts) = tokio::join!(
-            get_model_stats(request.api_key.clone(), request.model.clone()),
+            get_model_stats(api_key.to_string(), model.to_string()),
             async {
                 pdf::build_report_file_parts(&self.app, std::slice::from_ref(&question_topic))
             }
@@ -1161,6 +1198,15 @@ impl GenerationService {
             ""
         };
 
+        let pdf_pages_note = match &pdf_page_indices {
+            Some(indices) if !indices.is_empty() => {
+                let pages: Vec<String> = indices.iter().map(|i| (i + 1).to_string()).collect();
+                format!("The student's response for this question is in the attached PDF file on page(s): {}.\n\n", pages.join(", "))
+            }
+            _ if pdf_base64.is_some() => "The student's response for this question is in the attached PDF file.\n\n".to_string(),
+            _ => String::new(),
+        };
+
         let prompt = prompts::marking_prompt(
             &question_topic,
             &question_subtopic,
@@ -1168,38 +1214,50 @@ impl GenerationService {
             max_marks,
             &answer,
             report_preamble,
+            &pdf_pages_note,
         );
 
         let mut content_parts: Vec<serde_json::Value> = Vec::new();
         content_parts.push(serde_json::json!({ "type": "text", "text": prompt }));
-        if let Some(url) = request
-            .student_answer_image_data_url
-            .as_deref()
-            .map(str::trim)
-            .filter(|v| !v.is_empty())
-        {
+
+        if let Some(ref pdf) = pdf_base64 {
+            if !pdf.trim().is_empty() {
+                let data_url = if pdf.starts_with("data:application/pdf;base64,") {
+                    pdf.clone()
+                } else {
+                    format!("data:application/pdf;base64,{}", pdf)
+                };
+                content_parts.push(serde_json::json!({
+                    "type": "file",
+                    "file": {
+                        "filename": "student_answer.pdf",
+                        "file_data": data_url
+                    }
+                }));
+            }
+        }
+
+        for url in image_data_urls {
+            let url = url.trim();
+            if url.is_empty() {
+                continue;
+            }
             if !url.starts_with("data:image/") {
                 return Err(AppError::new(
                     "VALIDATION_ERROR",
                     "Image must be a valid data URL.",
                 ));
             }
-            const MAX_IMAGE_DATA_URL_LEN: usize = 20 * 1024 * 1024;
-            if url.len() > MAX_IMAGE_DATA_URL_LEN {
-                return Err(AppError::new(
-                    "VALIDATION_ERROR",
-                    "Image is too large. Please use a smaller image.",
-                ));
-            }
             content_parts
                 .push(serde_json::json!({ "type": "image_url", "image_url": { "url": url } }));
         }
+
         content_parts.extend(report_parts);
 
         let user_content = serde_json::Value::Array(content_parts);
         const MAX_TOKENS_CAP: u32 = 256_000;
         let max_tokens = ((max_marks as u32) * 2000 + 4000).min(MAX_TOKENS_CAP);
-        let plugins = if has_reports {
+        let plugins = if has_reports || pdf_base64.is_some() {
             let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
             pdf::plugins_for_model(Some(supports_files))
         } else {
@@ -1208,21 +1266,21 @@ impl GenerationService {
 
         let result = call_openrouter(
             OpenRouterRequestConfig::new(
-                &request.api_key,
-                &request.model,
+                api_key,
+                model,
                 &prompts::marking_system(
                     max_marks,
                     chem_note,
                     pe_note,
-                    request.marker_style.as_deref(),
-                    request.custom_marker_style.as_deref(),
+                    marker_style,
+                    custom_marker_style,
                 ),
                 user_content,
-                schemas::marking_format(&request.model),
+                schemas::marking_format(model),
                 max_tokens,
             )
             .with_plugins(plugins)
-            .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
+            .with_abort_signal(abort_signal),
         )
         .await?;
 
@@ -1283,6 +1341,133 @@ impl GenerationService {
         parsed.total_tokens = result.total_tokens;
 
         Ok(parsed)
+    }
+
+    pub async fn discover_pdf_questions(
+        &self,
+        request: crate::models::DiscoverPdfQuestionsRequest,
+    ) -> CommandResult<crate::models::DiscoverPdfQuestionsResponse> {
+        self.rust_log(
+            "info",
+            "Starting PDF question discovery",
+            Some(serde_json::json!({
+                "model": request.model
+            })),
+        );
+
+        self.validate_params(&request.api_key, &request.model)?;
+
+        let mut pdf_data = request.pdf_base64.clone();
+        if !pdf_data.starts_with("data:application/pdf;base64,") {
+            pdf_data = format!("data:application/pdf;base64,{}", pdf_data);
+        }
+
+        let user_content = serde_json::json!([
+            { "type": "text", "text": prompts::pdf_discovery_prompt() },
+            {
+                "type": "file",
+                "file": {
+                    "filename": "exam.pdf",
+                    "file_data": pdf_data
+                }
+            }
+        ]);
+
+        let stats_result = get_model_stats(request.api_key.to_string(), request.model.to_string()).await;
+        let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
+        let plugins = pdf::plugins_for_model(Some(supports_files));
+
+        let result = call_openrouter(
+            OpenRouterRequestConfig::new(
+                &request.api_key,
+                &request.model,
+                prompts::pdf_discovery_system(),
+                user_content,
+                schemas::pdf_discovery_format(&request.model),
+                16_000,
+            )
+            .with_plugins(plugins)
+            .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
+        )
+        .await?;
+
+        let response: crate::models::DiscoverPdfQuestionsResponse = self.parse_payload(&result.content)?;
+
+        // Convert 1-indexed page numbers to 0-indexed indices
+        let mut questions = response.questions;
+        for q in &mut questions {
+            if q.page_indices.iter().any(|&p| p == 0) {
+                return Err(AppError::new("VALIDATION_ERROR", "Invalid page number from LLM: page 0 is not valid (must be >= 1)."));
+            }
+            q.page_indices = q.page_indices.iter().map(|&p| p.saturating_sub(1)).collect();
+        }
+
+        Ok(crate::models::DiscoverPdfQuestionsResponse { questions })
+    }
+
+    pub async fn mark_pdf(
+        &self,
+        request: MarkPdfRequest,
+    ) -> CommandResult<MarkPdfResponse> {
+        self.rust_log(
+            "info",
+            "Starting PDF marking",
+            Some(serde_json::json!({
+                "question_count": request.questions.len(),
+                "model": request.model
+            })),
+        );
+
+        let mut results = Vec::new();
+        let abort_signal = self.abort_signal.clone().unwrap_or_else(AbortSignal::new);
+
+        for mapping in request.page_mapping {
+            if abort_signal.is_aborted() {
+                break;
+            }
+
+            let question = match request.questions.get(mapping.question_index) {
+                Some(q) => q,
+                None => {
+                    results.push(crate::models::MarkPdfResultItem {
+                        question_id: format!("unknown-index-{}", mapping.question_index),
+                        response: None,
+                        error: Some(format!("Question index {} out of bounds", mapping.question_index)),
+                    });
+                    continue;
+                }
+            };
+
+            match self.perform_marking(
+                &request.api_key,
+                &request.model,
+                question,
+                "", // No text answer for PDF marking, it's in the PDF
+                Vec::new(),
+                Some(request.pdf_base64.clone()),
+                Some(mapping.page_indices),
+                request.marker_style.as_deref(),
+                request.custom_marker_style.as_deref(),
+                abort_signal.clone(),
+            ).await {
+                Ok(response) => {
+                    results.push(crate::models::MarkPdfResultItem {
+                        question_id: question.id.clone(),
+                        response: Some(response),
+                        error: None,
+                    });
+                }
+                Err(e) => {
+                    results.push(crate::models::MarkPdfResultItem {
+                        question_id: question.id.clone(),
+                        response: None,
+                        error: Some(e.message),
+                    });
+                }
+            }
+        }
+
+        Ok(MarkPdfResponse { results })
     }
 
     pub async fn tutor_chat(

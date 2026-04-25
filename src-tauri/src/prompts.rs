@@ -605,9 +605,11 @@ pub fn marking_prompt(
     max_marks: u8,
     answer: &str,
     report_preamble: &str,
+    pdf_pages_note: &str,
 ) -> String {
     format!(
         "Topic: {topic}\nSubtopic: {subtopic}\nQuestion ({max} marks):\n{question}\n\n\
+         {pdf_pages_note}\
          Student answer:\n{answer}\n\n\
          MARKING INSTRUCTIONS:\n\
          - Apply VCAA criterion-based marking strictly.\n\
@@ -622,8 +624,25 @@ pub fn marking_prompt(
         question = question,
         max = max_marks,
         answer = answer,
-        report_preamble = report_preamble
+        report_preamble = report_preamble,
+        pdf_pages_note = pdf_pages_note
     )
+}
+
+pub fn pdf_discovery_system() -> &'static str {
+    "IDENTITY: Expert VCE Exam Analyst.\n\
+     TASK: Analyze the attached PDF of a student's exam and identify all questions present.\n\
+     RULES:\n\
+     1. Extract the EXACT text of each question (the prompt/stem).\n\
+     2. Identify the 'topic' (e.g. 'Question 1', 'Section A Question 4').\n\
+     3. Identify the maximum marks available for that question (usually noted in square brackets like [4 marks]).\n\
+     4. Identify which page(s) in the PDF contain the student's answer for that question.\n\
+     5. Output valid JSON in the specified format.\n\
+     6. Be exhaustive; find every question the student has attempted or is present in the exam paper."
+}
+
+pub fn pdf_discovery_prompt() -> &'static str {
+    "Analyze the attached PDF. Identify each question, its full prompt text, its maximum marks, and the page numbers where the student's response is located."
 }
 
 pub struct UserPromptBuilder {

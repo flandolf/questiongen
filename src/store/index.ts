@@ -9,6 +9,7 @@ import {
   snapshotToState,
 } from './persistence';
 import { createHistorySlice } from './slices/history-slice';
+import { createPdfMarkerSlice } from './slices/pdf-marker-slice';
 import { createSessionSlice } from './slices/session-slice';
 import { createSettingsSlice } from './slices/settings-slice';
 import type { AppActions, AppState } from './types';
@@ -21,6 +22,7 @@ export const useAppStore = create<AppState & AppActions>()(
     ...createSettingsSlice(set, get, store),
     ...createSessionSlice(set, get, store),
     ...createHistorySlice(set, get, store),
+    ...createPdfMarkerSlice(set, get, store),
 
     isHydrated: false,
 
