@@ -215,6 +215,8 @@ pub struct MarkAnswerRequest {
     pub question: GeneratedQuestion,
     pub student_answer: String,
     pub student_answer_image_data_url: Option<String>,
+    #[serde(default)]
+    pub student_answer_image_data_urls: Option<Vec<String>>,
     pub model: String,
     pub api_key: String,
     pub marker_style: Option<String>,
@@ -393,6 +395,64 @@ pub struct ExportQuestionToAnkiResponse {
     pub file_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+}
+
+// ─── PDF Marker ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkPdfRequest {
+    pub pdf_base64: String,
+    pub questions: Vec<GeneratedQuestion>,
+    pub page_mapping: Vec<MarkPdfPageMapping>,
+    pub model: String,
+    pub api_key: String,
+    pub marker_style: Option<String>,
+    pub custom_marker_style: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkPdfPageMapping {
+    pub question_index: usize,
+    pub page_indices: Vec<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoverPdfQuestionsRequest {
+    pub pdf_base64: String,
+    pub model: String,
+    pub api_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoveredQuestion {
+    pub topic: String,
+    pub prompt_markdown: String,
+    pub max_marks: u8,
+    pub page_indices: Vec<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoverPdfQuestionsResponse {
+    pub questions: Vec<DiscoveredQuestion>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkPdfResponse {
+    pub results: Vec<MarkPdfResultItem>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkPdfResultItem {
+    pub question_id: String,
+    pub response: Option<MarkAnswerResponse>,
+    pub error: Option<String>,
 }
 
 // ─── Multiple-choice ──────────────────────────────────────────────────────────

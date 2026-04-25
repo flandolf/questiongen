@@ -84,7 +84,7 @@ function TimerDisplay({
 
   return (
     <span
-      className={`flex items-center gap-1 text-xs font-mono tabular-nums ${isQuestionWarning ? 'text-amber-500 font-bold' : 'text-muted-foreground'}`}
+      className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider font-mono tabular-nums ${isQuestionWarning ? 'text-amber-500' : 'text-muted-foreground/60'}`}
     >
       <Clock
         className={`w-3 h-3 ${isQuestionWarning ? 'animate-pulse' : ''}`}
@@ -196,7 +196,7 @@ const SessionNavigationLeft = ({
       />
     )}
     {completedCount > 0 && completedCount < totalQuestions && (
-      <span className='text-[10px] text-muted-foreground tabular-nums hidden sm:inline'>
+      <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 tabular-nums hidden sm:inline'>
         ({completedCount} answered)
       </span>
     )}
@@ -398,14 +398,14 @@ export function TelemetryTooltip({
   const hasAny = generationStartedAt !== null || telemetry;
   if (!hasAny) {
     return (
-      <div className='text-xs text-background/80'>
+      <div className='text-[10px] font-bold uppercase tracking-wider text-background/60'>
         No generation diagnostics yet.
       </div>
     );
   }
   return (
-    <div className='flex flex-col gap-2 text-xs'>
-      <div className='font-semibold text-background'>Question details</div>
+    <div className='flex flex-col gap-2'>
+      <div className='text-[10px] font-bold uppercase tracking-wider text-background'>Question details</div>
       {telemetry && (
         <Row
           label='Generation time'
@@ -417,6 +417,7 @@ export function TelemetryTooltip({
           label='Tokens'
           value={
             <span
+              className='font-mono tabular-nums'
               title={`Prompt: ${telemetry.promptTokens ?? 0} · Completion: ${telemetry.completionTokens ?? 0}`}
             >
               {telemetry.totalTokens.toLocaleString()}
@@ -442,9 +443,9 @@ export function TelemetryTooltip({
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className='flex items-center justify-between gap-3 text-background/80'>
-      <span>{label}</span>
-      <span className='text-background'>{value}</span>
+    <div className='flex items-center justify-between gap-3'>
+      <span className='text-[10px] font-bold uppercase tracking-wider text-background/60'>{label}</span>
+      <span className='text-xs font-black text-background'>{value}</span>
     </div>
   );
 }
@@ -467,25 +468,25 @@ function InfoBadges({
   getDifficultyBadgeClasses: (level: Difficulty) => string;
 }) {
   return (
-    <div className='hidden lg:flex items-center gap-1.5 text-xs bg-muted/30 px-2 py-1 rounded-full border border-border/40'>
+    <div className='hidden lg:flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-full border border-border/40'>
       {topic && (
         <Badge
           variant='outline'
-          className='h-5 px-1.5 text-[10px] font-medium bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-primary dark:border-primary/30'
+          className='h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-primary dark:border-primary/30'
         >
           {topic}
         </Badge>
       )}
       <Badge
         variant='outline'
-        className={`h-5 px-1.5 text-[10px] font-semibold tracking-tight ${getDifficultyBadgeClasses(difficulty)}`}
+        className={`h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider ${getDifficultyBadgeClasses(difficulty)}`}
       >
         {difficulty}
       </Badge>
       {type === 'written' && maxMarks !== undefined && (
         <Badge
           variant='outline'
-          className='h-5 px-1.5 text-[10px] font-medium bg-secondary/40 border-secondary/60 text-primary dark:bg-secondary/5 dark:text-primary dark:border-secondary/40'
+          className='h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-secondary/40 border-secondary/60 text-primary dark:bg-secondary/5 dark:text-primary dark:border-secondary/40'
         >
           {maxMarks} marks
         </Badge>
@@ -493,7 +494,7 @@ function InfoBadges({
       {isMathTopic && techAllowed !== undefined && (
         <Badge
           variant='outline'
-          className={`h-5 px-1.5 text-[10px] font-medium ${
+          className={`h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider ${
             techAllowed
               ? 'bg-indigo-500/5 text-indigo-600 border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30'
               : 'bg-rose-500/5 text-rose-600 border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30'

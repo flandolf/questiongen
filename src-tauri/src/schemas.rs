@@ -171,3 +171,36 @@ pub fn cleanup_mappings_format(model: &str) -> serde_json::Value {
         json_schema_format("cleanup_mappings", schema)
     }
 }
+
+pub fn pdf_discovery_format(model: &str) -> serde_json::Value {
+    let schema = serde_json::json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questions"],
+        "properties": {
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["topic","promptMarkdown","maxMarks","pageIndices"],
+                    "properties": {
+                        "topic": { "type": "string" },
+                        "promptMarkdown": { "type": "string" },
+                        "maxMarks": { "type": "integer", "minimum": 1 },
+                        "pageIndices": {
+                            "type": "array",
+                            "items": { "type": "integer", "minimum": 1 }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if is_anthropic_model(model) {
+        json_schema_format_anthropic("pdf_discovery", schema)
+    } else {
+        json_schema_format("pdf_discovery", schema)
+    }
+}

@@ -59,6 +59,21 @@ export type McHistoryEntry = {
   isUploaded?: boolean;
 };
 
+export type PdfMarkerHistoryEntry = {
+  id: string;
+  createdAt: string;
+  pdfBase64: string | null;
+  questions: GeneratedQuestion[];
+  resultsByQuestionId: Record<string, MarkAnswerResponse>;
+  pageMapping: { questionIndex: number; pageIndices: number[] }[];
+  stats: {
+    achieved: number;
+    max: number;
+    pct: number;
+  };
+};
+
+
 export type GenerationRecord = {
   id: string;
   timestamp: string;

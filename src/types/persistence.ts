@@ -9,6 +9,7 @@ import type {
 import type {
   GenerationRecord,
   McHistoryEntry,
+  PdfMarkerHistoryEntry,
   QuestionHistoryEntry,
 } from './history';
 import type { MarkAnswerResponse } from './marking';
@@ -116,6 +117,7 @@ export type PersistedAppState = {
   mcSession: PersistedMcSession;
   questionHistory: QuestionHistoryEntry[];
   mcHistory: McHistoryEntry[];
+  pdfMarkerHistory?: PdfMarkerHistoryEntry[];
   savedSets: SavedQuestionSet[];
   studyGoals?: StudyGoals;
   streakData?: StreakData;

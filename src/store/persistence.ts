@@ -79,6 +79,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
     mcTimer: s.mcTimer,
     questionHistory: s.questionHistory,
     mcHistory: s.mcHistory,
+    pdfMarkerHistory: s.pdfMarkerHistory,
     savedSets: s.savedSets,
     studyGoals: s.studyGoals,
     streakData: s.streakData,
@@ -175,6 +176,7 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
 
     questionHistory: s.questionHistory,
     mcHistory: s.mcHistory,
+    pdfMarkerHistory: s.pdfMarkerHistory || [],
     savedSets: s.savedSets,
     studyGoals: s.studyGoals,
     streakData: s.streakData,
