@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dropzone } from '@/components/ui/dropzone';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PdfCanvas } from '@/components/ui/pdf-canvas';
 import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
@@ -796,12 +797,11 @@ export function PDFMarkerView() {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className='w-full h-full bg-muted/20'
+                  className='flex-1 overflow-hidden'
                 >
-                  <iframe
-                    src={`${pdfMarkerPdfBase64}#toolbar=0&navpanes=0`}
-                    className='w-full h-full border-none filter contrast-[1.02]'
-                    title='PDF Preview'
+                  <PdfCanvas
+                    src={pdfMarkerPdfBase64}
+                    className='w-full h-full'
                   />
                 </motion.div>
               )}
