@@ -1283,7 +1283,8 @@ impl GenerationService {
                 max_tokens,
             )
             .with_plugins(plugins)
-            .with_abort_signal(abort_signal),
+            .with_abort_signal(abort_signal)
+            .with_stream(self.app.clone(), Some(question.id.clone())),
         )
         .await?;
 

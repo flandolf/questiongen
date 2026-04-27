@@ -1,3 +1,4 @@
+import { listen } from '@tauri-apps/api/event';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -15,7 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -52,6 +53,7 @@ interface QuestionItemProps {
   index: number;
   results: MarkAnswerResponse | undefined;
   error: string | undefined;
+  streamText: string;
   onRemove: (id: string) => void;
   onUpdate: (id: string, updates: Partial<GeneratedQuestion>) => void;
   onUpdateMapping: (index: number, range: string) => void;
@@ -73,6 +75,7 @@ const QuestionItem = ({
   index: qIdx,
   results,
   error,
+  streamText,
   onRemove,
   onUpdate,
   onUpdateMapping,
@@ -254,6 +257,21 @@ const QuestionItem = ({
       </div>
 
       <AnimatePresence mode='wait'>
+        {isMarking && streamText && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className='pt-2'
+          >
+            <div className='p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-xs'>
+              <div className='font-mono text-blue-600 dark:text-blue-400 max-h-48 overflow-auto whitespace-pre-wrap break-all'>
+                {streamText}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {results && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -464,6 +482,9 @@ export function PDFMarkerView() {
   const [zoom, setZoom] = useState(1.5);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [markingStreams, setMarkingStreams] = useState<Record<string, string>>({});
+  const streamBufferRef = useRef<Record<string, string>>({});
+  const streamFlushRafRef = useRef<number | null>(null);
 
   const handleDragStart = (index: number) => setDraggingIndex(index);
   const handleDragOver = (index: number) => setDragOverIndex(index);
@@ -506,6 +527,7 @@ export function PDFMarkerView() {
 
   useEffect(() => {
     if (!isPdfMarkerMarking && hasResults) {
+      setMarkingStreams({});
       void navigate('/pdf-marker/results');
     }
   }, [isPdfMarkerMarking, hasResults, navigate]);
@@ -529,6 +551,46 @@ export function PDFMarkerView() {
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [handleGlobalKeyDown]);
+
+  useEffect(() => {
+    const flushBuffered = () => {
+      streamFlushRafRef.current = null;
+      const buffered = streamBufferRef.current;
+      streamBufferRef.current = {};
+      setMarkingStreams((prev) => {
+        const next = { ...prev };
+        for (const [key, chunk] of Object.entries(buffered)) {
+          if (!chunk) continue;
+          next[key] = (next[key] || '') + chunk;
+        }
+        return next;
+      });
+    };
+
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    void listen<{ text: string; topic?: string }>('generation-token', (event) => {
+      const key = event.payload.topic || 'default';
+      streamBufferRef.current[key] = (streamBufferRef.current[key] || '') + event.payload.text;
+      if (streamFlushRafRef.current === null) {
+        streamFlushRafRef.current = requestAnimationFrame(flushBuffered);
+      }
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      if (streamFlushRafRef.current !== null) {
+        cancelAnimationFrame(streamFlushRafRef.current);
+        streamFlushRafRef.current = null;
+      }
+      streamBufferRef.current = {};
+      unlisten?.();
+    };
+  }, []);
 
   const handlePdfDrop = useCallback(
     (files: File[]) => {
@@ -861,6 +923,7 @@ export function PDFMarkerView() {
                         dragOverIndex={dragOverIndex}
                         draggingIndex={draggingIndex}
                         hasDuplicate={duplicateIndices.has(qIdx)}
+                        streamText={markingStreams[q.id] || ''}
                       />
                     ))}
                   </LayoutGroup>
