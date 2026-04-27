@@ -189,9 +189,11 @@ export const updateStudyGoals = debounce(
           studyGoals: goals,
           streakData: streakData,
           updatedAt: serverTimestamp(),
+          lastModified: Date.now(),
         }),
         { merge: true },
       );
+      localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
     } catch (error) {
       console.error('[Sync] Failed to update study goals:', error);
     }
@@ -215,9 +217,11 @@ export const updatePresets = debounce(async (presets: Preset[]) => {
       removeUndefined({
         presets,
         updatedAt: serverTimestamp(),
+        lastModified: Date.now(),
       }),
       { merge: true },
     );
+    localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
   } catch (error) {
     console.error('[Sync] Failed to update presets:', error);
   }
@@ -239,9 +243,11 @@ export const updateApiKey = debounce(async (apiKey: string) => {
       removeUndefined({
         apiKey,
         updatedAt: serverTimestamp(),
+        lastModified: Date.now(),
       }),
       { merge: true },
     );
+    localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
   } catch (error) {
     console.error('[Sync] Failed to update API key:', error);
   }

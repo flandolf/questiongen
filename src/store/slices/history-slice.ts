@@ -2,6 +2,7 @@ import { startTransition } from 'react';
 import type { StateCreator } from 'zustand';
 
 import {
+  deleteGenerationRecord as v3DeleteGenerationRecord,
   deleteMcHistoryEntry as v3DeleteMcHistoryEntry,
   deleteQuestionHistoryEntry as v3DeleteQuestionHistoryEntry,
   deleteSavedSet as v3DeleteSavedSet,
@@ -62,6 +63,7 @@ export interface HistorySlice {
   setTimeAllocations: AppActions['setTimeAllocations'];
 
   addGenerationRecord: AppActions['addGenerationRecord'];
+  deleteGenerationHistoryEntry: AppActions['deleteGenerationHistoryEntry'];
   addLog: AppActions['addLog'];
   clearLogs: AppActions['clearLogs'];
 }
@@ -441,6 +443,13 @@ export const createHistorySlice: StateCreator<
       generationHistory: [nextRecord, ...s.generationHistory].slice(0, 1000),
     }));
     void v3SaveGenerationRecord(nextRecord);
+  },
+
+  deleteGenerationHistoryEntry: (id: string) => {
+    set((s) => ({
+      generationHistory: s.generationHistory.filter((e) => e.id !== id),
+    }));
+    void v3DeleteGenerationRecord(id);
   },
 
   addLog: (entry) =>

@@ -326,6 +326,7 @@ export interface AppActions {
   addMcHistoryEntry: (entry: McHistoryEntry) => void;
   updateQuestionHistoryEntry: (entry: QuestionHistoryEntry) => void;
   updateMcHistoryEntry: (entry: McHistoryEntry) => void;
+  deleteGenerationHistoryEntry: (id: string) => void;
   clearQuestionHistory: () => void;
   clearMcHistory: () => void;
 
@@ -369,10 +370,12 @@ export interface AppActions {
   // PDF Marker Actions
   setPdfMarkerPdfBase64: (pdfBase64: string | null) => void;
   setPdfMarkerQuestions: (questions: GeneratedQuestion[]) => void;
+  reorderPdfMarkerQuestions: (fromIndex: number, toIndex: number) => void;
   setPdfMarkerPageMapping: (
     mapping: { questionIndex: number; pageIndices: number[] }[],
   ) => void;
   markPdf: () => Promise<void>;
+  markPdfSingle: (questionId: string) => Promise<void>;
   discoverPdfQuestions: () => Promise<void>;
   resetPdfMarker: () => void;
   clearPdfMarkerResults: () => void;

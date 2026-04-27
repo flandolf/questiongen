@@ -4,6 +4,7 @@ import {
   BarChart,
   CheckCircle2,
   FileText,
+  GripVertical,
   History,
   Play,
   Plus,
@@ -11,6 +12,8 @@ import {
   Settings,
   Sparkles,
   Trash2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dropzone } from '@/components/ui/dropzone';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PdfCanvas } from '@/components/ui/pdf-canvas';
+import { PdfCanvas, type ZoomLevel } from '@/components/ui/pdf-canvas';
 import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
@@ -53,6 +56,16 @@ interface QuestionItemProps {
   onUpdate: (id: string, updates: Partial<GeneratedQuestion>) => void;
   onUpdateMapping: (index: number, range: string) => void;
   getPageRange: (index: number) => string;
+  onMark: (id: string) => void;
+  onScrollToPages: (indices: number[]) => void;
+  isMarking: boolean;
+  onDragStart: (index: number) => void;
+  onDragOver: (index: number) => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+  dragOverIndex: number | null;
+  draggingIndex: number | null;
+  hasDuplicate: boolean;
 }
 
 const QuestionItem = ({
@@ -64,21 +77,78 @@ const QuestionItem = ({
   onUpdate,
   onUpdateMapping,
   getPageRange,
+  onMark,
+  onScrollToPages,
+  isMarking,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  isDragging,
+  dragOverIndex,
+  draggingIndex,
+  hasDuplicate,
 }: QuestionItemProps) => {
+  const pageIndices = useMemo(() => {
+    const mappingStr = getPageRange(qIdx);
+    if (!mappingStr) return [];
+    const indices: number[] = [];
+    const parts = mappingStr.split(',').map((p) => p.trim());
+    for (const part of parts) {
+      if (part.includes('-')) {
+        const [start, end] = part.split('-').map((n) => parseInt(n.trim(), 10));
+        if (!isNaN(start) && !isNaN(end)) {
+          for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
+            indices.push(i - 1);
+          }
+        }
+      } else {
+        const n = parseInt(part, 10);
+        if (!isNaN(n)) {
+          indices.push(n - 1);
+        }
+      }
+    }
+    return [...new Set(indices)];
+  }, [qIdx, getPageRange]);
+
   return (
     <motion.div
       layout
       variants={STAGGER_ITEM_VARIANTS}
       key={q.id}
+      data-question-id={q.id}
+      tabIndex={0}
+      draggable
+      onDragStart={() => onDragStart(qIdx)}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver(qIdx);
+      }}
+      onDragEnd={onDragEnd}
       className={cn(
-        'group p-4 border rounded-xl space-y-4 transition-all duration-300',
-        results
-          ? 'border-emerald-500/20 bg-emerald-500/5 shadow-[0_2px_12px_rgba(16,185,129,0.05)]'
-          : 'border-border/40 bg-muted/20 hover:bg-muted/30 hover:border-border/80 shadow-sm',
+        'group p-4 border rounded-xl space-y-4 transition-all duration-300 select-none',
+        hasDuplicate
+          ? 'border-amber-500/30 bg-amber-500/5 shadow-[0_2px_12px_rgba(245,158,11,0.08)]'
+          : results
+            ? 'border-emerald-500/20 bg-emerald-500/5 shadow-[0_2px_12px_rgba(16,185,129,0.05)]'
+            : 'border-border/40 bg-muted/20 hover:bg-muted/30 hover:border-border/80 shadow-sm',
+        isDragging && draggingIndex === qIdx && 'opacity-40',
+        dragOverIndex !== null && dragOverIndex !== qIdx && draggingIndex !== qIdx && 'border-primary/50 border-dashed',
       )}
     >
       <div className='flex items-center justify-between gap-3'>
-        <div className='flex-1 flex items-center gap-2'>
+        <div className='flex items-center gap-2'>
+          <GripVertical className='w-4 h-4 text-muted-foreground/30 cursor-grab opacity-0 group-hover:opacity-100' />
+          {hasDuplicate && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertCircle className='w-4 h-4 text-amber-500 shrink-0' />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className='text-xs'>Possible duplicate: prompt matches another question</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
           <span className='flex items-center justify-center w-6 h-6 rounded-md bg-foreground/5 text-[10px] font-bold font-mono text-muted-foreground border border-border/40'>
             {qIdx + 1}
           </span>
@@ -89,14 +159,31 @@ const QuestionItem = ({
             placeholder='Question Title'
           />
         </div>
-        <Button
-          size='icon'
-          variant='ghost'
-          className='h-7 w-7 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all active:scale-90'
-          onClick={() => onRemove(q.id)}
-        >
-          <Trash2 className='w-3.5 h-3.5' />
-        </Button>
+        <div className='flex items-center gap-1'>
+          {pageIndices.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size='icon'
+                  variant='ghost'
+                  className='h-7 w-7 text-muted-foreground/50 hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all active:scale-90'
+                  onClick={() => onScrollToPages(pageIndices)}
+                >
+                  <FileText className='w-3.5 h-3.5' />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Jump to pages {getPageRange(qIdx)}</TooltipContent>
+            </Tooltip>
+          )}
+          <Button
+            size='icon'
+            variant='ghost'
+            className='h-7 w-7 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all active:scale-90'
+            onClick={() => onRemove(q.id)}
+          >
+            <Trash2 className='w-3.5 h-3.5' />
+          </Button>
+        </div>
       </div>
 
       <div className='grid grid-cols-2 gap-4'>
@@ -142,6 +229,28 @@ const QuestionItem = ({
             })
           }
         />
+      </div>
+
+      <div className='flex items-center gap-2'>
+        <Button
+          size='sm'
+          variant={results ? 'secondary' : 'default'}
+          className='flex-1'
+          disabled={isMarking}
+          onClick={() => onMark(q.id)}
+        >
+          {isMarking ? (
+            <div className='flex items-center gap-2'>
+              <div className='w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin' />
+              <span>Marking...</span>
+            </div>
+          ) : (
+            <div className='flex items-center gap-2'>
+              <Play className='w-3 h-3' />
+              <span>{results ? 'Re-mark' : 'Mark'}</span>
+            </div>
+          )}
+        </Button>
       </div>
 
       <AnimatePresence mode='wait'>
@@ -339,7 +448,9 @@ export function PDFMarkerView() {
     setPdfMarkerPdfBase64,
     setPdfMarkerQuestions,
     setPdfMarkerPageMapping,
+    reorderPdfMarkerQuestions,
     markPdf,
+    markPdfSingle,
     discoverPdfQuestions,
     resetPdfMarker,
   } = useAppStore();
@@ -349,17 +460,75 @@ export function PDFMarkerView() {
   const [showCustomModel, setShowCustomModel] = useState(false);
   const [customModelId, setCustomModelId] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scrollToPage, setScrollToPage] = useState<number | null>(null);
+  const [zoom, setZoom] = useState(1.5);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => setDraggingIndex(index);
+  const handleDragOver = (index: number) => setDragOverIndex(index);
+  const handleDragEnd = () => {
+    if (draggingIndex !== null && dragOverIndex !== null && draggingIndex !== dragOverIndex) {
+      reorderPdfMarkerQuestions(draggingIndex, dragOverIndex);
+    }
+    setDraggingIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleMarkSingle = (questionId: string) => {
+    void markPdfSingle(questionId);
+  };
+
+  const handleScrollToPages = (indices: number[]) => {
+    if (indices.length > 0) {
+      setScrollToPage(indices[0]);
+    }
+  };
 
   const hasResults = useMemo(
     () => Object.keys(pdfMarkerResultsByQuestionId).length > 0,
     [pdfMarkerResultsByQuestionId],
   );
 
+  const duplicateIndices = useMemo(() => {
+    const prompts = pdfMarkerQuestions.map((q) => q.promptMarkdown.trim().toLowerCase());
+    const found = new Set<number>();
+    for (let i = 0; i < prompts.length; i++) {
+      for (let j = i + 1; j < prompts.length; j++) {
+        if (prompts[i] && prompts[i] === prompts[j]) {
+          found.add(i);
+          found.add(j);
+        }
+      }
+    }
+    return found;
+  }, [pdfMarkerQuestions]);
+
   useEffect(() => {
     if (!isPdfMarkerMarking && hasResults) {
       void navigate('/pdf-marker/results');
     }
   }, [isPdfMarkerMarking, hasResults, navigate]);
+
+  const handleGlobalKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (pdfMarkerQuestions.length > 0 && pdfMarkerPdfBase64 && !isPdfMarkerMarking) {
+          void markPdf();
+        }
+      }
+    },
+    [pdfMarkerQuestions.length, pdfMarkerPdfBase64, isPdfMarkerMarking, markPdf],
+  );
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [handleGlobalKeyDown]);
 
   const handlePdfDrop = useCallback(
     (files: File[]) => {
@@ -682,6 +851,16 @@ export function PDFMarkerView() {
                         onUpdate={updateQuestion}
                         onUpdateMapping={updatePageMapping}
                         getPageRange={getPageRangeStr}
+                        onMark={handleMarkSingle}
+                        onScrollToPages={handleScrollToPages}
+                        isMarking={isPdfMarkerMarking}
+                        onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
+                        onDragEnd={handleDragEnd}
+                        isDragging={draggingIndex !== null}
+                        dragOverIndex={dragOverIndex}
+                        draggingIndex={draggingIndex}
+                        hasDuplicate={duplicateIndices.has(qIdx)}
                       />
                     ))}
                   </LayoutGroup>
@@ -735,14 +914,36 @@ export function PDFMarkerView() {
                 PDF Preview
               </CardTitle>
               {pdfMarkerPdfBase64 && (
-                <Button
-                  variant='ghost'
-                  size='sm'
-                  onClick={() => setPdfMarkerPdfBase64(null)}
-                  className='h-8 px-3 text-xs font-medium hover:bg-destructive/10 hover:text-destructive transition-all active:scale-95'
-                >
-                  Change PDF
-                </Button>
+                <div className='flex items-center gap-1'>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    className='h-8 w-8'
+                    onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
+                  >
+                    <ZoomOut className='w-4 h-4' />
+                  </Button>
+                  <span className='text-xs font-mono w-12 text-center'>
+                    {Math.round(zoom * 100)}%
+                  </span>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    className='h-8 w-8'
+                    onClick={() => setZoom(Math.min(3, zoom + 0.25))}
+                  >
+                    <ZoomIn className='w-4 h-4' />
+                  </Button>
+                  <Separator orientation='vertical' className='h-4 mx-1' />
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => setPdfMarkerPdfBase64(null)}
+                    className='h-8 px-3 text-xs font-medium hover:bg-destructive/10 hover:text-destructive transition-all active:scale-95'
+                  >
+                    Change PDF
+                  </Button>
+                </div>
               )}
             </CardHeader>
             <Separator />
@@ -799,10 +1000,12 @@ export function PDFMarkerView() {
                   animate={{ opacity: 1 }}
                   className='flex-1 overflow-hidden'
                 >
-                  <PdfCanvas
-                    src={pdfMarkerPdfBase64}
-                    className='w-full h-full'
-                  />
+<PdfCanvas
+                      src={pdfMarkerPdfBase64}
+                      className='w-full h-full'
+                      scrollToPage={scrollToPage}
+                      zoom={zoom as ZoomLevel}
+                    />
                 </motion.div>
               )}
             </CardContent>

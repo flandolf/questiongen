@@ -147,7 +147,7 @@ export function AdvancedOptionsGroup({
         >
           <div className='flex items-center justify-between'>
             <Label className='text-sm font-semibold flex items-center gap-2'>
-              Average Marks Per Question
+              Marks Per Question
             </Label>
             <div className='font-mono text-xl font-bold text-foreground'>
               {averageMarksPerQuestion}
@@ -155,7 +155,7 @@ export function AdvancedOptionsGroup({
           </div>
           <Slider
             min={1}
-            max={15}
+            max={20}
             step={1}
             value={[averageMarksPerQuestion]}
             onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
