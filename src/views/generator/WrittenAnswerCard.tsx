@@ -1,3 +1,4 @@
+import { listen } from '@tauri-apps/api/event';
 import {
   CheckCircle2,
   ImageIcon,
@@ -68,6 +69,10 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
 
   const [confirmSketchSubmit, setConfirmSketchSubmit] = useState(false);
   const sketchpadRef = useRef<SketchpadHandle | null>(null);
+  const [markStreamText, setMarkStreamText] = useState('');
+  const [hasReceivedTokens, setHasReceivedTokens] = useState(false);
+  const streamBufferRef = useRef('');
+  const streamFlushRafRef = useRef<number | null>(null);
   const words = wordCount(answer);
   const hasContent = answer.trim().length > 0 || Boolean(image);
   const canSubmitFromSketchpad = canSubmit || activeTab === 'sketchpad';
@@ -93,6 +98,50 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
     }, 4500);
     return () => window.clearTimeout(timeout);
   }, [activeTab, confirmSketchSubmit]);
+
+  useEffect(() => {
+    const flush = () => {
+      streamFlushRafRef.current = null;
+      setHasReceivedTokens(true);
+      setMarkStreamText((prev) => prev + streamBufferRef.current);
+      streamBufferRef.current = '';
+    };
+
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    void listen<{ text: string; topic?: string }>('generation-token', (event) => {
+      if (event.payload.topic === questionId) {
+        streamBufferRef.current += event.payload.text;
+        if (streamFlushRafRef.current === null) {
+          streamFlushRafRef.current = requestAnimationFrame(flush);
+        }
+      }
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      if (streamFlushRafRef.current !== null) {
+        cancelAnimationFrame(streamFlushRafRef.current);
+      }
+      streamBufferRef.current = '';
+      setHasReceivedTokens(false);
+      unlisten?.();
+    };
+  }, [questionId]);
+
+  useEffect(() => {
+    if (!isMarking && markStreamText) {
+      const t = window.setTimeout(() => {
+        setMarkStreamText('');
+        setHasReceivedTokens(false);
+      }, 2000);
+      return () => window.clearTimeout(t);
+    }
+  }, [isMarking, markStreamText]);
 
   async function handleSketchSave(dataUrl: string) {
     try {
@@ -290,6 +339,20 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
           <p className='mt-2 text-center text-xs text-muted-foreground'>
             Tap again to confirm within 4 seconds.
           </p>
+        )}
+        {isMarking && (markStreamText || !hasReceivedTokens) && (
+          <div className='mt-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs'>
+            {markStreamText ? (
+              <div className='font-mono text-blue-600 dark:text-blue-400 max-h-48 overflow-auto whitespace-pre-wrap break-all'>
+                {markStreamText}
+              </div>
+            ) : (
+              <div className='flex items-center gap-2 text-blue-600/60 dark:text-blue-400/60 font-mono'>
+                <div className='w-1.5 h-1.5 rounded-full bg-blue-500/50 animate-pulse' />
+                Waiting for response…
+              </div>
+            )}
+          </div>
         )}
       </div>
     </UnifiedWrittenResponseCard>

@@ -92,7 +92,6 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
         }
 
         let result = if config.stream {
-            // Re-cloning for retry if needed
             let retry_config = OpenRouterRequestConfig {
                 api_key: config.api_key.clone(),
                 model: config.model.clone(),
