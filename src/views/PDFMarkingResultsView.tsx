@@ -1,18 +1,23 @@
+import { invoke } from '@tauri-apps/api/core';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  Copy,
+  Download,
   FileText,
   Info,
   Trophy,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import {
   PageContainer,
   PageHeader,
+  SearchInput,
   SectionLabel,
   StatCard,
 } from '@/components/layout/primitives';
@@ -20,6 +25,7 @@ import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
 import { scoreColorBgClass } from '@/lib/score-utils';
 import { useAppStore } from '@/store';
+import type { GeneratedQuestion, MarkAnswerResponse } from '@/types';
 
 const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
@@ -35,8 +41,14 @@ export function PDFMarkingResultsView() {
   const [expandedQuestionIds, setExpandedQuestionIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [scoreFilter, setScoreFilter] = useState<'all' | 'full' | 'partial' | 'zero'>('all');
+  const [sortOrder, setSortOrder] = useState<'default' | 'score-asc' | 'score-desc' | 'topic'>('default');
 
-  const results = useMemo(() => {
+  const hasActiveFilters =
+    scoreFilter !== 'all' || searchQuery.trim() !== '';
+
+const results = useMemo(() => {
     return pdfMarkerQuestions
       .map((q) => ({
         question: q,
@@ -56,6 +68,48 @@ export function PDFMarkingResultsView() {
     return { achieved, max, pct };
   }, [results]);
 
+  const filteredResults = useMemo(() => {
+    let filtered = results;
+
+    if (searchQuery.trim()) {
+      const s = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.question.topic.toLowerCase().includes(s) ||
+          r.question.promptMarkdown.toLowerCase().includes(s),
+      );
+    }
+
+    filtered = filtered.filter((r) => {
+      const pct =
+        r.result.maxMarks > 0 ? r.result.achievedMarks / r.result.maxMarks : 0;
+      if (scoreFilter === 'full') return pct === 1;
+      if (scoreFilter === 'partial') return pct > 0 && pct < 1;
+      if (scoreFilter === 'zero') return pct === 0;
+      return true;
+    });
+
+    if (sortOrder === 'score-asc') {
+      filtered = [...filtered].sort(
+        (a, b) =>
+          a.result.achievedMarks / a.result.maxMarks -
+          b.result.achievedMarks / b.result.maxMarks,
+      );
+    } else if (sortOrder === 'score-desc') {
+      filtered = [...filtered].sort(
+        (a, b) =>
+          b.result.achievedMarks / b.result.maxMarks -
+          a.result.achievedMarks / a.result.maxMarks,
+      );
+    } else if (sortOrder === 'topic') {
+      filtered = [...filtered].sort((a, b) =>
+        a.question.topic.localeCompare(b.question.topic),
+      );
+    }
+
+    return filtered;
+  }, [results, searchQuery, scoreFilter, sortOrder]);
+
   const toggleExpand = (id: string) => {
     setExpandedQuestionIds((cur) => {
       const next = new Set(cur);
@@ -63,6 +117,37 @@ export function PDFMarkingResultsView() {
       else next.add(id);
       return next;
     });
+  };
+
+  const exportToAnki = async (question: GeneratedQuestion, result: MarkAnswerResponse) => {
+    try {
+      const answer = `${result.feedbackMarkdown}\n\n### Worked Solution\n${result.workedSolutionMarkdown}`;
+      const res = await invoke<{ success: boolean; filePath?: string; errorMessage?: string }>(
+        'export_question_to_anki',
+        {
+          request: {
+            id: question.id,
+            question: question.promptMarkdown,
+            answer,
+            topic: question.topic,
+            subtopic: question.subtopic ?? '',
+          },
+        },
+      );
+      if (res.success) {
+        toast.success(`Exported: ${res.filePath}`);
+        if (res.errorMessage) toast.warning(res.errorMessage);
+      } else {
+        toast.error(`Export failed: ${res.errorMessage}`);
+      }
+    } catch (e) {
+      toast.error(`Export error: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const copyFeedback = (text: string) => {
+    void navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
   };
 
   if (results.length === 0) {
@@ -99,6 +184,17 @@ export function PDFMarkingResultsView() {
               <ArrowLeft className='w-4 h-4 mr-2' /> Edit Mapping
             </Button>
             <Button
+              variant='outline'
+              size='sm'
+              onClick={() => {
+                for (const r of results) {
+                  void exportToAnki(r.question, r.result);
+                }
+              }}
+            >
+              <Download className='w-4 h-4 mr-2' /> Export All to Anki
+            </Button>
+            <Button
               variant='destructive'
               size='sm'
               onClick={() => {
@@ -111,6 +207,46 @@ export function PDFMarkingResultsView() {
           </div>
         }
       />
+
+      {/* Filter & Sort Controls */}
+      <div className='flex flex-wrap items-center gap-3 mb-6'>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder='Search by topic...'
+          className='w-64'
+        />
+        <div className='flex items-center gap-1 rounded-sm border bg-muted/30 p-0.5'>
+          {(['all', 'full', 'partial', 'zero'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setScoreFilter(f)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                scoreFilter === f
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {f === 'all' ? 'All' : f === 'full' ? 'Full' : f === 'partial' ? 'Partial' : 'Zero'}
+            </button>
+          ))}
+        </div>
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}
+          className='h-9 px-3 text-xs rounded-sm border bg-background text-foreground'
+        >
+          <option value='default'>Default Order</option>
+          <option value='score-asc'>Score: Low to High</option>
+          <option value='score-desc'>Score: High to Low</option>
+          <option value='topic'>Sort by Topic</option>
+        </select>
+        {hasActiveFilters && (
+          <span className='text-xs text-muted-foreground'>
+            Showing {filteredResults.length} of {results.length} results
+          </span>
+        )}
+      </div>
 
       {/* Summary KPI Row */}
       <motion.div
@@ -156,7 +292,7 @@ export function PDFMarkingResultsView() {
             />
           </div>
           <p className='text-[10px] text-muted-foreground/60 leading-tight'>
-            Analysis of <strong>{results.length}</strong> questions against VCE
+            Analysis of <strong>{filteredResults.length}</strong> questions against VCE
             key knowledge and skills.
           </p>
         </div>
@@ -166,7 +302,7 @@ export function PDFMarkingResultsView() {
         <SectionLabel>Question Breakdown</SectionLabel>
 
         <div className='grid gap-3'>
-          {results.map((r, idx) => {
+          {filteredResults.map((r, idx) => {
             const isExpanded = expandedQuestionIds.has(r.question.id);
             const pct =
               r.result.maxMarks > 0
@@ -250,11 +386,23 @@ export function PDFMarkingResultsView() {
                         <div className='border-t bg-muted/5 p-6 space-y-10'>
                           {/* AI Feedback Section */}
                           <div className='space-y-4'>
-                            <div className='flex items-center gap-2'>
-                              <div className='w-1.5 h-1.5 rounded-full bg-primary' />
-                              <span className='text-[10px] font-bold uppercase tracking-wider text-primary'>
-                                Detailed AI Feedback
-                              </span>
+                            <div className='flex items-center justify-between'>
+                              <div className='flex items-center gap-2'>
+                                <div className='w-1.5 h-1.5 rounded-full bg-primary' />
+                                <span className='text-[10px] font-bold uppercase tracking-wider text-primary'>
+                                  Detailed AI Feedback
+                                </span>
+                              </div>
+                              <div className='flex gap-1'>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  className='h-7 text-xs'
+                                  onClick={() => copyFeedback(r.result.feedbackMarkdown)}
+                                >
+                                  <Copy className='w-3 h-3 mr-1' /> Copy
+                                </Button>
+                              </div>
                             </div>
                             <div className='prose prose-sm dark:prose-invert max-w-none bg-background border border-primary/10 rounded-sm p-6 shadow-inner'>
                               <MarkdownMath

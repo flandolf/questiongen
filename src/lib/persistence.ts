@@ -425,6 +425,7 @@ export function normalizeSavedSet(raw: unknown): SavedQuestionSet | null {
     createdAt: normalizeTimestampToIso(data.createdAt, fallbackMs),
     updatedAt: normalizeTimestampToIso(data.updatedAt, fallbackMs),
     lastModified: fallbackMs,
+    isUploaded: data.isUploaded ?? true,
     preferences: normalizePreferences(data.preferences),
   } as SavedQuestionSet;
 }

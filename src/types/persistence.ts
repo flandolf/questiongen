@@ -104,6 +104,7 @@ export type SavedQuestionSet = {
   createdAt: string;
   updatedAt: string;
   lastModified?: number;
+  isUploaded?: boolean;
   preferences: PersistedGeneratorPreferences;
   writtenSession?: PersistedWrittenSession;
   mcSession?: PersistedMcSession;

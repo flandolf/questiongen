@@ -77,6 +77,7 @@ export interface UseSyncReturn {
     isSignUp?: boolean,
   ) => Promise<void>;
   disableSync: () => Promise<void>;
+  markLocalWrite: (key: string) => void;
 }
 
 export function useSync(): UseSyncReturn {
@@ -89,6 +90,7 @@ export function useSync(): UseSyncReturn {
 
   const unsubscribesRef = useRef<Unsubscribe[]>([]);
   const activeUidRef = useRef<string | null>(null);
+  const localWriteTimestampsRef = useRef<Record<string, number>>({});
   const lastSnapshotSizesRef = useRef({
     questionHistory: -1,
     mcHistory: -1,
@@ -99,6 +101,21 @@ export function useSync(): UseSyncReturn {
   const cleanupListeners = useCallback(() => {
     unsubscribesRef.current.forEach((unsub) => unsub());
     unsubscribesRef.current = [];
+  }, []);
+
+  const markLocalWrite = useCallback((key: string) => {
+    localWriteTimestampsRef.current[key] = Date.now();
+    if (key === 'settings') {
+      localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
+    }
+  }, []);
+
+  const getLocalWriteTimestamp = useCallback((key: string): number => {
+    if (key === 'settings') {
+      const stored = localStorage.getItem('sync_settings_lastWrite');
+      return stored ? parseInt(stored, 10) : 0;
+    }
+    return localWriteTimestampsRef.current[key] ?? 0;
   }, []);
 
   const syncUpPendingData = useCallback(() => {
@@ -286,9 +303,25 @@ export function useSync(): UseSyncReturn {
             }
             const sets = snapshot.docs
               .map((d) => normalizeSavedSet({ id: d.id, ...d.data() }))
-              .filter((s): s is NonNullable<typeof s> => s !== null);
+              .filter((s): s is NonNullable<typeof s> => s !== null)
+              .map((s, idx) => ({
+                ...s,
+                isUploaded: !snapshot.docs[idx].metadata.hasPendingWrites,
+              }));
+
+            const horizon =
+              sets.length > 0
+                ? Math.min(...sets.map((s) => s.lastModified ?? 0))
+                : 0;
+
             const local = useAppStore.getState().savedSets;
-            useAppStore.setState({ savedSets: mergeById(local, sets) });
+            useAppStore.setState({
+              savedSets: mergeById(local, sets, {
+                preserveLocalOnly: (entry) =>
+                  entry.isUploaded === false ||
+                  (entry.lastModified ?? 0) < horizon,
+              }),
+            });
           },
           (error) => {
             console.error('[FirebaseSync] Saved sets listener error:', error);
@@ -307,14 +340,21 @@ export function useSync(): UseSyncReturn {
                 studyGoals?: StudyGoals;
                 streakData?: StreakData;
                 presets?: Preset[];
+                lastModified?: number;
               };
-              if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
-              if (data?.studyGoals)
-                useAppStore.setState({ studyGoals: data.studyGoals });
-              if (data?.streakData)
-                useAppStore.setState({ streakData: data.streakData });
-              if (data?.presets)
-                useAppStore.setState({ presets: data.presets });
+              const remoteLastModified = data.lastModified ?? 0;
+              const localLastModified = getLocalWriteTimestamp('settings');
+
+              if (remoteLastModified > localLastModified) {
+                if (data?.apiKey)
+                  useAppStore.setState({ apiKey: data.apiKey });
+                if (data?.studyGoals)
+                  useAppStore.setState({ studyGoals: data.studyGoals });
+                if (data?.streakData)
+                  useAppStore.setState({ streakData: data.streakData });
+                if (data?.presets)
+                  useAppStore.setState({ presets: data.presets });
+              }
             }
           },
           (error) => {
@@ -346,7 +386,7 @@ export function useSync(): UseSyncReturn {
         setSyncStatus('error');
       }
     },
-    [cleanupListeners, syncUpPendingData],
+    [cleanupListeners, syncUpPendingData, getLocalWriteTimestamp],
   );
 
   useEffect(() => {
@@ -425,5 +465,6 @@ export function useSync(): UseSyncReturn {
     syncStatus,
     enableSync,
     disableSync,
+    markLocalWrite,
   };
 }

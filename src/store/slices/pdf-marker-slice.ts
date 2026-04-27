@@ -23,8 +23,10 @@ export interface PdfMarkerSlice {
 
   setPdfMarkerPdfBase64: (pdfBase64: string | null) => void;
   setPdfMarkerQuestions: (questions: AppState['pdfMarkerQuestions']) => void;
+  reorderPdfMarkerQuestions: (fromIndex: number, toIndex: number) => void;
   setPdfMarkerPageMapping: (mapping: AppState['pdfMarkerPageMapping']) => void;
   markPdf: () => Promise<void>;
+  markPdfSingle: (questionId: string) => Promise<void>;
   discoverPdfQuestions: () => Promise<void>;
   resetPdfMarker: () => void;
   clearPdfMarkerResults: () => void;
@@ -52,6 +54,31 @@ export const createPdfMarkerSlice: StateCreator<
   setPdfMarkerQuestions: (pdfMarkerQuestions) => set({ pdfMarkerQuestions }),
   setPdfMarkerPageMapping: (pdfMarkerPageMapping) =>
     set({ pdfMarkerPageMapping }),
+  reorderPdfMarkerQuestions: (fromIndex: number, toIndex: number) => {
+    const questions = get().pdfMarkerQuestions;
+    if (fromIndex === toIndex) return;
+    const reordered = [...questions];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    // Also reorder the page mapping to match
+    const mapping = get().pdfMarkerPageMapping;
+    const movedMapping = mapping.find((m) => m.questionIndex === fromIndex);
+    const newMapping = mapping
+      .filter((m) => m.questionIndex !== fromIndex)
+      .map((m) => {
+        if (m.questionIndex > fromIndex) {
+          return { ...m, questionIndex: m.questionIndex - 1 };
+        }
+        if (m.questionIndex >= toIndex && m.questionIndex < fromIndex) {
+          return { ...m, questionIndex: m.questionIndex + 1 };
+        }
+        return m;
+      });
+    if (movedMapping) {
+      newMapping.push({ ...movedMapping, questionIndex: toIndex });
+    }
+    set({ pdfMarkerQuestions: reordered, pdfMarkerPageMapping: newMapping });
+  },
 
   markPdf: async () => {
     const s = get();
@@ -111,7 +138,6 @@ export const createPdfMarkerSlice: StateCreator<
         pdfMarkerErrorsByQuestionId: newErrors,
       });
 
-      // Save to history if we have at least one successful result
       if (Object.keys(newResults).length > 0) {
         let achieved = 0;
         let max = 0;
@@ -137,6 +163,80 @@ export const createPdfMarkerSlice: StateCreator<
       }
 
       toast.success('PDF marking complete!');
+    } catch (error) {
+      const msg = readBackendError(error);
+      set({ errorMessage: msg });
+      toast.error(`Marking failed: ${msg}`);
+    } finally {
+      set({ isPdfMarkerMarking: false });
+    }
+  },
+
+  markPdfSingle: async (questionId: string) => {
+    const s = get();
+    if (s.isPdfMarkerMarking) return;
+    if (!s.apiKey.trim() || !s.markingModel.trim()) {
+      toast.error('API key and marking model are required.');
+      return;
+    }
+
+    if (!s.pdfMarkerPdfBase64) {
+      toast.error('No PDF provided.');
+      return;
+    }
+
+    const question = s.pdfMarkerQuestions.find((q) => q.id === questionId);
+    if (!question) {
+      toast.error('Question not found.');
+      return;
+    }
+
+    set({ isPdfMarkerMarking: true });
+
+    const questionIndex = s.pdfMarkerQuestions.findIndex((q) => q.id === questionId);
+    const pageMapping = s.pdfMarkerPageMapping.filter(
+      (m) => m.questionIndex === questionIndex,
+    );
+
+    try {
+      const response = await invoke<{ results: MarkPdfResultItem[] }>(
+        'mark_pdf',
+        {
+          request: {
+            pdfBase64: s.pdfMarkerPdfBase64,
+            questions: [question],
+            pageMapping,
+            model: s.markingModel,
+            apiKey: s.apiKey,
+            markerStyle: s.markerStyle,
+            customMarkerStyle: s.customMarkerStyle,
+          },
+        },
+      );
+
+      const resultItem = response.results[0];
+
+      if (resultItem.response) {
+        const normalizedResult = normalizeMarkResponse(
+          resultItem.response,
+          question.maxMarks,
+        );
+        set((state) => ({
+          pdfMarkerResultsByQuestionId: {
+            ...state.pdfMarkerResultsByQuestionId,
+            [questionId]: normalizedResult,
+          },
+        }));
+        toast.success('Question marked successfully');
+      } else if (resultItem.error) {
+        set((state) => ({
+          pdfMarkerErrorsByQuestionId: {
+            ...state.pdfMarkerErrorsByQuestionId,
+            [questionId]: resultItem.error || 'Unknown error',
+          },
+        }));
+        toast.error(resultItem.error);
+      }
     } catch (error) {
       const msg = readBackendError(error);
       set({ errorMessage: msg });

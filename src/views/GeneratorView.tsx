@@ -166,6 +166,7 @@ export function GeneratorView() {
 
   const {
     mcQuestions,
+    mcHistory,
     setMcQuestions,
     activeMcQuestionIndex,
     setActiveMcQuestionIndex,
@@ -815,6 +816,11 @@ export function GeneratorView() {
     setActiveMcSavedSetId,
   ]);
 
+  const deleteQuestionHistoryEntry = useAppStore(
+    (s) => s.deleteQuestionHistoryEntry,
+  );
+  const deleteMcHistoryEntry = useAppStore((s) => s.deleteMcHistoryEntry);
+
   const performConfirmedCancel = useCallback(() => {
     if (pendingCancelType === 'written' && activeQuestion) {
       const id = activeQuestion.id;
@@ -832,6 +838,8 @@ export function GeneratorView() {
       setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
       setWrittenResponseEnteredAtById((p) => removeKey(p, id));
       writtenTimer.removeQuestion(id);
+      const historyEntry = questionHistory.find((e) => e.question.id === id);
+      if (historyEntry) deleteQuestionHistoryEntry(historyEntry.id);
       setErrorMessage(null);
     }
     if (pendingCancelType === 'mc' && activeMcQuestion) {
@@ -846,6 +854,8 @@ export function GeneratorView() {
       setMcAnswersByQuestionId((p) => removeKey(p, id));
       setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
       mcTimer.removeQuestion(id);
+      const mcHistoryEntry = mcHistory.find((e) => e.question.id === id);
+      if (mcHistoryEntry) deleteMcHistoryEntry(mcHistoryEntry.id);
       setErrorMessage(null);
     }
     setPendingCancelType(null);
@@ -877,6 +887,10 @@ export function GeneratorView() {
     setMarkOverrideInputByQuestionId,
     setWrittenResponseEnteredAtById,
     setMcAwardedMarksByQuestionId,
+    questionHistory,
+    deleteQuestionHistoryEntry,
+    mcHistory,
+    deleteMcHistoryEntry,
   ]);
 
   const handleGenerateQuestions = useCallback(async () => {
