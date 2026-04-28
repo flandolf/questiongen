@@ -1,12 +1,65 @@
 use crate::catalog;
 use base64::{engine::general_purpose, Engine as _};
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::Metadata;
+use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
+
+pub fn extract_pages_from_pdf(
+    pdf_base64: &str,
+    page_indices: &[usize],
+) -> Result<String, String> {
+    let data = if let Some(stripped) = pdf_base64.strip_prefix("data:application/pdf;base64,") {
+        general_purpose::STANDARD
+            .decode(stripped)
+            .map_err(|e| format!("Failed to decode base64: {}", e))?
+    } else {
+        general_purpose::STANDARD
+            .decode(pdf_base64)
+            .map_err(|e| format!("Failed to decode base64: {}", e))?
+    };
+
+    let mut doc = lopdf::Document::load_mem(&data)
+        .map_err(|e| format!("Failed to load PDF: {}", e))?;
+
+    let page_count = doc.get_pages().len() as usize;
+    if page_count == 0 {
+        return Err("PDF has no pages".to_string());
+    }
+
+    let valid_indices: Vec<u32> = page_indices
+        .iter()
+        .filter(|&&i| i < page_count)
+        .map(|&i| i as u32)
+        .collect();
+
+    if valid_indices.is_empty() {
+        return Err("No valid page indices provided".to_string());
+    }
+
+    let pages: Vec<u32> = doc.get_pages().keys().cloned().collect();
+    let pages_to_delete: Vec<u32> = pages
+        .iter()
+        .filter(|p| !valid_indices.contains(p))
+        .cloned()
+        .collect();
+
+    for page_num in pages_to_delete {
+        doc.delete_pages(&[page_num]);
+    }
+
+    let mut out_bytes = Vec::new();
+    doc.save_to(&mut Cursor::new(&mut out_bytes))
+        .map_err(|e| format!("Failed to save PDF: {}", e))?;
+
+    Ok(format!(
+        "data:application/pdf;base64,{}",
+        general_purpose::STANDARD.encode(&out_bytes)
+    ))
+}
 
 #[derive(Clone)]
 struct CachedPdfPart {

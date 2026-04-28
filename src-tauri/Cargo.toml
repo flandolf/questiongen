@@ -34,6 +34,7 @@ tauri-plugin-sharekit = { git = "https://github.com/Choochmeque/tauri-plugin-sha
 rand = "0.10.1"
 genanki-rs = "0.4"
 regex = "1"
+lopdf = "0.34"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
