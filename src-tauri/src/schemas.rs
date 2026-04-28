@@ -8,16 +8,32 @@ pub fn written_format(model: &str) -> serde_json::Value {
         "properties": {
             "questions": {
                 "type": "array",
+                "minItems": 1,
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["id","topic","subtopic","promptMarkdown","maxMarks"],
+                    "required": ["id", "topic", "subtopic", "promptMarkdown", "maxMarks"],
                     "properties": {
-                        "id": { "type": "string" },
-                        "topic": { "type": "string" },
-                        "subtopic": { "type": ["string","null"] },
-                        "promptMarkdown": { "type": "string" },
-                        "maxMarks": { "type": "integer", "minimum": 1, "maximum": 30 }
+                        "id": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "topic": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "subtopic": {
+                            "type": ["string", "null"]
+                        },
+                        "promptMarkdown": {
+                            "type": "string",
+                            "minLength": 10
+                        },
+                        "maxMarks": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 30
+                        }
                     }
                 }
             }
@@ -39,29 +55,55 @@ pub fn mc_format(model: &str) -> serde_json::Value {
         "properties": {
             "questions": {
                 "type": "array",
+                "minItems": 1,
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["id","topic","subtopic","promptMarkdown","options","correctAnswer","explanationMarkdown"],
+                    "required": ["id", "topic", "subtopic", "promptMarkdown", "options", "correctAnswer", "explanationMarkdown"],
                     "properties": {
-                        "id":                  { "type": "string" },
-                        "topic":               { "type": "string" },
-                        "subtopic":            { "type": ["string","null"] },
-                        "promptMarkdown":      { "type": "string" },
+                        "id": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "topic": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "subtopic": {
+                            "type": ["string", "null"]
+                        },
+                        "promptMarkdown": {
+                            "type": "string",
+                            "minLength": 10
+                        },
                         "options": {
-                            "type": "array", "minItems": 4, "maxItems": 4,
+                            "type": "array",
+                            "minItems": 4,
+                            "maxItems": 4,
                             "items": {
                                 "type": "object",
                                 "additionalProperties": false,
-                                "required": ["label","text"],
+                                "required": ["label", "text"],
                                 "properties": {
-                                    "label": { "type": "string" },
-                                    "text":  { "type": "string" }
+                                    "label": {
+                                        "type": "string",
+                                        "enum": ["A", "B", "C", "D"]
+                                    },
+                                    "text": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    }
                                 }
                             }
                         },
-                        "correctAnswer":       { "type": "string", "enum": ["A","B","C","D"] },
-                        "explanationMarkdown": { "type": "string" }
+                        "correctAnswer": {
+                            "type": "string",
+                            "enum": ["A", "B", "C", "D"]
+                        },
+                        "explanationMarkdown": {
+                            "type": "string",
+                            "minLength": 5
+                        }
                     }
                 }
             }
@@ -79,43 +121,75 @@ pub fn marking_format(model: &str) -> serde_json::Value {
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
-        "required": ["verdict","achievedMarks","maxMarks",
-                     "vcaaMarkingScheme","comparisonToSolutionMarkdown",
-                     "feedbackMarkdown","workedSolutionMarkdown",
-                     "exemplarResponseMarkdown","mcOptionExplanations"],
+        "required": ["verdict", "achievedMarks", "maxMarks", "vcaaMarkingScheme", "comparisonToSolutionMarkdown", "feedbackMarkdown", "workedSolutionMarkdown", "exemplarResponseMarkdown", "mcOptionExplanations"],
         "properties": {
-            "verdict":       { "type": "string" },
-            "achievedMarks": { "type": "integer", "minimum": 0 },
-            "maxMarks":      { "type": "integer", "minimum": 1 },
+            "verdict": {
+                "type": "string",
+                "enum": ["Correct", "Incorrect", "Partial"]
+            },
+            "achievedMarks": {
+                "type": "integer",
+                "minimum": 0
+            },
+            "maxMarks": {
+                "type": "integer",
+                "minimum": 1
+            },
             "vcaaMarkingScheme": {
                 "type": "array",
+                "minItems": 1,
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["criterion","achievedMarks","maxMarks","rationale"],
+                    "required": ["criterion", "achievedMarks", "maxMarks", "rationale"],
                     "properties": {
-                        "criterion":     { "type": "string" },
-                        "achievedMarks": { "type": "integer", "minimum": 0 },
-                        "maxMarks":      { "type": "integer", "minimum": 0 },
-                        "rationale":     { "type": "string" }
+                        "criterion": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "achievedMarks": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "maxMarks": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "rationale": {
+                            "type": "string",
+                            "minLength": 1
+                        }
                     }
                 }
             },
-            "comparisonToSolutionMarkdown": { "type": "string" },
-            "feedbackMarkdown":             { "type": "string" },
-            "workedSolutionMarkdown":       { "type": "string" },
-            "exemplarResponseMarkdown":     { "type": "string" },
-            // Present for MC questions; empty array for written questions.
+            "comparisonToSolutionMarkdown": {
+                "type": "string"
+            },
+            "feedbackMarkdown": {
+                "type": "string"
+            },
+            "workedSolutionMarkdown": {
+                "type": "string"
+            },
+            "exemplarResponseMarkdown": {
+                "type": "string"
+            },
             "mcOptionExplanations": {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["option","isCorrect","explanation"],
+                    "required": ["option", "isCorrect", "explanation"],
                     "properties": {
-                        "option":      { "type": "string" },
-                        "isCorrect":   { "type": "boolean" },
-                        "explanation": { "type": "string" }
+                        "option": {
+                            "type": "string"
+                        },
+                        "isCorrect": {
+                            "type": "boolean"
+                        },
+                        "explanation": {
+                            "type": "string"
+                        }
                     }
                 }
             }

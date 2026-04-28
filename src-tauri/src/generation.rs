@@ -1436,25 +1436,26 @@ impl GenerationService {
             if !pdf_base64.is_empty() {
                 for mapping in &request.page_mapping {
                     let question_idx = mapping.question_index;
-                    if !extracted_pdfs.contains_key(&question_idx) {
+                    extracted_pdfs.entry(question_idx).or_insert_with(|| {
                         if !mapping.page_indices.is_empty() {
                             match pdf::extract_pages_from_pdf(pdf_base64, &mapping.page_indices) {
-                                Ok(extracted) => {
-                                    extracted_pdfs.insert(question_idx, extracted);
-                                }
+                                Ok(extracted) => extracted,
                                 Err(e) => {
                                     self.rust_log(
                                         "warn",
-                                        &format!("Failed to extract pages for question {}: {}", question_idx, e),
+                                        &format!(
+                                            "Failed to extract pages for question {}: {}",
+                                            question_idx, e
+                                        ),
                                         None,
                                     );
-                                    extracted_pdfs.insert(question_idx, pdf_base64.clone());
+                                    pdf_base64.clone()
                                 }
                             }
                         } else {
-                            extracted_pdfs.insert(question_idx, pdf_base64.clone());
+                            pdf_base64.clone()
                         }
-                    }
+                    });
                 }
             }
         }

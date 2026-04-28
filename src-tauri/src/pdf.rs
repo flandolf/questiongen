@@ -8,10 +8,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 
-pub fn extract_pages_from_pdf(
-    pdf_base64: &str,
-    page_indices: &[usize],
-) -> Result<String, String> {
+pub fn extract_pages_from_pdf(pdf_base64: &str, page_indices: &[usize]) -> Result<String, String> {
     let data = if let Some(stripped) = pdf_base64.strip_prefix("data:application/pdf;base64,") {
         general_purpose::STANDARD
             .decode(stripped)
@@ -22,10 +19,10 @@ pub fn extract_pages_from_pdf(
             .map_err(|e| format!("Failed to decode base64: {}", e))?
     };
 
-    let mut doc = lopdf::Document::load_mem(&data)
-        .map_err(|e| format!("Failed to load PDF: {}", e))?;
+    let mut doc =
+        lopdf::Document::load_mem(&data).map_err(|e| format!("Failed to load PDF: {}", e))?;
 
-    let page_count = doc.get_pages().len() as usize;
+    let page_count = doc.get_pages().len();
     if page_count == 0 {
         return Err("PDF has no pages".to_string());
     }
