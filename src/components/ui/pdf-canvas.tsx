@@ -122,7 +122,10 @@ export function PdfCanvas({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const pageNum = parseInt(entry.target.getAttribute('data-page') || '0', 10);
+            const pageNum = parseInt(
+              entry.target.getAttribute('data-page') || '0',
+              10,
+            );
             if (pageNum) {
               renderPage(pageNum, zoom);
               currentPageRef.current = pageNum;
@@ -140,7 +143,12 @@ export function PdfCanvas({
   }, [pageCount, renderPage, zoom, onPageChange]);
 
   useEffect(() => {
-    if (scrollToPage === null || scrollToPage === undefined || !containerRef.current) return;
+    if (
+      scrollToPage === null ||
+      scrollToPage === undefined ||
+      !containerRef.current
+    )
+      return;
     const pageEl = pageContainerRefs.current.get(scrollToPage);
     if (pageEl) {
       pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -156,11 +164,7 @@ export function PdfCanvas({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ overflow: 'auto' }}
-    >
+    <div ref={containerRef} className={className} style={{ overflow: 'auto' }}>
       <div
         className='flex flex-col items-center gap-2 p-2'
         style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}

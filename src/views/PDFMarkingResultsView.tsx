@@ -42,13 +42,16 @@ export function PDFMarkingResultsView() {
     () => new Set(),
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [scoreFilter, setScoreFilter] = useState<'all' | 'full' | 'partial' | 'zero'>('all');
-  const [sortOrder, setSortOrder] = useState<'default' | 'score-asc' | 'score-desc' | 'topic'>('default');
+  const [scoreFilter, setScoreFilter] = useState<
+    'all' | 'full' | 'partial' | 'zero'
+  >('all');
+  const [sortOrder, setSortOrder] = useState<
+    'default' | 'score-asc' | 'score-desc' | 'topic'
+  >('default');
 
-  const hasActiveFilters =
-    scoreFilter !== 'all' || searchQuery.trim() !== '';
+  const hasActiveFilters = scoreFilter !== 'all' || searchQuery.trim() !== '';
 
-const results = useMemo(() => {
+  const results = useMemo(() => {
     return pdfMarkerQuestions
       .map((q) => ({
         question: q,
@@ -119,21 +122,25 @@ const results = useMemo(() => {
     });
   };
 
-  const exportToAnki = async (question: GeneratedQuestion, result: MarkAnswerResponse) => {
+  const exportToAnki = async (
+    question: GeneratedQuestion,
+    result: MarkAnswerResponse,
+  ) => {
     try {
       const answer = `${result.feedbackMarkdown}\n\n### Worked Solution\n${result.workedSolutionMarkdown}`;
-      const res = await invoke<{ success: boolean; filePath?: string; errorMessage?: string }>(
-        'export_question_to_anki',
-        {
-          request: {
-            id: question.id,
-            question: question.promptMarkdown,
-            answer,
-            topic: question.topic,
-            subtopic: question.subtopic ?? '',
-          },
+      const res = await invoke<{
+        success: boolean;
+        filePath?: string;
+        errorMessage?: string;
+      }>('export_question_to_anki', {
+        request: {
+          id: question.id,
+          question: question.promptMarkdown,
+          answer,
+          topic: question.topic,
+          subtopic: question.subtopic ?? '',
         },
-      );
+      });
       if (res.success) {
         toast.success(`Exported: ${res.filePath}`);
         if (res.errorMessage) toast.warning(res.errorMessage);
@@ -141,7 +148,9 @@ const results = useMemo(() => {
         toast.error(`Export failed: ${res.errorMessage}`);
       }
     } catch (e) {
-      toast.error(`Export error: ${e instanceof Error ? e.message : String(e)}`);
+      toast.error(
+        `Export error: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   };
 
@@ -227,7 +236,13 @@ const results = useMemo(() => {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {f === 'all' ? 'All' : f === 'full' ? 'Full' : f === 'partial' ? 'Partial' : 'Zero'}
+              {f === 'all'
+                ? 'All'
+                : f === 'full'
+                  ? 'Full'
+                  : f === 'partial'
+                    ? 'Partial'
+                    : 'Zero'}
             </button>
           ))}
         </div>
@@ -292,8 +307,8 @@ const results = useMemo(() => {
             />
           </div>
           <p className='text-[10px] text-muted-foreground/60 leading-tight'>
-            Analysis of <strong>{filteredResults.length}</strong> questions against VCE
-            key knowledge and skills.
+            Analysis of <strong>{filteredResults.length}</strong> questions
+            against VCE key knowledge and skills.
           </p>
         </div>
       </motion.div>
@@ -398,7 +413,9 @@ const results = useMemo(() => {
                                   variant='ghost'
                                   size='sm'
                                   className='h-7 text-xs'
-                                  onClick={() => copyFeedback(r.result.feedbackMarkdown)}
+                                  onClick={() =>
+                                    copyFeedback(r.result.feedbackMarkdown)
+                                  }
                                 >
                                   <Copy className='w-3 h-3 mr-1' /> Copy
                                 </Button>

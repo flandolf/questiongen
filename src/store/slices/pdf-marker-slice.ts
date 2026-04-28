@@ -193,7 +193,9 @@ export const createPdfMarkerSlice: StateCreator<
 
     set({ isPdfMarkerMarking: true });
 
-    const questionIndex = s.pdfMarkerQuestions.findIndex((q) => q.id === questionId);
+    const questionIndex = s.pdfMarkerQuestions.findIndex(
+      (q) => q.id === questionId,
+    );
     const pageMapping = s.pdfMarkerPageMapping.filter(
       (m) => m.questionIndex === questionIndex,
     );

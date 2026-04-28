@@ -346,8 +346,7 @@ export function useSync(): UseSyncReturn {
               const localLastModified = getLocalWriteTimestamp('settings');
 
               if (remoteLastModified > localLastModified) {
-                if (data?.apiKey)
-                  useAppStore.setState({ apiKey: data.apiKey });
+                if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
                 if (data?.studyGoals)
                   useAppStore.setState({ studyGoals: data.studyGoals });
                 if (data?.streakData)
