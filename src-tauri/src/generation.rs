@@ -19,7 +19,7 @@ use crate::prompts;
 use crate::quality;
 use crate::schemas;
 use crate::text_clean::{clean_field, sanitize_for_api};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tauri::Emitter;
 
@@ -1431,6 +1431,34 @@ impl GenerationService {
         let mut results = Vec::new();
         let abort_signal = self.abort_signal.clone().unwrap_or_else(AbortSignal::new);
 
+        let mut extracted_pdfs: HashMap<usize, String> = HashMap::new();
+        if let Some(ref pdf_base64) = request.pdf_base64 {
+            if !pdf_base64.is_empty() {
+                for mapping in &request.page_mapping {
+                    let question_idx = mapping.question_index;
+                    if !extracted_pdfs.contains_key(&question_idx) {
+                        if !mapping.page_indices.is_empty() {
+                            match pdf::extract_pages_from_pdf(pdf_base64, &mapping.page_indices) {
+                                Ok(extracted) => {
+                                    extracted_pdfs.insert(question_idx, extracted);
+                                }
+                                Err(e) => {
+                                    self.rust_log(
+                                        "warn",
+                                        &format!("Failed to extract pages for question {}: {}", question_idx, e),
+                                        None,
+                                    );
+                                    extracted_pdfs.insert(question_idx, pdf_base64.clone());
+                                }
+                            }
+                        } else {
+                            extracted_pdfs.insert(question_idx, pdf_base64.clone());
+                        }
+                    }
+                }
+            }
+        }
+
         for mapping in request.page_mapping {
             if abort_signal.is_aborted() {
                 break;
@@ -1451,15 +1479,17 @@ impl GenerationService {
                 }
             };
 
+            let pdf_for_question = extracted_pdfs.get(&mapping.question_index).cloned();
+
             match self
                 .perform_marking(
                     &request.api_key,
                     &request.model,
                     question,
-                    "", // No text answer for PDF marking, it's in the PDF
+                    "",
                     Vec::new(),
-                    Some(request.pdf_base64.clone()),
-                    Some(mapping.page_indices),
+                    pdf_for_question,
+                    Some(mapping.page_indices.clone()),
                     request.marker_style.as_deref(),
                     request.custom_marker_style.as_deref(),
                     abort_signal.clone(),

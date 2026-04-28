@@ -402,7 +402,8 @@ pub struct ExportQuestionToAnkiResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkPdfRequest {
-    pub pdf_base64: String,
+    #[serde(default)]
+    pub pdf_base64: Option<String>,
     pub questions: Vec<GeneratedQuestion>,
     pub page_mapping: Vec<MarkPdfPageMapping>,
     pub model: String,
