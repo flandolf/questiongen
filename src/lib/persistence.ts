@@ -5,8 +5,11 @@ import type { TimerState } from '@/types/timer';
 
 import type {
   Difficulty,
+  GeneratedQuestion,
   GenerationRecord,
+  MarkAnswerResponse,
   McHistoryEntry,
+  PdfMarkerHistoryEntry,
   PersistedAppState,
   PersistedGeneratorPreferences,
   PersistedMcSession,
@@ -220,6 +223,7 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     mcSession: normalizeMcSession(data.mcSession),
     questionHistory: normalizeQuestionHistory(data.questionHistory),
     mcHistory: normalizeMcHistory(data.mcHistory),
+    pdfMarkerHistory: normalizePdfMarkerHistory(data.pdfMarkerHistory),
     savedSets: normalizeSavedSets(data.savedSets),
     studyGoals: normalizeStudyGoals(data.studyGoals),
     streakData: normalizeStreakData(data.streakData),
@@ -438,6 +442,47 @@ export function normalizeQuestionHistory(raw: unknown): QuestionHistoryEntry[] {
 export function normalizeMcHistory(raw: unknown): McHistoryEntry[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((item) => item as McHistoryEntry);
+}
+
+export function normalizePdfMarkerHistory(raw: unknown): PdfMarkerHistoryEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const result: PdfMarkerHistoryEntry[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const id = typeof item.id === 'string' ? item.id : crypto.randomUUID();
+    const createdAt =
+      typeof item.createdAt === 'string'
+        ? item.createdAt
+        : new Date().toISOString();
+    const pdfBase64 =
+      typeof item.pdfBase64 === 'string' ? item.pdfBase64 : null;
+    const questions = (
+      Array.isArray(item.questions) ? item.questions : []
+    ) as unknown as GeneratedQuestion[];
+    const resultsRaw = item.resultsByQuestionId;
+    const resultsByQuestionId = isRecord(resultsRaw)
+      ? (resultsRaw as unknown as Record<string, MarkAnswerResponse>)
+      : {};
+    const pageMapping = (
+      Array.isArray(item.pageMapping) ? item.pageMapping : []
+    ) as unknown as { questionIndex: number; pageIndices: number[] }[];
+    const statsRecord = isRecord(item.stats) ? item.stats : {};
+    const stats = {
+      achieved: typeof statsRecord.achieved === 'number' ? statsRecord.achieved : 0,
+      max: typeof statsRecord.max === 'number' ? statsRecord.max : 0,
+      pct: typeof statsRecord.pct === 'number' ? statsRecord.pct : 0,
+    };
+    result.push({
+      id,
+      createdAt,
+      pdfBase64,
+      questions,
+      resultsByQuestionId,
+      pageMapping,
+      stats,
+    });
+  }
+  return result;
 }
 
 function normalizeStudyGoals(raw: unknown): StudyGoals {

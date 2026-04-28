@@ -11,6 +11,18 @@ pub fn topic_field_contract() -> &'static str {
     "FIELDS: 'topic' = subject name (e.g. Mathematical Methods); 'subtopic' = focus area label. No subtopics in 'topic' field."
 }
 
+pub fn strict_json_output_note() -> &'static str {
+    "STRICT JSON OUTPUT:\n\
+     - Output ONLY raw JSON. No markdown fences, no backticks, no explanation.\n\
+     - Response must start with '{' and end with '}'.\n\
+     - Use double quotes for all strings. No trailing commas.\n\
+     - All required fields must be present.\n\n\
+     EXAMPLE (written):\n\
+     {\"questions\":[{\"id\":\"Q1\",\"topic\":\"Chemistry\",\"subtopic\":\"Stoichiometry\",\"promptMarkdown\":\"Calculate the mass...\",\"maxMarks\":5}]}\n\n\
+     EXAMPLE (MC):\n\
+     {\"questions\":[{\"id\":\"Q1\",\"topic\":\"Physics\",\"subtopic\":\"Vectors\",\"promptMarkdown\":\"A force of 10N...\",\"options\":[{\"label\":\"A\",\"text\":\"5N\"},{\"label\":\"B\",\"text\":\"10N\"},{\"label\":\"C\",\"text\":\"15N\"},{\"label\":\"D\",\"text\":\"20N\"}],\"correctAnswer\":\"B\",\"explanationMarkdown\":\"Using F=ma...\"}]}"
+}
+
 pub fn written_system() -> String {
     format!(
         "IDENTITY: Expert VCE written-response exam writer.\n\n\
@@ -20,17 +32,19 @@ pub fn written_system() -> String {
          {style_rules}\n\
          {mermaid_rules}\n\n\
          CORE RULES:\n\
-         - Use precise VCAA command terms (e.g. 'state', 'describe', 'explain', 'justify', 'evaluate', 'compare', 'derive', 'show that').\n\
+         - Use precise VCCTA command terms (e.g. 'state', 'describe', 'explain', 'justify', 'evaluate', 'compare', 'derive', 'show that').\n\
          - 'show that': every step must be explicit.\n\
          - 'justify': reasoning required.\n\
          - 'promptMarkdown' contains STEM ONLY. No solutions/answers.\n\n\
-         {field_contract}",
+         {field_contract}\n\n\
+         {json_output}",
         contract = generation_compliance_contract(),
         hygiene = constants::GLOBAL_HYGIENE_RULES,
         latex_rules = constants::LATEX_RULES,
         style_rules = constants::WRITTEN_STYLE_RULES,
         mermaid_rules = constants::MERMAID_RULES,
         field_contract = topic_field_contract(),
+        json_output = strict_json_output_note(),
     )
 }
 
@@ -43,17 +57,19 @@ pub fn mc_system() -> String {
          {style_rules}\n\
          {mermaid_rules}\n\n\
          CORE RULES:\n\
-         - Use VCAA standard phrasing and plausible distractors.\n\
+         - Use VCE standard phrasing and plausible distractors.\n\
          - Provide ONLY final answers and concise rationale.\n\
          - NO chain-of-thought in output.\n\
          - 'promptMarkdown' contains STEM ONLY. No options (A-D) in stem.\n\n\
-         {field_contract}",
+         {field_contract}\n\n\
+         {json_output}",
         contract = generation_compliance_contract(),
         hygiene = constants::GLOBAL_HYGIENE_RULES,
         latex_rules = constants::LATEX_RULES,
         style_rules = constants::MC_STYLE_RULES,
         mermaid_rules = constants::MERMAID_RULES,
         field_contract = topic_field_contract(),
+        json_output = strict_json_output_note(),
     )
 }
 
