@@ -110,17 +110,22 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
     let unlisten: (() => void) | undefined;
     let cancelled = false;
 
-    void listen<{ text: string; topic?: string }>('generation-token', (event) => {
-      if (event.payload.topic === questionId) {
-        streamBufferRef.current += event.payload.text;
-        if (streamFlushRafRef.current === null) {
-          streamFlushRafRef.current = requestAnimationFrame(flush);
+    void listen<{ text: string; topic?: string }>(
+      'generation-token',
+      (event) => {
+        if (event.payload.topic === questionId) {
+          streamBufferRef.current += event.payload.text;
+          if (streamFlushRafRef.current === null) {
+            streamFlushRafRef.current = requestAnimationFrame(flush);
+          }
         }
-      }
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    }).catch(() => {});
+      },
+    )
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;

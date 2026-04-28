@@ -136,7 +136,10 @@ const QuestionItem = ({
             ? 'border-emerald-500/20 bg-emerald-500/5 shadow-[0_2px_12px_rgba(16,185,129,0.05)]'
             : 'border-border/40 bg-muted/20 hover:bg-muted/30 hover:border-border/80 shadow-sm',
         isDragging && draggingIndex === qIdx && 'opacity-40',
-        dragOverIndex !== null && dragOverIndex !== qIdx && draggingIndex !== qIdx && 'border-primary/50 border-dashed',
+        dragOverIndex !== null &&
+          dragOverIndex !== qIdx &&
+          draggingIndex !== qIdx &&
+          'border-primary/50 border-dashed',
       )}
     >
       <div className='flex items-center justify-between gap-3'>
@@ -148,7 +151,9 @@ const QuestionItem = ({
                 <AlertCircle className='w-4 h-4 text-amber-500 shrink-0' />
               </TooltipTrigger>
               <TooltipContent>
-                <p className='text-xs'>Possible duplicate: prompt matches another question</p>
+                <p className='text-xs'>
+                  Possible duplicate: prompt matches another question
+                </p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -175,7 +180,9 @@ const QuestionItem = ({
                   <FileText className='w-3.5 h-3.5' />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Jump to pages {getPageRange(qIdx)}</TooltipContent>
+              <TooltipContent>
+                Jump to pages {getPageRange(qIdx)}
+              </TooltipContent>
             </Tooltip>
           )}
           <Button
@@ -482,14 +489,20 @@ export function PDFMarkerView() {
   const [zoom, setZoom] = useState(1.5);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const [markingStreams, setMarkingStreams] = useState<Record<string, string>>({});
+  const [markingStreams, setMarkingStreams] = useState<Record<string, string>>(
+    {},
+  );
   const streamBufferRef = useRef<Record<string, string>>({});
   const streamFlushRafRef = useRef<number | null>(null);
 
   const handleDragStart = (index: number) => setDraggingIndex(index);
   const handleDragOver = (index: number) => setDragOverIndex(index);
   const handleDragEnd = () => {
-    if (draggingIndex !== null && dragOverIndex !== null && draggingIndex !== dragOverIndex) {
+    if (
+      draggingIndex !== null &&
+      dragOverIndex !== null &&
+      draggingIndex !== dragOverIndex
+    ) {
       reorderPdfMarkerQuestions(draggingIndex, dragOverIndex);
     }
     setDraggingIndex(null);
@@ -512,7 +525,9 @@ export function PDFMarkerView() {
   );
 
   const duplicateIndices = useMemo(() => {
-    const prompts = pdfMarkerQuestions.map((q) => q.promptMarkdown.trim().toLowerCase());
+    const prompts = pdfMarkerQuestions.map((q) =>
+      q.promptMarkdown.trim().toLowerCase(),
+    );
     const found = new Set<number>();
     for (let i = 0; i < prompts.length; i++) {
       for (let j = i + 1; j < prompts.length; j++) {
@@ -534,17 +549,29 @@ export function PDFMarkerView() {
 
   const handleGlobalKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (pdfMarkerQuestions.length > 0 && pdfMarkerPdfBase64 && !isPdfMarkerMarking) {
+        if (
+          pdfMarkerQuestions.length > 0 &&
+          pdfMarkerPdfBase64 &&
+          !isPdfMarkerMarking
+        ) {
           void markPdf();
         }
       }
     },
-    [pdfMarkerQuestions.length, pdfMarkerPdfBase64, isPdfMarkerMarking, markPdf],
+    [
+      pdfMarkerQuestions.length,
+      pdfMarkerPdfBase64,
+      isPdfMarkerMarking,
+      markPdf,
+    ],
   );
 
   useEffect(() => {
@@ -570,16 +597,22 @@ export function PDFMarkerView() {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
 
-    void listen<{ text: string; topic?: string }>('generation-token', (event) => {
-      const key = event.payload.topic || 'default';
-      streamBufferRef.current[key] = (streamBufferRef.current[key] || '') + event.payload.text;
-      if (streamFlushRafRef.current === null) {
-        streamFlushRafRef.current = requestAnimationFrame(flushBuffered);
-      }
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    }).catch(() => {});
+    void listen<{ text: string; topic?: string }>(
+      'generation-token',
+      (event) => {
+        const key = event.payload.topic || 'default';
+        streamBufferRef.current[key] =
+          (streamBufferRef.current[key] || '') + event.payload.text;
+        if (streamFlushRafRef.current === null) {
+          streamFlushRafRef.current = requestAnimationFrame(flushBuffered);
+        }
+      },
+    )
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -1063,12 +1096,12 @@ export function PDFMarkerView() {
                   animate={{ opacity: 1 }}
                   className='flex-1 overflow-hidden'
                 >
-<PdfCanvas
-                      src={pdfMarkerPdfBase64}
-                      className='w-full h-full'
-                      scrollToPage={scrollToPage}
-                      zoom={zoom as ZoomLevel}
-                    />
+                  <PdfCanvas
+                    src={pdfMarkerPdfBase64}
+                    className='w-full h-full'
+                    scrollToPage={scrollToPage}
+                    zoom={zoom as ZoomLevel}
+                  />
                 </motion.div>
               )}
             </CardContent>
