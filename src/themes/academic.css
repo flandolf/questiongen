@@ -29,10 +29,15 @@
   --ring: oklch(0.35 0.08 260);
 
   --chart-1: oklch(0.35 0.08 260);
-  --chart-2: oklch(0.45 0.1 280);
-  --chart-3: oklch(0.55 0.12 300);
-  --chart-4: oklch(0.65 0.14 320);
-  --chart-5: oklch(0.75 0.16 340);
+  --chart-2: oklch(0.5 0.12 180);
+  --chart-3: oklch(0.55 0.14 40);
+  --chart-4: oklch(0.6 0.1 290);
+  --chart-5: oklch(0.65 0.12 20);
+
+  --success: oklch(0.55 0.12 165);
+  --success-foreground: oklch(0.98 0.02 165);
+  --warning: oklch(0.6 0.14 45);
+  --warning-foreground: oklch(0.2 0.02 45);
 
   --sidebar: oklch(0.975 0.01 85);
   --sidebar-foreground: oklch(0.25 0.02 260);
@@ -124,6 +129,11 @@
   --sidebar-accent-foreground: oklch(0.92 0.01 260);
   --sidebar-border: oklch(0.18 0.02 260);
   --sidebar-ring: oklch(0.7 0.08 260);
+
+  --success: oklch(0.6 0.15 165);
+  --success-foreground: oklch(0.12 0.02 165);
+  --warning: oklch(0.7 0.15 45);
+  --warning-foreground: oklch(0.15 0.02 45);
 }
 
 /* Academic Theme Specifics */
@@ -154,4 +164,12 @@
 
 [data-design-theme='academic'] .mc-option-selected {
   @apply border-primary/40 bg-primary/5;
+}
+
+[data-design-theme='academic'] .mc-option-correct {
+  @apply border-success bg-success/10;
+}
+
+[data-design-theme='academic'] .mc-option-incorrect {
+  @apply border-destructive bg-destructive/10;
 }

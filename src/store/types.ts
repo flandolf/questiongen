@@ -49,7 +49,6 @@ export interface AppState {
   localBackupIntervalMinutes: number;
   theme: string;
   customThemeSeedColor: string;
-  globalRounding: 'sm' | 'md' | 'lg' | 'xl';
   interfaceFont: string;
   headingFont: string;
   tutorPersona: string;
