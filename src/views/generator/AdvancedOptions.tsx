@@ -134,7 +134,7 @@ export function AdvancedOptionsGroup({
   };
 
   return (
-    <div className='flex flex-col gap-5 w-full'>
+    <div className='flex flex-col gap-6 w-full'>
       {/* Session Size & Marks Row */}
       <div className='flex flex-col gap-2'>
         <motion.div
@@ -219,7 +219,7 @@ export function AdvancedOptionsGroup({
 
       {/* Direction Override */}
       <div className='flex flex-col gap-2'>
-        <div className='flex items-center justify-between w-full pt-1 pb-1'>
+        <div className='flex items-center justify-between w-full'>
           <h2 className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 flex items-center gap-2'>
             Custom Focus Area
           </h2>
@@ -246,7 +246,7 @@ export function AdvancedOptionsGroup({
 
       {/* Subtopics */}
       {hasSubtopicSection && (
-        <div className='flex flex-col gap-2'>
+        <div className='flex flex-col gap-3'>
           <SectionLabel>
             <span className='flex items-center gap-2'>
               <Book className='w-3.5 h-3.5' /> Subtopic Focus

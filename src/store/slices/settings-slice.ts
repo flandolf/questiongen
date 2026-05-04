@@ -24,7 +24,6 @@ export interface SettingsSlice {
   localBackupIntervalMinutes: number;
   theme: string;
   customThemeSeedColor: string;
-  globalRounding: 'sm' | 'md' | 'lg' | 'xl';
   interfaceFont: string;
   headingFont: string;
   tutorPersona: string;
@@ -141,7 +140,6 @@ export const createSettingsSlice: StateCreator<
   customThemeSeedColor: EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor
     ? normalizeHexColor(EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor)
     : '#3b82f6',
-  globalRounding: 'md',
   interfaceFont: 'Inter Variable',
   headingFont: 'Manrope Variable',
   tutorPersona: EMPTY_PERSISTED_APP_STATE.settings.tutorPersona ?? '',

@@ -200,9 +200,9 @@ function Section({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       {label && (
-        <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 px-0.5'>
+        <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
           {label}
         </p>
       )}
@@ -408,9 +408,9 @@ function SetupPanelImpl({
   return (
     <TooltipProvider>
       <div className='selection:bg-foreground/10 flex flex-col h-screen'>
-        <div className='relative px-6 flex flex-col lg:flex-row gap-10 flex-1 overflow-y-auto'>
+        <div className="relative px-6 py-8 flex flex-col lg:flex-row gap-12 flex-1 overflow-y-auto">
           {/* ── LEFT COLUMN ── */}
-          <div className='w-full lg:w-104 xl:w-md flex flex-col gap-7 shrink-0 py-6'>
+          <div className="w-full lg:w-104 xl:w-md flex flex-col gap-8 shrink-0">
             {/* Header */}
             <PageHeader
               title='Generator'
@@ -419,7 +419,7 @@ function SetupPanelImpl({
 
             {/* Question Mode */}
             <Section label='Question Type'>
-              <div className='grid grid-cols-2 gap-2.5'>
+              <div className='grid grid-cols-2 gap-3'>
                 {[
                   {
                     mode: 'written' as QuestionMode,
@@ -487,7 +487,7 @@ function SetupPanelImpl({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -4 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className='grid grid-cols-2 gap-2.5'
+                    className='grid grid-cols-2 gap-3'
                   >
                     {visibleTopics.map((topic) => {
                       const isSelected = selectedTopics.includes(topic);
@@ -556,10 +556,10 @@ function SetupPanelImpl({
 
             {/* Difficulty */}
             <Section label='Difficulty'>
-              <div className='rounded-xl border border-border/70 bg-card p-5 flex flex-col gap-5'>
+              <div className='rounded-xl border border-border/70 bg-card p-5 flex flex-col gap-4'>
                 {/* Header row */}
                 <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-2.5'>
+                  <div className='flex items-center gap-2'>
                     <span
                       className={cn(
                         'text-base font-black tracking-tight',
@@ -650,7 +650,7 @@ function SetupPanelImpl({
                 </div>
 
                 {/* Slider with visual fill */}
-                <div className='flex flex-col gap-3'>
+                <div className='flex flex-col gap-2'>
                   <Slider
                     min={1}
                     max={20}
@@ -666,7 +666,7 @@ function SetupPanelImpl({
                 </div>
 
                 {/* Quick presets */}
-                <div className='flex gap-1.5'>
+                <div className='flex gap-2'>
                   {[
                     { count: 3, label: 'Quick' },
                     { count: 7, label: 'Balanced' },
@@ -725,10 +725,10 @@ function SetupPanelImpl({
           </div>
 
           {/* ── RIGHT COLUMN ── */}
-          <div className='w-full lg:flex-1 flex flex-col gap-8 py-6'>
+          <div className="w-full lg:flex-1 flex flex-col gap-8">
             {/* Presets */}
-            <div className='flex flex-col gap-2'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 px-0.5'>
+            <div className='flex flex-col gap-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
                 Presets
               </p>
               <div className='rounded-xl border border-border/70 bg-card p-4'>
@@ -746,8 +746,8 @@ function SetupPanelImpl({
             </div>
 
             {/* Advanced Options */}
-            <div className='flex flex-col gap-2'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 px-0.5'>
+            <div className='flex flex-col gap-3'>
+              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
                 Advanced Options
               </p>
               <AdvancedOptionsGroup

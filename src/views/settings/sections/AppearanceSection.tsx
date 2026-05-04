@@ -2,7 +2,6 @@ import { useAppSettings } from '@/AppContext';
 import { ColorPicker } from '@/components/color-picker';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
-import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Select,
   SelectContent,
@@ -48,8 +47,6 @@ export function AppearanceSection() {
   const setTheme = useAppStore((s) => s.setTheme);
   const customThemeSeedColor = useAppStore((s) => s.customThemeSeedColor);
   const setCustomThemeSeedColor = useAppStore((s) => s.setCustomThemeSeedColor);
-  const globalRounding = useAppStore((s) => s.globalRounding);
-  const setGlobalRounding = useAppStore((s) => s.setGlobalRounding);
   const interfaceFont = useAppStore((s) => s.interfaceFont);
   const setInterfaceFont = useAppStore((s) => s.setInterfaceFont);
   const headingFont = useAppStore((s) => s.headingFont);
@@ -125,31 +122,6 @@ export function AppearanceSection() {
           />
         </Card>
       )}
-
-      <Card
-        key='interface-rounding'
-        className='flex items-center justify-between p-4'
-      >
-        <div>
-          <p className='text-sm font-medium'>Interface rounding</p>
-          <p className='text-xs text-muted-foreground mt-0.5'>
-            Global corner radius for all UI elements.
-          </p>
-        </div>
-        <ButtonGroup className='border border-border p-1 bg-muted/20'>
-          {(['sm', 'md', 'lg', 'xl'] as const).map((r) => (
-            <Button
-              key={r}
-              variant={globalRounding === r ? 'secondary' : 'ghost'}
-              size='sm'
-              className='h-7 px-3 text-xs uppercase'
-              onClick={() => setGlobalRounding(r)}
-            >
-              {r}
-            </Button>
-          ))}
-        </ButtonGroup>
-      </Card>
 
       <Card
         key='interface-font'

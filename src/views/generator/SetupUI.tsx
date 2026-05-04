@@ -62,7 +62,7 @@ export function ResizableAccordionContent({
 
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className='flex items-center pt-1 pb-2 w-full'>
+    <div className='flex items-center pt-2 pb-1 w-full'>
       <h2 className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
         {children}
       </h2>
@@ -177,8 +177,8 @@ export function GroupedSubtopicSelector({
   }, [filteredGroups, searchTerm, units]);
 
   return (
-    <div className='flex flex-col gap-8 w-full'>
-      <div className='flex flex-col gap-5'>
+    <div className='flex flex-col gap-6 w-full'>
+      <div className='flex flex-col gap-4'>
         <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
           <h3 className='text-sm font-bold text-foreground'>{label}</h3>
           <div className='relative w-full sm:w-64'>
@@ -205,7 +205,7 @@ export function GroupedSubtopicSelector({
         </div>
 
         {/* High-density Unit Selector Cards */}
-        <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4'>
+        <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
           {units.map((unit) => {
             const hasMatches = unitsWithMatches.has(unit);
             if (!hasMatches && searchTerm.trim()) return null;
@@ -281,7 +281,7 @@ export function GroupedSubtopicSelector({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className='grid grid-cols-1 lg:grid-cols-2 gap-6'
+            className='grid grid-cols-1 lg:grid-cols-2 gap-4'
           >
             {visibleGroups.map((group) => {
               const selectedCount = group.subtopics.filter((s) =>
