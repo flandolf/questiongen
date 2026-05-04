@@ -1021,10 +1021,14 @@ export function HistoryView() {
     rowVirtualizer.scrollToIndex(0);
   }, [activeFilterKey, rowVirtualizer]);
 
-  // Reset virtualizer size cache when list item identities/order change.
+  // Re-measure in layout phase when item identities/order/count change.
   useLayoutEffect(() => {
     rowVirtualizer.measure();
-  }, [filteredHistoryIdsKey, rowVirtualizer]);
+    const rafId = requestAnimationFrame(() => {
+      rowVirtualizer.measure();
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [filteredHistoryIdsKey, filteredHistory.length, rowVirtualizer]);
 
   const toggleEntryExpanded = useCallback((entryKey: string) => {
     setExpandedEntryKeys((cur) => {
@@ -1059,7 +1063,8 @@ export function HistoryView() {
 
   const performBulkDeleteConfirmed = useCallback(() => {
     selectedEntryKeys.forEach((key) => {
-      const [kind, id] = key.split('-');
+      const [kind, ...rest] = key.split('-');
+      const id = rest.join('-');
       if (kind === 'written') {
         deleteQuestionHistoryEntry(id);
       } else if (kind === 'mc') {

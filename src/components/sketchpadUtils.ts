@@ -485,26 +485,52 @@ export function drawShape(
   tool: ToolType,
   start: { x: number; y: number },
   end: { x: number; y: number },
+  constrain: boolean = false,
 ) {
+  let adjustedEnd = end;
+
+  if (constrain) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+
+    if (tool === 'line') {
+      // Snap to 45° increments
+      const angle = Math.atan2(dy, dx);
+      const snapped = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      adjustedEnd = {
+        x: start.x + Math.cos(snapped) * dist,
+        y: start.y + Math.sin(snapped) * dist,
+      };
+    } else if (tool === 'rect' || tool === 'ellipse' || tool === 'graph') {
+      // Force square/circle by using the smaller dimension
+      const size = Math.min(Math.abs(dx), Math.abs(dy));
+      adjustedEnd = {
+        x: start.x + Math.sign(dx) * size,
+        y: start.y + Math.sign(dy) * size,
+      };
+    }
+  }
+
   ctx.beginPath();
   if (tool === 'line') {
     ctx.moveTo(start.x, start.y);
-    ctx.lineTo(end.x, end.y);
+    ctx.lineTo(adjustedEnd.x, adjustedEnd.y);
     ctx.stroke();
   } else if (tool === 'rect') {
-    ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+    ctx.strokeRect(start.x, start.y, adjustedEnd.x - start.x, adjustedEnd.y - start.y);
   } else if (tool === 'ellipse') {
-    const rx = Math.abs(end.x - start.x) / 2;
-    const ry = Math.abs(end.y - start.y) / 2;
-    const cx = (start.x + end.x) / 2;
-    const cy = (start.y + end.y) / 2;
+    const rx = Math.abs(adjustedEnd.x - start.x) / 2;
+    const ry = Math.abs(adjustedEnd.y - start.y) / 2;
+    const cx = (start.x + adjustedEnd.x) / 2;
+    const cy = (start.y + adjustedEnd.y) / 2;
     ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
   } else if (tool === 'graph') {
-    const halfW = Math.max(40, Math.abs(end.x - start.x) / 2);
-    const halfH = Math.max(40, Math.abs(end.y - start.y) / 2);
-    const cx = (start.x + end.x) / 2;
-    const cy = (start.y + end.y) / 2;
+    const halfW = Math.max(40, Math.abs(adjustedEnd.x - start.x) / 2);
+    const halfH = Math.max(40, Math.abs(adjustedEnd.y - start.y) / 2);
+    const cx = (start.x + adjustedEnd.x) / 2;
+    const cy = (start.y + adjustedEnd.y) / 2;
     drawGraphAxes(
       ctx,
       cx,

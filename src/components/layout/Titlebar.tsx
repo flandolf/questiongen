@@ -21,7 +21,7 @@ export default function Titlebar() {
     <div className='flex flex-col'>
       <div
         ref={barRef}
-        className='w-full h-10 flex items-center px-3 bg-background border-b border-border select-none overflow-hidden'
+        className='w-full h-8 flex items-center px-3 bg-background border-b border-border select-none overflow-hidden'
         style={{ userSelect: 'none', position: 'relative', zIndex: 50 }}
         onMouseDown={handleMouseDown}
       >
