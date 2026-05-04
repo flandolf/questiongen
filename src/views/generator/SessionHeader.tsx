@@ -133,21 +133,6 @@ function TimerDisplay({
   );
 }
 
-const SessionProgressBar = ({
-  progressPct,
-  progressBarColor,
-}: {
-  progressPct: number;
-  progressBarColor: string;
-}) => (
-  <div className='h-1 w-full bg-muted/30'>
-    <div
-      className={`h-full ${progressBarColor} transition-all duration-500 ease-out`}
-      style={{ width: `${progressPct}%` }}
-    />
-  </div>
-);
-
 const SessionNavigationLeft = ({
   onExit,
   questionIndex,
@@ -234,9 +219,6 @@ export const SessionHeader = memo(function SessionHeader({
   const difficultyAllocation = timeAllocations.find(
     (a) => a.difficulty === difficulty,
   );
-  const progressPct =
-    totalQuestions > 0 ? ((questionIndex + 1) / totalQuestions) * 100 : 0;
-  const progressBarColor = type === 'written' ? 'bg-blue-500' : 'bg-violet-500';
   const marksRaw = questionMarks ?? maxMarks ?? 1;
   const safeMarks = Number.isFinite(marksRaw) ? Math.max(1, marksRaw) : 1;
   const minutesPerMark = difficultyAllocation?.minutesPerMark;
@@ -249,12 +231,7 @@ export const SessionHeader = memo(function SessionHeader({
       : undefined;
 
   return (
-    <div className='sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border'>
-      <SessionProgressBar
-        progressPct={progressPct}
-        progressBarColor={progressBarColor}
-      />
-
+    <div className='sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border mx-4 my-2 border rounded-4xl'>
       {/* Navigation row */}
       <div className='px-4 py-2 flex flex-wrap items-center justify-between gap-3'>
         <SessionNavigationLeft
@@ -279,6 +256,7 @@ export const SessionHeader = memo(function SessionHeader({
             isMathTopic={isMathTopic}
             techAllowed={techAllowed}
             getDifficultyBadgeClasses={getDifficultyBadgeClasses}
+            questionMarks={questionMarks}
           />
           <TooltipProvider>
             <Tooltip>
@@ -296,15 +274,12 @@ export const SessionHeader = memo(function SessionHeader({
                 side='bottom'
                 align='end'
                 sideOffset={8}
-                className={
-                  type === 'written'
-                    ? 'w-72 max-w-[calc(100vw-2rem)] p-3 z-50'
-                    : 'z-50'
-                }
+                className={type === 'written' ? 'p-3 z-50' : 'z-50'}
               >
                 <TelemetryTooltip
                   generationStartedAt={generationStartedAt}
                   telemetry={telemetry}
+                  difficulty={difficulty}
                 />
               </TooltipContent>
             </Tooltip>
@@ -389,25 +364,21 @@ export const SessionHeader = memo(function SessionHeader({
 type TelemetryTooltipProps = {
   generationStartedAt: number | null;
   telemetry: GenerationTelemetry | null;
+  difficulty?: Difficulty;
 };
 
 export function TelemetryTooltip({
   generationStartedAt,
   telemetry,
+  difficulty,
 }: TelemetryTooltipProps) {
   const hasAny = generationStartedAt !== null || telemetry;
   if (!hasAny) {
-    return (
-      <div className='text-[10px] font-bold uppercase tracking-wider text-background/60'>
-        No generation diagnostics yet.
-      </div>
-    );
+    return <div className='text-[10px]'>No generation diagnostics yet.</div>;
   }
   return (
     <div className='flex flex-col gap-2'>
-      <div className='text-[10px] font-bold uppercase tracking-wider text-background'>
-        Question details
-      </div>
+      <div className='text-[14px]'>Question details</div>
       {telemetry && (
         <Row
           label='Generation time'
@@ -419,7 +390,6 @@ export function TelemetryTooltip({
           label='Tokens'
           value={
             <span
-              className='font-mono tabular-nums'
               title={`Prompt: ${telemetry.promptTokens ?? 0} · Completion: ${telemetry.completionTokens ?? 0}`}
             >
               {telemetry.totalTokens.toLocaleString()}
@@ -439,6 +409,7 @@ export function TelemetryTooltip({
           value={telemetry.multiStepDepthAvg.toFixed(2)}
         />
       )}
+      {difficulty && <Row label='Difficulty' value={difficulty} />}
     </div>
   );
 }
@@ -446,22 +417,19 @@ export function TelemetryTooltip({
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className='flex items-center justify-between gap-3'>
-      <span className='text-[10px] font-bold uppercase tracking-wider text-background/60'>
-        {label}
-      </span>
-      <span className='text-xs font-black text-background'>{value}</span>
+      <span className='text-[10px]'>{label}</span>
+      <span className='text-xs'>{value}</span>
     </div>
   );
 }
 
 function InfoBadges({
   topic,
-  difficulty,
   maxMarks,
   type,
   isMathTopic,
   techAllowed,
-  getDifficultyBadgeClasses,
+  questionMarks,
 }: {
   topic: string | undefined;
   difficulty: Difficulty;
@@ -470,35 +438,30 @@ function InfoBadges({
   isMathTopic: boolean;
   techAllowed: boolean | undefined;
   getDifficultyBadgeClasses: (level: Difficulty) => string;
+  questionMarks?: number;
 }) {
   return (
-    <div className='hidden lg:flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-full border border-border/40'>
+    <div className='hidden lg:flex items-center gap-1.5 py-2'>
       {topic && (
         <Badge
           variant='outline'
-          className='h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary border-primary/20 dark:bg-primary/10 dark:text-primary dark:border-primary/30'
+          className='h-5 px-1.5 text-[10px] bg-sky-500/10 text-sky-600 border-sky-500/25 dark:bg-sky-500/15 dark:text-sky-400 dark:border-sky-500/35'
         >
           {topic}
         </Badge>
       )}
-      <Badge
-        variant='outline'
-        className={`h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider ${getDifficultyBadgeClasses(difficulty)}`}
-      >
-        {difficulty}
-      </Badge>
-      {type === 'written' && maxMarks !== undefined && (
+      {type === 'written' && (questionMarks ?? maxMarks) !== undefined && (
         <Badge
           variant='outline'
-          className='h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider bg-secondary/40 border-secondary/60 text-primary dark:bg-secondary/5 dark:text-primary dark:border-secondary/40'
+          className='h-5 px-1.5 text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/35'
         >
-          {maxMarks} marks
+          {questionMarks ?? maxMarks} marks
         </Badge>
       )}
       {isMathTopic && techAllowed !== undefined && (
         <Badge
           variant='outline'
-          className={`h-5 px-1.5 text-[10px] font-bold uppercase tracking-wider ${
+          className={`h-5 px-1.5 text-[10px] ${
             techAllowed
               ? 'bg-indigo-500/5 text-indigo-600 border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30'
               : 'bg-rose-500/5 text-rose-600 border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30'

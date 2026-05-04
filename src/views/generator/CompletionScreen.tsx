@@ -563,6 +563,25 @@ export const CompletionScreen = memo(function CompletionScreen({
 
   const meta = getScoreMeta(accuracyPercent);
 
+  // Calculate total marks for written mode
+  const totalMarks = useMemo(() => {
+    if (questionMode !== 'written' || writtenResults.length === 0) return null;
+    let achieved = 0;
+    let max = 0;
+    for (const r of writtenResults) {
+      achieved += r.achieved;
+      max += r.max;
+    }
+    return { achieved, max };
+  }, [questionMode, writtenResults]);
+
+  const scoreDisplay = useMemo(() => {
+    if (questionMode === 'written' && totalMarks) {
+      return `${totalMarks.achieved}/${totalMarks.max}`;
+    }
+    return `${completedCount}/${totalCount}`;
+  }, [questionMode, totalMarks, completedCount, totalCount]);
+
   // Session topic breakdown
   const sessionTopics = useMemo(() => {
     const map = new Map<string, { correct: number; total: number }>();
@@ -693,8 +712,8 @@ export const CompletionScreen = memo(function CompletionScreen({
             <StatTile
               icon={Target}
               label='Score'
-              value={`${completedCount}/${totalCount}`}
-              sub='questions correct'
+              value={scoreDisplay}
+              sub={questionMode === 'written' ? 'marks achieved' : 'questions correct'}
               color={meta.color}
               delay={0.1}
             />

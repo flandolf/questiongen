@@ -4,6 +4,7 @@ import {
   Circle,
   Eraser,
   LineChart,
+  Maximize2,
   Minus,
   Pencil,
   Redo2,
@@ -26,6 +27,16 @@ import React, {
 
 import { ColorPicker } from '@/components/color-picker';
 import { useTheme } from '@/components/theme-provider';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -162,12 +173,12 @@ const TOOL_ICONS: Record<ToolType, React.ReactNode> = {
 };
 
 const TOOL_LABELS: Record<ToolType, string> = {
-  pen: 'Pen',
-  eraser: 'Eraser',
-  line: 'Line',
-  rect: 'Rectangle',
-  ellipse: 'Ellipse',
-  text: 'Text',
+  pen: 'Pen (P)',
+  eraser: 'Eraser (E)',
+  line: 'Line (L) — hold Shift to snap to 45°',
+  rect: 'Rectangle (R) — hold Shift for square',
+  ellipse: 'Ellipse (C) — hold Shift for circle',
+  text: 'Text (T)',
   graph: 'Graph Axes (G)',
 };
 
@@ -217,6 +228,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     });
     const [isHovering, setIsHovering] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [recentColors, setRecentColors] = useState<string[]>([
       '#111827',
       '#ef4444',
@@ -318,6 +330,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const lastCursor = useRef<{ x: number; y: number } | null>(null);
     const viewportRaf = useRef<number | null>(null);
     const spaceDown = useRef(false);
+    const shiftDown = useRef(false);
     const middleDown = useRef(false);
     const panStart = useRef<{
       mx: number;
@@ -1175,6 +1188,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           e.preventDefault();
           return;
         }
+        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+          shiftDown.current = true;
+          return;
+        }
         if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
           if (e.shiftKey) {
             redoActionRef.current();
@@ -1214,6 +1231,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         if (e.code === 'Space') {
           spaceDown.current = false;
           updateCursorPreviewRef.current();
+        }
+        if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+          shiftDown.current = false;
         }
       };
       window.addEventListener('keydown', down);
@@ -1461,7 +1481,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         );
 
         applyToolStyle(overlayCtx, latest.pressure);
-        drawShape(overlayCtx, tool, shapeStart.current, latestPoint);
+        drawShape(
+          overlayCtx,
+          tool,
+          shapeStart.current,
+          latestPoint,
+          shiftDown.current,
+        );
         overlayCtx.restore();
 
         lastMove.current = [];
@@ -2106,9 +2132,34 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           ) &&
           shapeStart.current
         ) {
+          let finalEnd = pt;
+          if (shiftDown.current) {
+            const dx = pt.x - shapeStart.current.x;
+            const dy = pt.y - shapeStart.current.y;
+            const tool = activeToolRef.current;
+            if (tool === 'line') {
+              const angle = Math.atan2(dy, dx);
+              const snapped = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              finalEnd = {
+                x: shapeStart.current.x + Math.cos(snapped) * dist,
+                y: shapeStart.current.y + Math.sin(snapped) * dist,
+              };
+            } else if (
+              tool === 'rect' ||
+              tool === 'ellipse' ||
+              tool === 'graph'
+            ) {
+              const size = Math.min(Math.abs(dx), Math.abs(dy));
+              finalEnd = {
+                x: shapeStart.current.x + Math.sign(dx) * size,
+                y: shapeStart.current.y + Math.sign(dy) * size,
+              };
+            }
+          }
           stroke.points = [
             { ...shapeStart.current, pressure: 1, time: Date.now() },
-            { ...pt, pressure: 1, time: Date.now() },
+            { ...finalEnd, pressure: 1, time: Date.now() },
           ];
         }
 
@@ -2380,6 +2431,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         )}
 
         <canvas ref={canvasRef} className='absolute top-0 left-0 z-20' />
+
+        {/* Canvas boundary indicator — shows when canvas doesn't fill the viewport */}
+        {zoom < 0.98 && (
+          <div
+            className='absolute pointer-events-none z-15 border border-dashed border-border/40 rounded-sm'
+            style={{
+              left: pan.x,
+              top: pan.y,
+              width: INTERNAL_RES_WIDTH * zoom,
+              height: INTERNAL_RES_HEIGHT * zoom,
+            }}
+          />
+        )}
 
         <canvas
           ref={overlayRef}
@@ -2711,13 +2775,13 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 <Button
                   variant='ghost'
                   size='icon'
-                  onClick={clearCanvas}
+                  onClick={() => setShowClearConfirm(true)}
                   className='text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg size-7 md:size-8'
                 >
                   <Trash2 size={16} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Clear</TooltipContent>
+              <TooltipContent>Clear canvas</TooltipContent>
             </Tooltip>
           </div>
         </Card>
@@ -2737,7 +2801,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         </Button>
         <Badge
           variant='secondary'
-          className='bg-muted px-1.5 py-0.5 text-[9px] font-bold tabular-nums rounded-md'
+          className='bg-muted px-1.5 py-0.5 text-[9px] font-bold tabular-nums rounded-md cursor-pointer hover:bg-muted/70'
+          onClick={resetViewport}
+          title='Reset zoom (Ctrl+0)'
         >
           {Math.round(zoom * 100)}%
         </Badge>
@@ -2750,6 +2816,22 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         >
           <ZoomIn size={14} />
         </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant='ghost'
+                size='icon-sm'
+                type='button'
+                onClick={resetViewport}
+                className='rounded-lg size-7'
+              >
+                <Maximize2 size={13} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side='left'>Fit to screen (Ctrl+0)</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </Card>
     );
 
@@ -2764,6 +2846,32 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           <div className='absolute bottom-4 left-4 md:bottom-6 md:left-6 z-50'>
             {settingsFooter}
           </div>
+          <AlertDialog
+            open={showClearConfirm}
+            onOpenChange={setShowClearConfirm}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear canvas?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will erase all strokes. You can undo immediately after,
+                  but this cannot be recovered later.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    clearCanvas();
+                    setShowClearConfirm(false);
+                  }}
+                  className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                >
+                  Clear
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       );
     }
@@ -2797,6 +2905,29 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             </div>
           </div>
         </div>
+        <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear canvas?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will erase all strokes. You can undo immediately after, but
+                this cannot be recovered later.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  clearCanvas();
+                  setShowClearConfirm(false);
+                }}
+                className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              >
+                Clear
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   },

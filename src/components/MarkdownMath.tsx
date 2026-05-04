@@ -22,8 +22,8 @@ function normalizeMarkdownLineBreaks(content: string): string {
       .replace(/\\r\\n/g, '\n')
       // Decode escaped newlines, but keep LaTeX command prefixes such as \nabla.
       .replace(/\\n(?![A-Za-z])/g, '\n')
-      // Ensure common subpart markers render on their own line.
-      .replace(/\n(?=\([a-z]\))/gi, '\n\n')
+      // Ensure markdown reference-style [text] (a) renders on their own line.
+      .replace(/\n?(\[[\s\S]*?\]\s*\([a-z]\))\n?/gi, '$1\n')
   );
 }
 
