@@ -1,7 +1,6 @@
 import { useAppSettings } from '@/AppContext';
 import { ColorPicker } from '@/components/color-picker';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,

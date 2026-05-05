@@ -71,7 +71,6 @@ export interface SettingsSlice {
   setLocalBackupIntervalMinutes: (minutes: number) => void;
   setTheme: (theme: string) => void;
   setCustomThemeSeedColor: (color: string) => void;
-  setGlobalRounding: (rounding: 'sm' | 'md' | 'lg' | 'xl') => void;
   setInterfaceFont: (font: string) => void;
   setHeadingFont: (font: string) => void;
   setTutorPersona: (persona: string) => void;
@@ -202,7 +201,6 @@ export const createSettingsSlice: StateCreator<
   setTheme: (theme) => set({ theme }),
   setCustomThemeSeedColor: (customThemeSeedColor) =>
     set({ customThemeSeedColor: normalizeHexColor(customThemeSeedColor) }),
-  setGlobalRounding: (globalRounding) => set({ globalRounding }),
   setInterfaceFont: (interfaceFont) => set({ interfaceFont }),
   setHeadingFont: (headingFont) => set({ headingFont }),
   setTutorPersona: (tutorPersona) => set({ tutorPersona }),

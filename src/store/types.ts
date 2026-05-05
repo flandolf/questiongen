@@ -176,7 +176,6 @@ export interface AppActions {
   setLocalBackupIntervalMinutes: (minutes: number) => void;
   setTheme: (theme: string) => void;
   setCustomThemeSeedColor: (color: string) => void;
-  setGlobalRounding: (rounding: 'sm' | 'md' | 'lg' | 'xl') => void;
   setInterfaceFont: (font: string) => void;
   setHeadingFont: (font: string) => void;
   setTutorPersona: (persona: string) => void;

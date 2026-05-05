@@ -4,17 +4,9 @@ import { useTheme } from '@/components/theme-provider';
 import { generateM3Theme } from '@/lib/color-utils';
 import { useAppStore } from '@/store';
 
-const ROUNDING_MAP = {
-  sm: '0.125rem',
-  md: '0.375rem',
-  lg: '0.5rem',
-  xl: '0.75rem',
-};
-
 export function useAppearanceSettings() {
   const theme = useAppStore((s) => s.theme);
   const customThemeSeedColor = useAppStore((s) => s.customThemeSeedColor);
-  const globalRounding = useAppStore((s) => s.globalRounding);
   const interfaceFont = useAppStore((s) => s.interfaceFont);
   const headingFont = useAppStore((s) => s.headingFont);
   const { theme: mode } = useTheme();
@@ -88,9 +80,6 @@ export function useAppearanceSettings() {
       m3Keys.forEach((key) => root.style.removeProperty(key));
     }
 
-    // Apply Rounding
-    root.style.setProperty('--global-radius', ROUNDING_MAP[globalRounding]);
-
     // Apply Fonts
     root.style.setProperty('--interface-font', `"${interfaceFont}"`);
     root.style.setProperty('--heading-font', `"${headingFont}"`);
@@ -115,12 +104,5 @@ export function useAppearanceSettings() {
     } catch {
       // Ignore parsing errors.
     }
-  }, [
-    theme,
-    customThemeSeedColor,
-    m3Colors,
-    globalRounding,
-    interfaceFont,
-    headingFont,
-  ]);
+  }, [theme, customThemeSeedColor, m3Colors, interfaceFont, headingFont]);
 }
