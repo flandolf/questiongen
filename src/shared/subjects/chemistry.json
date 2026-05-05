@@ -19,7 +19,7 @@
   ],
   "subtopics": [
     {
-      "name": "Elements, isotopes and ions",
+      "name": "Elements, Isotopes and Ions",
       "technique_notes": {
         "core_concepts": "The definitions of elements, isotopes and ions, including appropriate notation: atomic number; mass number; and number of protons, neutrons and electrons.",
         "exam_style_guidance": "Questions may ask students to identify or calculate the number of protons, neutrons and electrons in a given isotope or ion. They may also require students to write the correct notation for an element, isotope or ion based on provided information."
@@ -27,7 +27,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "The periodic table as an organizational tool",
+      "name": "The Periodic Table as an Organizational Tool",
       "technique_notes": {
         "core_concepts": "The structure of the periodic table, including groups, periods, and the classification of elements as metals, nonmetals and metalloids. Trends in properties such as atomic radius, ionization energy, electronegativity and metallic character across periods and down groups.",
         "exam_style_guidance": "Questions may ask students to predict or explain trends in properties based on an element's position in the periodic table. They may also require students to classify elements as metals, nonmetals or metalloids based on their properties."
@@ -35,7 +35,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Critical elements",
+      "name": "Critical Elements",
       "technique_notes": {
         "core_concepts": "The concept of critical elements, their importance in modern technology and the challenges associated with their supply. Examples of critical elements include lithium, cobalt, rare earth elements and platinum group metals.",
         "exam_style_guidance": "Questions may ask students to explain why certain elements are considered critical, discuss the applications of critical elements in technology, or evaluate the environmental and economic implications of their extraction and use."
@@ -43,7 +43,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Lewis structures, structural formulas and molecular formulas",
+      "name": "Lewis Structures, Structural Formulas and Molecular Formulas",
       "technique_notes": {
         "core_concepts": "The representation of molecules using Lewis structures, structural formulas and molecular formulas. The concept of bonding and the arrangement of atoms in molecules.",
         "exam_style_guidance": "Questions may ask students to draw Lewis structures for simple molecules, interpret structural formulas, or determine molecular formulas from given information."
@@ -51,7 +51,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Shapes of molecules and ions",
+      "name": "Shapes of Molecules and Ions",
       "technique_notes": {
         "core_concepts": "The shapes of molecules and ions based on the VSEPR theory. The relationship between the shape of a molecule or ion and its properties.",
         "exam_style_guidance": "Questions may ask students to predict the shape of a molecule or ion based on its Lewis structure, or to explain how the shape of a molecule or ion influences its properties."
@@ -59,7 +59,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Polarity of molecules and ions",
+      "name": "Polarity of Molecules and Ions",
       "technique_notes": {
         "core_concepts": "The concept of polarity in molecules and ions, including the distribution of charge and the resulting dipole moment. The relationship between polarity and intermolecular forces.",
         "exam_style_guidance": "Questions may ask students to determine the polarity of a molecule or ion based on its structure, or to explain how polarity affects the physical properties of a substance."
@@ -67,7 +67,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Intermolecular forces",
+      "name": "Intermolecular Forces",
       "technique_notes": {
         "core_concepts": "The different types of intermolecular forces, including London dispersion forces, dipole-dipole interactions and hydrogen bonding. The relationship between intermolecular forces and the physical properties of substances.",
         "exam_style_guidance": "Questions may ask students to identify the types of intermolecular forces present in a substance, or to explain how intermolecular forces influence properties such as boiling point, melting point and solubility."
@@ -75,7 +75,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Properties of materials",
+      "name": "Properties of Materials",
       "technique_notes": {
         "core_concepts": "The physical and chemical properties of materials, including melting point, boiling point, density, solubility, reactivity and conductivity. The relationship between the structure of a material and its properties.",
         "exam_style_guidance": "Questions may ask students to compare the properties of different materials based on their structure, or to explain how the structure of a material influences its properties."
@@ -83,7 +83,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Structure of carbon allotropes (diamond, graphite)",
+      "name": "Structure of Carbon Allotropes: Diamond, Graphite and Other Forms",
       "technique_notes": {
         "core_concepts": "The structure of carbon allotropes, including diamond and graphite. The relationship between the structure of these allotropes and their properties.",
         "exam_style_guidance": "Questions may ask students to describe the structure of diamond and graphite, or to explain how the structure of these allotropes influences their properties."
@@ -91,7 +91,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Properties of metals",
+      "name": "Properties of Metals",
       "technique_notes": {
         "core_concepts": "The properties of metals, including malleability, ductility, conductivity and reactivity. The relationship between the structure of metals and their properties.",
         "exam_style_guidance": "Questions may ask students to explain the properties of metals based on their structure, or to compare the properties of different metals."
@@ -99,7 +99,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Reactivity of metals",
+      "name": "Reactivity of Metals",
       "technique_notes": {
         "core_concepts": "The reactivity of metals, including their reactions with water, acids and oxygen. The relationship between the reactivity of metals and their position in the periodic table.",
         "exam_style_guidance": "Questions may ask students to predict the reactivity of a metal based on its position in the periodic table, or to explain the reactions of metals with water, acids and oxygen."
@@ -107,7 +107,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Metal recycling",
+      "name": "Metal Recycling",
       "technique_notes": {
         "core_concepts": "The importance of metal recycling, the processes involved in recycling metals and the environmental and economic benefits of recycling.",
         "exam_style_guidance": "Questions may ask students to explain the importance of metal recycling, describe the processes involved in recycling metals, or evaluate the environmental and economic benefits of recycling."
@@ -115,7 +115,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Properties of ionic compounds",
+      "name": "Properties of Ionic Compounds",
       "technique_notes": {
         "core_concepts": "The properties of ionic compounds, including high melting and boiling points, solubility in water, electrical conductivity when molten or dissolved and brittleness. The relationship between the structure of ionic compounds and their properties.",
         "exam_style_guidance": "Questions may ask students to explain the properties of ionic compounds"
@@ -123,7 +123,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Deduction of formula and name of ionic compounds",
+      "name": "Deduction of Formula and Name of Ionic Compounds",
       "technique_notes": {
         "core_concepts": "The deduction of the formula and name of ionic compounds based on the charges of the ions involved. The use of the criss-cross method to determine the formula of ionic compounds.",
         "exam_style_guidance": "Questions may ask students to deduce the formula and name of an ionic compound based on the charges of the ions, or to use the criss-cross method to determine the formula of an ionic compound."
@@ -131,7 +131,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Formation of ionic compounds",
+      "name": "Formation of Ionic Compounds",
       "technique_notes": {
         "core_concepts": "The formation of ionic compounds through the transfer of electrons from metals to nonmetals. The concept of lattice energy and its relationship to the stability of ionic compounds.",
         "exam_style_guidance": "Questions may ask students to explain the formation of ionic compounds, or to discuss the concept of lattice energy and its relationship to the stability of ionic compounds."
@@ -139,7 +139,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Solubility of ionic compounds",
+      "name": "Solubility of Ionic Compounds",
       "technique_notes": {
         "core_concepts": "The solubility of ionic compounds in water, including the concept of hydration and the factors that affect solubility such as lattice energy and hydration energy.",
         "exam_style_guidance": "Questions may ask students to explain the solubility of ionic compounds in water, or to discuss the factors that affect solubility such as lattice energy and hydration energy."
@@ -147,7 +147,7 @@
       "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Seperation and identification of the components of mixtures",
+      "name": "Separation and Identification of Components of Mixtures",
       "technique_notes": {
         "core_concepts": "Polar and non-polar character with reference to the solubility of polar solutes dissolving in polar solvents, and non-polar solutes dissolving in non-polar solvents, experimental application of chromatography as a technique to determine the composition and purity of different types of substances, including calculation of Rf values.",
         "exam_style_guidance": "Questions may ask students to describe the techniques used for the separation and identification of the components of mixtures, or to explain how these techniques work."
@@ -196,7 +196,7 @@
     {
       "name": "Families of Organic Compounds",
       "technique_notes": {
-        "core_concepts": "Hydrocarbon families — alkanes ($C_nH_{2n+2}$), alkenes ($C_nH_{2n}$), haloalkanes. Functional group families — alcohols ($-$OH), carboxylic acids ($-$COOH). Each family has characteristic physical properties (boiling point, solubility) and chemical reactivity patterns. General uses follow from properties (e.g., alkanes as fuels, alcohols as solvents).",
+        "core_concepts": "Hydrocarbon families — alkanes ($C_nH_{2n+2}$), alkenes ($C_nH_{2n}$), alkynes ($C_nH_{2n-2}$), haloalkanes, aromatic compounds. Functional group families — alcohols ($-\\text{OH}$), ethers ($-\\text{O}-$), aldehydes ($-\\text{CHO}$), ketones ($-\\text{CO}-$), carboxylic acids ($-\\text{COOH}$), amines ($-\\text{NH}_2$), amides ($-\\text{CONH}_2$). Each family has characteristic physical properties (boiling point, solubility) and chemical reactivity patterns. General uses follow from properties (e.g., alkanes as fuels, alcohols as solvents, carboxylic acids as preservatives).",
         "exam_style_guidelines": "Link properties to structure: chain length increases boiling point; polar functional groups increase solubility in water. When asked to compare families, address both physical and chemical properties. Use general formulas to identify family membership.",
         "anti_prompts": [
           "Do not describe haloalkanes using the same general formula as alkanes — the halogen replaces a hydrogen.",
@@ -235,7 +235,7 @@
     {
       "name": "Addition vs Condensation Polymerisation",
       "technique_notes": {
-        "core_concepts": "Addition polymerisation: alkene monomers join via opening of $C=C$ double bond; no by-product. Condensation polymerisation: monomers with two functional groups react, releasing a small molecule (usually $H_2O$). Natural polymers (e.g., proteins, starch) formed by condensation; many manufactured polymers by addition. Hydrolysis is the reverse of condensation.",
+        "core_concepts": "Addition polymerisation: alkene monomers join via opening of $C=C$ double bond; no by-product. Example: $n\\text{C}_2\\text{H}_4 \\rightarrow (-\\text{CH}_2-\\text{CH}_2-)_n$ for polyethene. Condensation polymerisation: monomers with two functional groups react, releasing a small molecule (usually $\\text{H}_2\\text{O}$). Example: diols react with dicarboxylic acids to form polyesters: $\\text{HO}(\\text{CH}_2)_n\\text{OH} + \\text{HOOC}(\\text{CH}_2)_m\\text{COOH} \\rightarrow$ polyester $+ n \\text{H}_2\\text{O}$. Natural polymers (e.g., proteins, starch, cellulose) formed by condensation; many manufactured polymers by addition. Hydrolysis is the reverse of condensation.",
         "exam_style_guidelines": "Identify the reaction type from the monomer structure: alkene with $C=C$ → addition; monomers with two functional groups (e.g., diol + diacid) → condensation. When writing polymer structures, show the repeat unit in brackets with $n$. For hydrolysis, show the bond broken and the small molecule added.",
         "anti_prompts": [
           "Do not state that addition polymerisation produces a by-product.",
@@ -246,9 +246,9 @@
       "group": "unit1-polymers-and-society"
     },
     {
-      "name": "Addition Polymers — Structure, Properties and Design",
+      "name": "Addition Polymers: Structure, Properties and Design",
       "technique_notes": {
-        "core_concepts": "Addition polymers from alkene monomers (ethene → polyethene, propene → polypropylene, vinyl chloride → PVC, styrene → polystyrene). Linear (thermoplastic) vs cross-linked (thermosetting): thermoplastics soften on heating (weak intermolecular forces between chains); thermosets do not (covalent cross-links). Polymer properties influenced by monomer identity, chain length, and degree of branching (e.g., HDPE vs LDPE).",
+        "core_concepts": "Addition polymers from alkene monomers: ethene ($\\text{C}_2\\text{H}_4$) → polyethene ($-\\text{CH}_2-\\text{CH}_2-$)$_n$, propene ($\\text{C}_3\\text{H}_6$) → polypropylene, vinyl chloride ($\\text{CH}_2=\\text{CHCl}$) → PVC, styrene ($\\text{C}_6\\text{H}_5\\text{CH}=\\text{CH}_2$) → polystyrene. Linear (thermoplastic) vs cross-linked (thermosetting): thermoplastics soften on heating (weak intermolecular forces between chains); thermosets do not (covalent cross-links). Polymer properties influenced by monomer identity, chain length, and degree of branching (e.g., HDPE $\\approx 0.95~\\text{g cm}^{-3}$, rigid; LDPE $\\approx 0.92~\\text{g cm}^{-3}$, flexible).",
         "exam_style_guidelines": "Link monomer structure to polymer properties: polar side groups → stronger intermolecular forces → higher melting point. For design questions, justify monomer choice, chain length, and branching in terms of the required property (flexibility, strength, melting point). Distinguish HDPE (linear, high density, rigid) from LDPE (branched, lower density, flexible).",
         "anti_prompts": [
           "Do not state that thermosetting polymers can be remoulded — cross-linking prevents this.",
@@ -272,7 +272,111 @@
       "group": "unit1-polymers-and-society"
     },
     {
-      "name": "Carbon-based fuels",
+      "name": "Atomic Structure and Electron Configuration",
+      "technique_notes": {
+        "core_concepts": "Atoms consist of protons (relative mass $1$, charge $+1$), neutrons (relative mass $1$, charge $0$), and electrons (charge $−1$). Atomic number $Z$ = number of protons; mass number $A$ = protons + neutrons. Nuclide notation: $^A_Z$X. Electrons occupy orbitals (regions of high probability density) in shells: $n=1,2,3...$ Subshells: $s$, $p$, $d$ (VCE covers up to $d$-block). Electron configuration using notation $1s^2$, $2s^2$, $2p^6$, etc. Orbital filling order (Aufbau principle) and Hund's rule. Valence electrons (outermost shell) determine chemical behaviour.",
+        "exam_style_guidance": "Write electron configurations showing all electrons or using noble gas notation: e.g., $\\text{N} = 1s^2 2s^2 2p^3$ or $\\text{Cl} = [\\text{Ne}]3s^2 3p^5$. For ions, remove/add electrons appropriately: $\\text{Fe}^{3+} = [\\text{Ar}]3d^5$. Explain periodic patterns using electron configuration. Draw orbital diagrams showing electron spin pairing for clarity.",
+        "anti_prompts": [
+          "Do not confuse atomic number with mass number.",
+          "Do not state that electrons orbit the nucleus — they occupy probabilistic orbitals.",
+          "Do not write electron configurations without respecting the Aufbau principle and Hund's rule."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "Periodic Table Trends and Properties",
+      "technique_notes": {
+        "core_concepts": "Periodic table organisation: periods (rows, $n$ value) and groups (columns, valence electron count). Trends across periods: atomic radius decreases, ionisation energy increases, electronegativity increases, metallic character decreases. Trends down groups: atomic radius increases, ionisation energy decreases, electronegativity decreases, metallic character increases. First ionisation energy: energy required to remove one electron from a neutral atom in the gas phase (measured in $\\text{kJ mol}^{-1}$). Explanation of trends using nuclear charge, electron shielding, and distance from nucleus. Electronegativity: relative ability of an atom in a covalent bond to attract electrons (Pauling scale, $0$–$4$ range). Periodicity reflects electron configuration changes.",
+        "exam_style_guidance": "Justify trends explicitly: 'Atomic radius decreases across a period because nuclear charge increases while electron shielding remains constant.' Use examples: $\\text{Li} > \\text{Be} > \\text{B} > \\text{C} > \\text{N}$ (with exceptions at groups 13–14 and 15–16 due to $p$-orbital entry and electron pairing). Anomalies are examinable: $\\text{Al}$ has smaller first ionisation energy than $\\text{Mg}$ (poor shielding of $3p$); $\\text{S}$ has smaller first ionisation energy than $\\text{P}$ (pair repulsion in $3p^4$).",
+        "anti_prompts": [
+          "Do not confuse size trends with property trends — size and ionisation energy are inversely related.",
+          "Do not ignore anomalies in trend explanations — they reveal electron configuration effects.",
+          "Do not state that all elements in a group behave identically — reactivity trends are real."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "Chemical Bonding: Ionic, Covalent and Metallic",
+      "technique_notes": {
+        "core_concepts": "Ionic bonding: electrostatic attraction between cations and anions formed by electron transfer from metal to nonmetal. Covalent bonding: sharing of electron pairs between nonmetals. Polar covalent: asymmetric sharing due to electronegativity difference (e.g., $\\text{H}–\\text{Cl}$); nonpolar covalent: equal or negligible sharing (e.g., $\\text{H}–\\text{H}$, $\\text{C}–\\text{C}$). Coordinate (dative) covalent: both electrons in bond donated by one atom (e.g., $\\text{NH}_4^+$). Metallic bonding: delocalised electrons (electron sea) in lattice of cations. Bond polarity scale: ionic $\\Delta EN > 1.8$, polar covalent $0.4–1.8$, nonpolar covalent $< 0.4$ (approximate). Lewis structures show valence electrons and bonding pairs.",
+        "exam_style_guidance": "Use electronegativity differences to classify bonds: $\\text{NaCl}$ (ionic, $\\Delta EN \\approx 2.1$), $\\text{HCl}$ (polar covalent, $\\Delta EN \\approx 0.9$), $\\text{Cl}_2$ (nonpolar covalent, $\\Delta EN = 0$). Draw Lewis structures correctly: lone pairs and bonding pairs around central atoms, respecting the octet rule (with exceptions: $\\text{B}$, $\\text{Al}$, $\\text{Be}$ can have fewer; $\\text{P}$, $\\text{S}$, $\\text{Cl}$ can exceed octet). Explain metallic bonding as explaining conductivity and malleability.",
+        "anti_prompts": [
+          "Do not state that all metal-nonmetal bonds are purely ionic — many are polar covalent.",
+          "Do not apply strict electronegativity cutoffs rigidly — the scale is continuous.",
+          "Do not omit coordinate covalent bonds when they are present (e.g., in $\\text{NH}_4^+$ and transition metal complexes)."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "VSEPR Theory and Molecular Geometry",
+      "technique_notes": {
+        "core_concepts": "Valence Shell Electron Pair Repulsion (VSEPR) theory: electron pairs (bonding and lone pairs) around a central atom repel each other and arrange to maximise distance. Electron pair geometry (ignoring lone pair shape): linear, trigonal planar, tetrahedral, trigonal bipyramidal, octahedral. Molecular geometry (shape around atoms): linear, bent, trigonal planar, trigonal pyramidal, tetrahedral, trigonal bipyramidal, distorted geometries with lone pairs. Predicting shapes: count electron pairs (including lone pairs) around central atom; apply geometry; account for lone pair distortion. Examples: $\\text{CH}_4$ (tetrahedral), $\\text{NH}_3$ (trigonal pyramidal), $\\text{H}_2\\text{O}$ (bent), $\\text{CO}_2$ (linear), $\\text{SF}_4$ (see-saw).",
+        "exam_style_guidance": "State electron pair geometry first, then molecular geometry. Draw 3D representations using wedges/dashes or perspective drawings. Explain angle deviations from ideal due to lone pair repulsion (e.g., $\\text{NH}_3$ bond angle $< 109.5°$ because lone pair occupies more space). Distinguish electron pair geometry from molecular shape.",
+        "anti_prompts": [
+          "Do not ignore lone pairs when predicting shape — they determine final geometry.",
+          "Do not confuse electron pair geometry with molecular geometry.",
+          "Do not assume bond angles are always ideal tetrahedral or trigonal — lone pairs and bonding electrons repel differently."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "Molecular Polarity and Dipole Moments",
+      "technique_notes": {
+        "core_concepts": "Bond dipole: arises from electronegativity difference; represented by arrow pointing toward more electronegative atom. Molecular dipole moment ($\\mu$) is vector sum of bond dipoles. Polar molecules: have non-zero $\\mu$ (asymmetric electron distribution). Nonpolar molecules: $\\mu = 0$ due to symmetry, even if bonds are polar. Examples: $\\text{CO}_2$ (nonpolar, linear symmetry), $\\text{NH}_3$ (polar, trigonal pyramidal), $\\text{CH}_4$ (nonpolar, tetrahedral symmetry). Determining polarity: draw Lewis structure → predict shape using VSEPR → assess symmetry and bond dipoles.",
+        "exam_style_guidance": "Use molecular shape to predict polarity: linear symmetric molecules are nonpolar; pyramidal and bent are polar. Draw bond dipole vectors and show vector addition for net dipole. Explain how polarity affects properties: polar molecules have higher boiling points (dipole-dipole interactions), dissolve in polar solvents, can form hydrogen bonds.",
+        "anti_prompts": [
+          "Do not assume all polar bonds result in polar molecules — symmetry matters.",
+          "Do not state that $\\text{CO}_2$ is polar — it is nonpolar due to linear symmetry canceling bond dipoles.",
+          "Do not ignore the 3D shape when determining polarity — 2D structures can be misleading."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "States of Matter and Intermolecular Forces",
+      "technique_notes": {
+        "core_concepts": "Matter exists in three states: solid (fixed shape and volume), liquid (fixed volume, variable shape), gas (variable volume and shape). Intermolecular forces (IMFs) act between molecules: London dispersion forces (induced dipoles, weakest, present in all substances), dipole-dipole interactions (between polar molecules, medium strength), hydrogen bonding (between $\\text{H}$ bonded to $\\text{N}$, $\\text{O}$, or $\\text{F}$ and lone pair on another molecule, strong). Strength order: ionic $>$ hydrogen bonding $\\gtrsim$ dipole-dipole $>$ London forces. Intermolecular forces determine melting/boiling points, solubility, and state at a given temperature.",
+        "exam_style_guidance": "Identify the dominant IMF in a substance from its structure: $\\text{Br}_2$ (London only), $\\text{HBr}$ (dipole-dipole + London), $\\text{H}_2\\text{O}$ (hydrogen bonding + London). Predict relative boiling points: more London forces (larger molecular weight, greater surface area) → higher $T_b$; hydrogen bonding significantly increases $T_b$. Explain why water has anomalously high boiling point: extensive hydrogen bonding network.",
+        "anti_prompts": [
+          "Do not confuse intermolecular forces with intramolecular bonds — IMFs are between molecules; covalent/ionic/metallic bonds are within.",
+          "Do not state that nonpolar molecules have no intermolecular forces — they have London forces.",
+          "Do not ignore hydrogen bonding in molecules containing $\\text{N}$, $\\text{O}$, $\\text{F}$ — it is a major contributor to properties."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "Solubility and Dissolution",
+      "technique_notes": {
+        "core_concepts": "General solubility principle: 'like dissolves like' — polar solutes dissolve in polar solvents (e.g., ionic compounds in water), nonpolar solutes in nonpolar solvents (e.g., oils in hexane). Dissolution involves breaking solute-solute interactions (endothermic) and solute-solvent interactions forming (exothermic). Hydration: water molecules surround dissolved ions or polar molecules, stabilizing them in solution. Saturated solution: maximum solute dissolved at a given temperature; solubility in g per 100 g solvent or mol $\\text{dm}^{-3}$. Factors affecting solubility: temperature (generally increases for solids, decreases for gases with increasing $T$), pressure (affects gases via Henry's Law).",
+        "exam_style_guidance": "Explain solubility by comparing IMFs: if solute-solvent interactions (new) are stronger than solute-solute interactions (broken), dissolution is favoured. For ionic compounds, hydration energy and lattice energy determine solubility. Predict relative solubility: $\\text{NaCl}$ (very soluble, strong hydration), $\\text{NaF}$ (soluble), $\\text{AgCl}$ (poorly soluble, lattice energy dominates). Calculate molarity and molality from solubility data.",
+        "anti_prompts": [
+          "Do not state that all ionic compounds are soluble in water — some have low solubility (e.g., $\\text{AgCl}$, $\\text{BaSO}_4$).",
+          "Do not assume solubility increases linearly with temperature — it is complex and depends on $\\Delta H_{\\text{dissolve}}$.",
+          "Do not confuse saturated solutions with pure substances — a saturated solution is in equilibrium with undissolved solute."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "Balancing Chemical Equations and Stoichiometry",
+      "technique_notes": {
+        "core_concepts": "Chemical equations represent reactions using chemical formulas and coefficients. Balancing: count atoms of each element on each side and use coefficients to equalise. State symbols: $(s)$ solid, $(l)$ liquid, $(g)$ gas, $(aq)$ aqueous solution. Stoichiometry: mole ratios from balanced equation coefficients; used to relate amounts of reactants and products. Calculations: given mass/volume of one substance, calculate mass/volume of another using molar masses and stoichiometry. Limiting reactant: reactant that is completely consumed, determining amount of product. Excess reactant: reactant in excess after reaction.",
+        "exam_style_guidance": "Always balance equations using smallest whole number coefficients. Include state symbols unless explicitly stated otherwise. For multi-step stoichiometry: find moles of known substance → use stoichiometry ratio → convert to mass/volume of unknown. Identify limiting reactant by calculating moles of each reactant and dividing by stoichiometric coefficient; the smallest ratio is limiting.",
+        "anti_prompts": [
+          "Do not balance equations by changing subscripts — only coefficients change.",
+          "Do not forget to include state symbols in thermochemical or aqueous solution equations.",
+          "Do not use fractional coefficients in final balanced equation — multiply through to get whole numbers."
+        ]
+      },
+      "group": "unit2-How-do-scientists-represent-and-quantify-atomic-and-molecular-behaviour?"
+    },
+    {
+      "name": "Carbon-Based Fuels",
       "technique_notes": {
         "core_concepts": "Definition of a fuel and distinction between fossil fuels (coal, natural gas, petrol) and biofuels (biogas, bioethanol, biodiesel) with reference to renewability. Fuel sources for the body in kJ/g: carbohydrates, proteins and lipids. Photosynthesis and cellular respiration equations. Fermentation of glucose to bioethanol. Exothermic and endothermic reactions with reference to bond making/breaking, enthalpy changes (ΔH in kJ, kJ/mol, kJ/g) and energy profile diagrams. Determination of limiting reactants. Writing balanced thermochemical equations for complete and incomplete combustion of organic molecules.",
         "exam_style_guidance": "Questions commonly require writing or interpreting balanced thermochemical equations for combustion reactions, calculating enthalpy changes from bond energies or experimental data, comparing fossil fuels and biofuels in terms of renewability and energy output, and identifying limiting reactants in combustion stoichiometry problems. Students may also be asked to explain photosynthesis or cellular respiration in the context of energy transformations."
@@ -280,7 +384,7 @@
       "group": "unit3-What-are-the-current-and-future-options-for-supplying-energy?"
     },
     {
-      "name": "Measuring changes in chemical reactions",
+      "name": "Measuring Changes in Chemical Reactions",
       "technique_notes": {
         "core_concepts": "Stoichiometry applied to combustion reactions: mass-mass, mass-volume and volume-volume calculations to determine heat energy released, reactant/product amounts, and net volume or mass of greenhouse gases (CO₂, CH₄, H₂O) at SLC. Use of specific heat capacity of water to approximate heat energy from combustion. Principles of solution calorimetry including calibration factor, heat loss, and temperature-time graph analysis. Calculating energy transformation efficiency (%) and comparing energy values of foods containing carbohydrates, proteins, and fats and oils.",
         "exam_style_guidance": "Expect multi-step stoichiometry calculations involving combustion, calorimetry questions requiring use of q = mcΔT, and analysis of temperature-time graphs from calorimetry experiments. Students should be able to calculate and compare energy efficiencies and food energy values. Questions may also assess understanding of assumptions and sources of error in calorimetry."
@@ -288,7 +392,7 @@
       "group": "unit3-What-are-the-current-and-future-options-for-supplying-energy?"
     },
     {
-      "name": "Primary galvanic cells and fuel cells",
+      "name": "Primary Galvanic Cells and Fuel Cells",
       "technique_notes": {
         "core_concepts": "Redox reactions as simultaneous oxidation and reduction; use of oxidation numbers to identify reducing agents, oxidising agents and conjugate redox pairs. Writing balanced half-equations and overall redox cell reactions in acidic and basic conditions. Design features and operating principles of non-rechargeable galvanic cells (electrode polarities, roles of electrodes and electrolytes). Use and limitations of the electrochemical series for designing galvanic cells, predicting redox products, deducing equations from half-equations, and determining maximum cell voltage. Design features and operating principles of fuel cells including porous electrodes. Application of Faraday's Laws and stoichiometry to galvanic/fuel cell calculations. Green chemistry principles: energy efficiency and renewable feedstocks.",
         "exam_style_guidance": "Questions commonly require writing half-equations and overall redox equations (acidic and basic), using the electrochemical series to predict cell voltage or reaction spontaneity, and applying Faraday's Laws to calculate reactant/product quantities, current or time. Students may be asked to evaluate a fuel cell design with reference to green chemistry principles or compare galvanic cells and fuel cells in terms of design and energy conversion."
@@ -296,7 +400,7 @@
       "group": "unit3-What-are-the-current-and-future-options-for-supplying-energy?"
     },
     {
-      "name": "Rates of chemical reactions",
+      "name": "Rates of Chemical Reactions",
       "technique_notes": {
         "core_concepts": "Factors affecting the frequency and success of reactant particle collisions and reaction rate in open and closed systems: temperature, surface area, concentration, gas pressure, presence of a catalyst, activation energy and orientation. Role of catalysts in increasing reaction rate via alternative reaction pathways of lower activation energy, represented using energy profile diagrams.",
         "exam_style_guidance": "Questions may ask students to explain how changing a specific factor affects collision frequency or reaction rate using collision theory. Students may be required to interpret or sketch energy profile diagrams showing the effect of a catalyst. Experimental design questions may assess understanding of controlling variables when investigating reaction rates."
@@ -304,7 +408,7 @@
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
     {
-      "name": "Extent of chemical reactions and equilibrium",
+      "name": "Extent of Chemical Reactions and Equilibrium",
       "technique_notes": {
         "core_concepts": "Distinction between reversible and irreversible reactions, and between rate and extent of reaction. Dynamic nature of homogeneous equilibria (aqueous or gaseous); representation by balanced equations and concentration-time graphs. Changes in equilibrium position when temperature, species concentration, or volume/pressure are altered; representation using concentration-time graphs. Application of Le Chatelier's principle to predict factors favouring yield. Equilibrium constant (Kc) expressions including units, and dependence of Kc on temperature and the equation used. Reaction quotient (Q) as a measure of extent at a given point in time. Balancing optimal rate against temperature considerations, with reference to catalysis and energy efficiency (green chemistry).",
         "exam_style_guidance": "Students should be able to write Kc expressions for homogeneous equilibria, calculate Kc or equilibrium concentrations from data, and use Q to determine the direction a reaction will proceed. Questions may require interpreting concentration-time graphs for equilibrium systems, or applying Le Chatelier's principle to predict and explain shifts. Multi-part questions often link reaction rate with yield optimisation in industrial contexts."
@@ -312,7 +416,7 @@
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
     {
-      "name": "Production of chemicals using electrolysis",
+      "name": "Production of Chemicals Using Electrolysis",
       "technique_notes": {
         "core_concepts": "Use and limitations of the electrochemical series to explain or predict electrolysis products given state (molten or aqueous) and electrode materials; writing balanced equations (with states) for anode and cathode reactions and the overall redox equation. Design features and operating principles of commercial electrolytic cells (product removal, electrode materials, electrolyte, additives). Design and operating principles of rechargeable (secondary) cells: discharging as galvanic, recharging as electrolytic, reversed cell reactions, and electrode polarities in each mode. Role of innovation in producing 'green' hydrogen via polymer electrolyte membrane electrolysis (solar/wind-powered) and artificial photosynthesis (water oxidation and proton reduction catalyst systems), including equations in acidic conditions. Application of Faraday's Laws and stoichiometry to electrolytic cells.",
         "exam_style_guidance": "Questions commonly require predicting electrolysis products at the anode and cathode for molten or aqueous electrolytes and writing balanced half-equations and overall equations. Students should be able to compare galvanic and electrolytic modes of secondary cells including electrode polarity changes. Faraday's Law calculations involving charge, current, time and moles of product are frequently examined. Evaluation of green hydrogen production methods with reference to sustainability is also common."
@@ -320,7 +424,7 @@
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
     {
-      "name": "Structure, nomenclature and properties of organic compounds",
+      "name": "Structure, Nomenclature and Properties of Organic Compounds",
       "technique_notes": {
         "core_concepts": "Characteristics of carbon contributing to diversity: valence electrons, relative bond strength and stability, degree of unsaturation, structural isomers. Molecular, structural, semi-structural (condensed) formulas and skeletal structures of alkanes (including cyclohexane), alkenes, benzene, haloalkanes, primary amines, primary amides, alcohols (primary/secondary/tertiary), aldehydes, ketones, carboxylic acids and non-branched esters. IUPAC systematic naming up to C8 with no more than two functional groups (non-cyclic hydrocarbons, haloalkanes, primary amines, alcohols, aldehydes, ketones, carboxylic acids, non-branched esters). Trends in physical properties (boiling point, melting point, viscosity) within and between homologous series with reference to structure and bonding.",
         "exam_style_guidance": "Questions frequently require drawing and identifying structural, semi-structural or skeletal formulas, naming organic compounds using IUPAC rules, and identifying or drawing structural isomers. Students should be able to explain trends in boiling and melting points and viscosity across homologous series with reference to intermolecular forces. Drawing and identifying functional groups is a core skill across many exam questions."
@@ -328,7 +432,7 @@
       "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
     },
     {
-      "name": "Reactions of organic compounds",
+      "name": "Reactions of Organic Compounds",
       "technique_notes": {
         "core_concepts": "Organic reactions and pathways (including equations, reactants, products, conditions and catalysts — specific enzymes not required): synthesis of primary haloalkanes and primary alcohols by substitution; addition reactions of alkenes; esterification between alcohol and carboxylic acid; hydrolysis of esters; pathways for synthesis of primary amines and carboxylic acids; transesterification of plant triglycerides to produce biodiesel; hydrolytic reactions of proteins, carbohydrates and fats/oils to smaller molecules; condensation reactions to synthesise proteins, starch, glycogen and lipids. Calculations of percentage yield and atom economy for single-step and overall reaction pathways, and advantages of high atom economy. Sustainability of chemical production with reference to green chemistry principles: renewable feedstocks, catalysis, and designing safer chemicals.",
         "exam_style_guidance": "Students should be able to write balanced equations for a range of organic reactions and identify reagents, conditions and catalysts. Multi-step reaction pathway questions are common, requiring students to propose a sequence of reactions to convert one organic compound into another. Percentage yield and atom economy calculations are frequently tested. Questions may also ask students to evaluate a synthesis route in terms of green chemistry principles."
@@ -336,7 +440,7 @@
       "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
     },
     {
-      "name": "Laboratory analysis of organic compounds",
+      "name": "Laboratory Analysis of Organic Compounds",
       "technique_notes": {
         "core_concepts": "Qualitative tests for the presence of carbon-carbon double bonds, hydroxyl and carboxyl functional groups. Applications and principles of melting point determination and distillation (simple and fractional) for verifying purity of consumer products. Measurement of degree of unsaturation using iodine. Volumetric analysis including calculations of excess and limiting reactants using redox titrations (excluding back titrations).",
         "exam_style_guidance": "Questions may require students to describe qualitative test procedures and expected observations for identifying functional groups. Purity analysis questions may involve interpreting melting point data or explaining the principle of simple vs fractional distillation. Redox titration questions require stoichiometric calculations, including identifying the limiting reactant and calculating concentration or mass of an analyte."
@@ -344,7 +448,7 @@
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
     {
-      "name": "Instrumental analysis of organic compounds",
+      "name": "Instrumental Analysis of Organic Compounds",
       "technique_notes": {
         "core_concepts": "Mass spectrometry (MS): interpretation of molecular ion peak, molecular mass determination, and identification of simple fragments (excluding instrumentation details). Qualitative IR spectroscopy: identification of bond types using characteristic absorption bands. Carbon-13 NMR (¹³C-NMR): using chemical shift values to deduce number and nature of different carbon environments. Proton NMR (¹H-NMR): chemical shift values, integration curves, peak splitting patterns (n+1 rule, excluding coupling constants) to deduce proton environments. High performance liquid chromatography (HPLC): use of retention times and calibration curves to determine concentration of an organic compound. Combined use of MS, IR, ¹H-NMR and ¹³C-NMR to deduce structures of simple organic compounds. Roles and applications of laboratory and instrumental analysis for product purity and compound identification.",
         "exam_style_guidance": "Students should be able to interpret provided MS, IR, ¹³C-NMR and ¹H-NMR spectra to identify functional groups, carbon environments and proton environments, and to determine or confirm the structure of an organic compound. Questions often require integrating data from multiple techniques. HPLC questions may involve reading calibration curves to calculate concentration. Students should be familiar with common IR absorption wavenumbers for functional groups."
@@ -352,7 +456,7 @@
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
     {
-      "name": "Medicinal chemistry",
+      "name": "Medicinal Chemistry",
       "technique_notes": {
         "core_concepts": "Extraction and purification of natural plant compounds as potential active ingredients using solvent extraction and distillation. Identification of structure and functional groups of organic molecules that function as medicines. Significance of isomers and identification of chiral centres (carbon atom bonded to four different groups) in medicine effectiveness. Enzymes as protein-based catalysts: primary, secondary, tertiary and quaternary structures; changes in enzyme function due to increased temperature (denaturation), decreased temperature (lowered activity), or changes in pH (zwitterion formation and denaturation). Medicines as competitive enzyme inhibitors: organic molecules binding via lock-and-key mechanism to an active site, preventing substrate binding.",
         "exam_style_guidance": "Questions may require students to identify chiral centres in a given molecule and explain how chirality affects medicinal effectiveness. Students should be able to describe how temperature or pH changes affect enzyme structure and function. Competitive inhibition questions typically require explaining the mechanism by which a medicine prevents substrate binding. Exam questions may also involve identifying functional groups in a medicine structure or explaining principles of solvent extraction."
@@ -360,7 +464,7 @@
       "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
     {
-      "name": "Scientific investigation design and communication",
+      "name": "Scientific Investigation Design and Communication",
       "technique_notes": {
         "core_concepts": "Chemical concepts specific to the selected investigation including definitions of key terms. Characteristics and appropriateness of the selected scientific methodology and method; use of independent, dependent and controlled variables. Primary quantitative data generation techniques relevant to the investigation. Accuracy, precision, repeatability, reproducibility, resolution and validity of measurements. Health, safety and ethical guidelines applicable to the investigation. Nature of evidence that supports or refutes a hypothesis, model or theory. Organising, analysing and evaluating primary data to identify patterns and relationships, including sources of error and uncertainty. Authentication of data through a logbook. Assumptions and limitations of methodology and/or data generation/analysis. Conventions of science communication: terminology, representations, symbols, standard abbreviations and units. Conventions of scientific poster presentation including succinct communication, acknowledgements and references. Key findings and implications of the investigation.",
         "exam_style_guidance": "This area of study is primarily assessed through the scientific poster and logbook (SAC) rather than the end-of-year examination; however, students should understand scientific investigation terminology and concepts as these underpin exam questions across all areas. Questions may test understanding of validity, reliability, accuracy and precision, or ask students to identify sources of error and suggest improvements to a described methodology."
