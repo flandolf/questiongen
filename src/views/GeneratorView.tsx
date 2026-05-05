@@ -1296,7 +1296,7 @@ export function GeneratorView() {
                 onApplyOverride={overrideMcMark}
                 onImageDrop={() => {}}
                 onImageRemove={() => {}}
-                renderSketchpadInline={false}
+                renderSketchpadInline={true}
               />
             }
           />
