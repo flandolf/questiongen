@@ -32,6 +32,7 @@ type McSketchpadPanelProps = {
   image?: StudentAnswerImage;
   onImageDrop: (files: File[]) => void;
   onImageRemove: () => void;
+  onToggleSketchpad: () => void;
 };
 
 export const McSketchpadPanel = memo(function McSketchpadPanel({
@@ -40,6 +41,7 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
   image,
   onImageDrop,
   onImageRemove,
+  onToggleSketchpad,
 }: McSketchpadPanelProps) {
   async function handleSketchSave(dataUrl: string) {
     try {
@@ -56,11 +58,22 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
 
   return (
     <div className='space-y-2 animate-in fade-in slide-in-from-top-2 duration-300'>
-      <div className='flex items-center gap-2 text-muted-foreground/70'>
-        <PencilRuler className='w-4 h-4' />
-        <span className='text-[11px] font-semibold uppercase tracking-[0.22em]'>
-          Sketchpad
-        </span>
+      <div className='flex items-center justify-between'>
+        <div className='flex items-center gap-2 text-muted-foreground/70'>
+          <PencilRuler className='w-4 h-4' />
+          <span className='text-[11px] font-semibold uppercase tracking-[0.22em]'>
+            Sketchpad
+          </span>
+        </div>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={onToggleSketchpad}
+        >
+          <PencilRuler size={10} />
+          Hide Sketchpad
+        </Button>
       </div>
       <Sketchpad
         embedded
@@ -127,6 +140,7 @@ export const McAnswerCard = memo(function McAnswerCard({
             image={image}
             onImageDrop={onImageDrop}
             onImageRemove={onImageRemove}
+            onToggleSketchpad={onToggleSketchpad}
           />
         )}
       </div>

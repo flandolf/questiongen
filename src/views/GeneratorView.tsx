@@ -901,6 +901,8 @@ export function GeneratorView() {
       streamFlushRafRef.current = null;
     }
     setStreamText('');
+    const { setGenerationStatus } = useAppStore.getState();
+    setGenerationStatus(null);
     useTutorStore.getState().clearAllSessions();
     await generateQuestionsOrchestrator();
   }, [startStopwatch, setStreamText]);

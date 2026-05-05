@@ -1,8 +1,12 @@
 {
   "name": "Chemistry",
   "icon": "FlaskConical",
-  "examPdfs": ["2025-Chemistry.pdf"],
-  "reportPdfs": ["2025-Chemistry-report.pdf"],
+  "examPdfs": [
+    "2025-Chemistry.pdf"
+  ],
+  "reportPdfs": [
+    "2025-Chemistry-report.pdf"
+  ],
   "examGuidance": "Render every chemical formula and ionic species in LaTeX using \\text{}: e.g., $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. Use VCE command verbs (calculate, explain, deduce, justify). All chemical equations must be balanced and include state symbols: $(s), (l), (g), (aq)$. Thermochemical equations must include $\\Delta H$ in $kJ \\text{ mol}^{-1}$. Stoichiometry problems should require significant figure awareness (typically 3 sig figs). Use standard IUPAC naming for organic molecules. Refer to the VCAA Chemistry Data Book for standard values (molar masses, specific heat capacities, electrochemical series). Confine questions to the VCE Chemistry Study Design (2024–2027).",
   "out_of_scope": [
     "Quantum mechanics beyond subshell notation",
@@ -15,528 +19,353 @@
   ],
   "subtopics": [
     {
-      "name": "Elements and the Periodic Table",
+      "name": "Elements, isotopes and ions",
       "technique_notes": {
-        "core_concepts": "Organisation of elements by atomic number and electron configuration. Periodic law.",
-        "exam_style_guidelines": "Link position in the periodic table to chemical reactivity and subshell filling.",
-        "anti_prompts": ["Do not ask for rote recall of atomic numbers."]
+        "core_concepts": "The definitions of elements, isotopes and ions, including appropriate notation: atomic number; mass number; and number of protons, neutrons and electrons.",
+        "exam_style_guidance": "Questions may ask students to identify or calculate the number of protons, neutrons and electrons in a given isotope or ion. They may also require students to write the correct notation for an element, isotope or ion based on provided information."
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
     },
     {
-      "name": "Atomic Structure and Subshell Notation",
+      "name": "The periodic table as an organizational tool",
       "technique_notes": {
-        "core_concepts": "Protons, neutrons, electrons. Subshell notation ($1s, 2s, 2p, 3s, 3p, 4s, 3d$). Chromium and Copper exceptions.",
-        "exam_style_guidelines": "Require full subshell configurations. Explain energy levels and filling rules (Aufbau, Pauli, Hund).",
+        "core_concepts": "The structure of the periodic table, including groups, periods, and the classification of elements as metals, nonmetals and metalloids. Trends in properties such as atomic radius, ionization energy, electronegativity and metallic character across periods and down groups.",
+        "exam_style_guidance": "Questions may ask students to predict or explain trends in properties based on an element's position in the periodic table. They may also require students to classify elements as metals, nonmetals or metalloids based on their properties."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Critical elements",
+      "technique_notes": {
+        "core_concepts": "The concept of critical elements, their importance in modern technology and the challenges associated with their supply. Examples of critical elements include lithium, cobalt, rare earth elements and platinum group metals.",
+        "exam_style_guidance": "Questions may ask students to explain why certain elements are considered critical, discuss the applications of critical elements in technology, or evaluate the environmental and economic implications of their extraction and use."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Lewis structures, structural formulas and molecular formulas",
+      "technique_notes": {
+        "core_concepts": "The representation of molecules using Lewis structures, structural formulas and molecular formulas. The concept of bonding and the arrangement of atoms in molecules.",
+        "exam_style_guidance": "Questions may ask students to draw Lewis structures for simple molecules, interpret structural formulas, or determine molecular formulas from given information."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Shapes of molecules and ions",
+      "technique_notes": {
+        "core_concepts": "The shapes of molecules and ions based on the VSEPR theory. The relationship between the shape of a molecule or ion and its properties.",
+        "exam_style_guidance": "Questions may ask students to predict the shape of a molecule or ion based on its Lewis structure, or to explain how the shape of a molecule or ion influences its properties."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Polarity of molecules and ions",
+      "technique_notes": {
+        "core_concepts": "The concept of polarity in molecules and ions, including the distribution of charge and the resulting dipole moment. The relationship between polarity and intermolecular forces.",
+        "exam_style_guidance": "Questions may ask students to determine the polarity of a molecule or ion based on its structure, or to explain how polarity affects the physical properties of a substance."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Intermolecular forces",
+      "technique_notes": {
+        "core_concepts": "The different types of intermolecular forces, including London dispersion forces, dipole-dipole interactions and hydrogen bonding. The relationship between intermolecular forces and the physical properties of substances.",
+        "exam_style_guidance": "Questions may ask students to identify the types of intermolecular forces present in a substance, or to explain how intermolecular forces influence properties such as boiling point, melting point and solubility."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Properties of materials",
+      "technique_notes": {
+        "core_concepts": "The physical and chemical properties of materials, including melting point, boiling point, density, solubility, reactivity and conductivity. The relationship between the structure of a material and its properties.",
+        "exam_style_guidance": "Questions may ask students to compare the properties of different materials based on their structure, or to explain how the structure of a material influences its properties."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Structure of carbon allotropes (diamond, graphite)",
+      "technique_notes": {
+        "core_concepts": "The structure of carbon allotropes, including diamond and graphite. The relationship between the structure of these allotropes and their properties.",
+        "exam_style_guidance": "Questions may ask students to describe the structure of diamond and graphite, or to explain how the structure of these allotropes influences their properties."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Properties of metals",
+      "technique_notes": {
+        "core_concepts": "The properties of metals, including malleability, ductility, conductivity and reactivity. The relationship between the structure of metals and their properties.",
+        "exam_style_guidance": "Questions may ask students to explain the properties of metals based on their structure, or to compare the properties of different metals."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Reactivity of metals",
+      "technique_notes": {
+        "core_concepts": "The reactivity of metals, including their reactions with water, acids and oxygen. The relationship between the reactivity of metals and their position in the periodic table.",
+        "exam_style_guidance": "Questions may ask students to predict the reactivity of a metal based on its position in the periodic table, or to explain the reactions of metals with water, acids and oxygen."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Metal recycling",
+      "technique_notes": {
+        "core_concepts": "The importance of metal recycling, the processes involved in recycling metals and the environmental and economic benefits of recycling.",
+        "exam_style_guidance": "Questions may ask students to explain the importance of metal recycling, describe the processes involved in recycling metals, or evaluate the environmental and economic benefits of recycling."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Properties of ionic compounds",
+      "technique_notes": {
+        "core_concepts": "The properties of ionic compounds, including high melting and boiling points, solubility in water, electrical conductivity when molten or dissolved and brittleness. The relationship between the structure of ionic compounds and their properties.",
+        "exam_style_guidance": "Questions may ask students to explain the properties of ionic compounds"
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Deduction of formula and name of ionic compounds",
+      "technique_notes": {
+        "core_concepts": "The deduction of the formula and name of ionic compounds based on the charges of the ions involved. The use of the criss-cross method to determine the formula of ionic compounds.",
+        "exam_style_guidance": "Questions may ask students to deduce the formula and name of an ionic compound based on the charges of the ions, or to use the criss-cross method to determine the formula of an ionic compound."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Formation of ionic compounds",
+      "technique_notes": {
+        "core_concepts": "The formation of ionic compounds through the transfer of electrons from metals to nonmetals. The concept of lattice energy and its relationship to the stability of ionic compounds.",
+        "exam_style_guidance": "Questions may ask students to explain the formation of ionic compounds, or to discuss the concept of lattice energy and its relationship to the stability of ionic compounds."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Solubility of ionic compounds",
+      "technique_notes": {
+        "core_concepts": "The solubility of ionic compounds in water, including the concept of hydration and the factors that affect solubility such as lattice energy and hydration energy.",
+        "exam_style_guidance": "Questions may ask students to explain the solubility of ionic compounds in water, or to discuss the factors that affect solubility such as lattice energy and hydration energy."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Seperation and identification of the components of mixtures",
+      "technique_notes": {
+        "core_concepts": "Polar and non-polar character with reference to the solubility of polar solutes dissolving in polar solvents, and non-polar solutes dissolving in non-polar solvents, experimental application of chromatography as a technique to determine the composition and purity of different types of substances, including calculation of Rf values.",
+        "exam_style_guidance": "Questions may ask students to describe the techniques used for the separation and identification of the components of mixtures, or to explain how these techniques work."
+      },
+      "group": "unit1-How-can-the-diversity-of-materials-be-explained?"
+    },
+    {
+      "name": "Relative Isotopic Mass and Atomic Mass",
+      "technique_notes": {
+        "core_concepts": "Relative isotopic mass scale anchored to $^{12}$C $= 12$ exactly. Relative atomic mass $A_r$ as the weighted average of isotopic masses: $A_r = \\sum (\\text{isotopic mass} \\times \\text{fractional abundance})$. Mass spectrometry identifies isotopes and their relative abundances.",
+        "exam_style_guidelines": "Show the weighted average calculation explicitly with fractional (not percentage) abundances. Distinguish between relative isotopic mass (whole number approximation) and relative atomic mass (decimal). Do not describe instrument mechanics — only interpret mass spectra output.",
         "anti_prompts": [
-          "Avoid Bohr model diagrams unless used for comparison."
+          "Do not use percentage abundances directly — convert to decimals before multiplying.",
+          "Do not confuse mass number (integer) with relative isotopic mass (measured value close to but not exactly an integer).",
+          "Do not state that $A_r$ equals the mass number of the most abundant isotope."
         ]
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-quantifying-atoms-and-compounds"
     },
     {
-      "name": "Trends: Core Charge and Atomic Radius",
+      "name": "Avogadro's Constant and the Mole",
       "technique_notes": {
-        "core_concepts": "Core charge as effective nuclear pull. Trend across periods (increases) and down groups (constant). Atomic radius trends.",
-        "exam_style_guidelines": "Explain trends using the relationship between core charge and shell number.",
+        "core_concepts": "Avogadro's constant $N_A = 6.02 \\times 10^{23}$ mol$^{-1}$. Amount in moles: $n = \\frac{m}{M}$. Number of particles: $N = n \\times N_A$. Molar mass $M$ in g mol$^{-1}$ numerically equals $A_r$ or $M_r$.",
+        "exam_style_guidelines": "Always include units in mole calculations. For multi-step questions, find $n$ first, then convert to particles or mass as required. Distinguish between moles of atoms and moles of molecules for molecular substances.",
         "anti_prompts": [
-          "Do not say 'shells' when you mean 'subshells' or vice versa."
+          "Do not confuse molar mass (g mol$^{-1}$) with relative molecular mass (dimensionless).",
+          "Do not apply $n = m/M$ using the mass number instead of the molar mass.",
+          "Do not state the number of particles without specifying what particle (atoms, molecules, ions)."
         ]
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-quantifying-atoms-and-compounds"
     },
     {
-      "name": "Trends: Ionisation Energy and Electronegativity",
+      "name": "Molar Mass, Percentage Composition, and Empirical/Molecular Formulas",
       "technique_notes": {
-        "core_concepts": "First ionisation energy. Electronegativity as the ability to attract electrons in a bond.",
-        "exam_style_guidelines": "Link these trends to core charge and atomic radius. Explain the inactivity of noble gases in electronegativity terms.",
-        "anti_prompts": ["Avoid discussing electron affinity unless requested."]
-      },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
-    },
-    {
-      "name": "Metallic Bonding and Lattices",
-      "technique_notes": {
-        "core_concepts": "Cations in a sea of delocalised electrons. Lattice structure.",
-        "exam_style_guidelines": "Explain properties (conductivity, malleability) using the metallic bonding model.",
+        "core_concepts": "Molar mass from sum of atomic masses. Percentage composition: $\\% X = \\frac{n \\cdot M_X}{M_{\\text{compound}}} \\times 100$. Empirical formula from percentage composition: divide by $M$, find ratio, reduce to lowest whole numbers. Molecular formula: $\\text{molecular formula} = n \\times \\text{empirical formula}$ where $n = M_{\\text{compound}} / M_{\\text{empirical}}$.",
+        "exam_style_guidelines": "Show all steps: percentage → moles → ratio → simplest ratio. For hydrated salts, treat water of crystallisation as a separate component. Always confirm the molecular formula mass matches the given molar mass.",
         "anti_prompts": [
-          "Ensure students state that electrons are delocalised, not just 'moving'."
+          "Do not round mole ratios to whole numbers prematurely — check for 0.5 multiples (multiply through by 2) or 0.33 (multiply by 3).",
+          "Do not skip the step of dividing by the smallest mole value when finding the ratio.",
+          "Do not confuse empirical formula (simplest ratio) with molecular formula (actual)."
         ]
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-quantifying-atoms-and-compounds"
     },
     {
-      "name": "Ionic Bonding and Lattices",
+      "name": "Families of Organic Compounds",
       "technique_notes": {
-        "core_concepts": "Electrostatic attraction between cations and anions. Crystal lattice structure.",
-        "exam_style_guidelines": "Explain brittleness and high melting points using the ionic model. Include full ionic equations for formation.",
+        "core_concepts": "Hydrocarbon families — alkanes ($C_nH_{2n+2}$), alkenes ($C_nH_{2n}$), haloalkanes. Functional group families — alcohols ($-$OH), carboxylic acids ($-$COOH). Each family has characteristic physical properties (boiling point, solubility) and chemical reactivity patterns. General uses follow from properties (e.g., alkanes as fuels, alcohols as solvents).",
+        "exam_style_guidelines": "Link properties to structure: chain length increases boiling point; polar functional groups increase solubility in water. When asked to compare families, address both physical and chemical properties. Use general formulas to identify family membership.",
         "anti_prompts": [
-          "Do not confuse ionic bonds with intermolecular forces."
+          "Do not describe haloalkanes using the same general formula as alkanes — the halogen replaces a hydrogen.",
+          "Do not state that all organic compounds are non-polar or insoluble in water — alcohols and carboxylic acids are exceptions.",
+          "Do not confuse the family a compound belongs to with its specific uses — justify uses from properties."
         ]
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-families-of-organic-compounds"
     },
     {
-      "name": "Covalent Bonding and Lewis Structures",
+      "name": "IUPAC Nomenclature and Structural Representations",
       "technique_notes": {
-        "core_concepts": "Sharing of electron pairs. Single, double, and triple bonds. Non-bonding pairs (lone pairs).",
-        "exam_style_guidelines": "Require drawing of electron-dot diagrams and valence structures. Ensure the octet rule is followed (except H).",
+        "core_concepts": "IUPAC naming: identify longest carbon chain (parent name), number from end closest to principal functional group or substituent, name and locate substituents (halo-, methyl-, ethyl-), add suffix for functional group (-ane, -ene, -ol, -oic acid). Structural isomers: same molecular formula, different connectivity. Representations: full structural, semi-structural (condensed).",
+        "exam_style_guidelines": "Always number the chain to give the principal functional group the lowest locant. For isomers, draw all possibilities systematically (straight chain first, then move branches). Limited to non-cyclic compounds up to C8, structural isomers up to C5.",
         "anti_prompts": [
-          "Avoid molecules that violate the octet rule unless specified (e.g. $BF_3$)."
+          "Do not number the chain from the wrong end — the principal functional group takes priority over substituents for lowest locant.",
+          "Do not omit locants when there is ambiguity about substituent position.",
+          "Do not confuse semi-structural formulas with molecular formulas — semi-structural shows bonding groups explicitly."
         ]
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-families-of-organic-compounds"
     },
     {
-      "name": "VSEPR Theory and Molecular Shape",
+      "name": "Organic Compounds in Society — Sources, Uses and Impacts",
       "technique_notes": {
-        "core_concepts": "Repulsion between electron pairs. Shapes: linear, V-shaped, pyramidal, tetrahedral.",
-        "exam_style_guidelines": "Predict shape based on the number of bonding and non-bonding pairs around the central atom.",
+        "core_concepts": "Fossil fuels as traditional source of organic chemicals. Plant-based biomass as renewable alternative (solvents, pharmaceuticals, adhesives, dyes, paints). Everyday products from organic compounds: synthetic fabrics, foods, medicines, pesticides, cosmetics, solvents, car parts, artificial hearts. Benefits to society balanced against health and environmental hazards.",
+        "exam_style_guidelines": "Structure responses around: what the compound/product is, its benefit, and its health or environmental hazard. For biomass questions, emphasise renewability and reduced fossil fuel dependence. Use specific examples from the study design rather than generic statements.",
         "anti_prompts": [
-          "Distinguish between electron geometry and molecular shape."
+          "Do not state only benefits without addressing hazards — questions almost always require evaluation of both.",
+          "Do not describe biomass sources as carbon-neutral without qualification — processing and transport have emissions.",
+          "Do not generalise all organic compounds as hazardous; match the hazard to the specific compound or class."
         ]
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-families-of-organic-compounds"
     },
     {
-      "name": "Intermolecular Forces",
+      "name": "Addition vs Condensation Polymerisation",
       "technique_notes": {
-        "core_concepts": "Dispersion forces, dipole-dipole attraction, and hydrogen bonding.",
-        "exam_style_guidelines": "Link the strength of these forces to the boiling/melting points of molecular substances.",
+        "core_concepts": "Addition polymerisation: alkene monomers join via opening of $C=C$ double bond; no by-product. Condensation polymerisation: monomers with two functional groups react, releasing a small molecule (usually $H_2O$). Natural polymers (e.g., proteins, starch) formed by condensation; many manufactured polymers by addition. Hydrolysis is the reverse of condensation.",
+        "exam_style_guidelines": "Identify the reaction type from the monomer structure: alkene with $C=C$ → addition; monomers with two functional groups (e.g., diol + diacid) → condensation. When writing polymer structures, show the repeat unit in brackets with $n$. For hydrolysis, show the bond broken and the small molecule added.",
         "anti_prompts": [
-          "Do not imply that intermolecular forces are stronger than covalent bonds."
+          "Do not state that addition polymerisation produces a by-product.",
+          "Do not confuse the monomer with the repeat unit — the repeat unit shows the structure after polymerisation.",
+          "Do not describe condensation polymers as always synthetic — proteins and cellulose are natural condensation polymers."
         ]
       },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
+      "group": "unit1-polymers-and-society"
     },
     {
-      "name": "Carbon Lattices and Nanomaterials",
+      "name": "Addition Polymers — Structure, Properties and Design",
       "technique_notes": {
-        "core_concepts": "Diamond and graphite structures. Fullerenes, nanotubes, and graphene.",
-        "exam_style_guidelines": "Compare properties of diamond and graphite based on their bonding. Discuss applications of carbon nanomaterials.",
-        "anti_prompts": ["N/A"]
-      },
-      "group": "unit1-How-do-the-chemical-structures-of-materials-explain-their-properties?"
-    },
-    {
-      "name": "Polymers and Sustainability",
-      "technique_notes": {
-        "core_concepts": "Monomers and polymers. Addition polymerisation. Properties of polymers (thermoplastic vs thermosetting).",
-        "exam_style_guidelines": "Evaluate the environmental impact of polymer use and the move towards biodegradable polymers.",
+        "core_concepts": "Addition polymers from alkene monomers (ethene → polyethene, propene → polypropylene, vinyl chloride → PVC, styrene → polystyrene). Linear (thermoplastic) vs cross-linked (thermosetting): thermoplastics soften on heating (weak intermolecular forces between chains); thermosets do not (covalent cross-links). Polymer properties influenced by monomer identity, chain length, and degree of branching (e.g., HDPE vs LDPE).",
+        "exam_style_guidelines": "Link monomer structure to polymer properties: polar side groups → stronger intermolecular forces → higher melting point. For design questions, justify monomer choice, chain length, and branching in terms of the required property (flexibility, strength, melting point). Distinguish HDPE (linear, high density, rigid) from LDPE (branched, lower density, flexible).",
         "anti_prompts": [
-          "Ensure students know the difference between cross-links and intermolecular forces."
+          "Do not state that thermosetting polymers can be remoulded — cross-linking prevents this.",
+          "Do not confuse chain length with branching — both affect properties but through different mechanisms.",
+          "Do not describe all addition polymers as identical in properties; monomer side groups fundamentally change behaviour."
         ]
       },
-      "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?"
+      "group": "unit1-polymers-and-society"
     },
     {
-      "name": "Critical Elements and Circular Economy",
+      "name": "Plastics Classification, Recycling and Circular Economy",
       "technique_notes": {
-        "core_concepts": "Endangered elements (e.g., He, In, Li). Linear vs circular economy models.",
-        "exam_style_guidelines": "Evaluate strategies for recycling and reducing reliance on critical elements in modern technology.",
+        "core_concepts": "Fossil fuel-based plastics: HDPE, LDPE, PVC, PP, PS. Bioplastics: PLA (compostable), Bio-PE, Bio-PP (bio-based but not necessarily compostable). Recycling types: mechanical (remelting), chemical (depolymerisation back to monomers), organic (composting/anaerobic digestion). Circular economy: designing for reuse, recycling, and renewability vs linear economy (make–use–dispose).",
+        "exam_style_guidelines": "Distinguish bio-based (renewable feedstock) from biodegradable/compostable (breaks down biologically) — Bio-PE is bio-based but not biodegradable. For evaluation questions, assess circularity using criteria: renewable raw materials, recyclability, compostability, and end-of-life fate. Use specific plastic codes (HDPE, PLA etc.) not generic terms.",
         "anti_prompts": [
-          "Avoid generic 'recycling is good' answers; reference specific chemical properties."
+          "Do not equate bio-based with biodegradable — Bio-PE has the same structure as fossil-fuel PE and does not biodegrade.",
+          "Do not describe mechanical recycling as suitable for all plastics — contamination and mixed plastics limit its effectiveness.",
+          "Do not present the circular economy as simply 'recycling more' — it includes redesign of products and systems."
         ]
       },
-      "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?"
+      "group": "unit1-polymers-and-society"
     },
     {
-      "name": "Green Chemistry Principles",
+      "name": "Carbon-based fuels",
       "technique_notes": {
-        "core_concepts": "The 12 principles, focusing on atom economy and waste prevention.",
-        "exam_style_guidelines": "Calculate atom economy for a given reaction. Suggest how a reaction could be made 'greener'.",
-        "anti_prompts": [
-          "Do not require listing all 12 principles from memory."
-        ]
+        "core_concepts": "Definition of a fuel and distinction between fossil fuels (coal, natural gas, petrol) and biofuels (biogas, bioethanol, biodiesel) with reference to renewability. Fuel sources for the body in kJ/g: carbohydrates, proteins and lipids. Photosynthesis and cellular respiration equations. Fermentation of glucose to bioethanol. Exothermic and endothermic reactions with reference to bond making/breaking, enthalpy changes (ΔH in kJ, kJ/mol, kJ/g) and energy profile diagrams. Determination of limiting reactants. Writing balanced thermochemical equations for complete and incomplete combustion of organic molecules.",
+        "exam_style_guidance": "Questions commonly require writing or interpreting balanced thermochemical equations for combustion reactions, calculating enthalpy changes from bond energies or experimental data, comparing fossil fuels and biofuels in terms of renewability and energy output, and identifying limiting reactants in combustion stoichiometry problems. Students may also be asked to explain photosynthesis or cellular respiration in the context of energy transformations."
       },
-      "group": "unit1-How-can-chemical-principles-be-applied-to-create-a-more-sustainable-future?"
+      "group": "unit3-What-are-the-current-and-future-options-for-supplying-energy?"
     },
     {
-      "name": "The Mole Concept and Avogadro's Constant",
+      "name": "Measuring changes in chemical reactions",
       "technique_notes": {
-        "core_concepts": "Defining the mole. $N_A = 6.02 \\times 10^{23} \\text{ mol}^{-1}$. Relationship $n = N/N_A$.",
-        "exam_style_guidelines": "Solve problems converting between number of particles and moles. Use correct units.",
-        "anti_prompts": [
-          "Avoid confusion between atoms and molecules in calculations."
-        ]
+        "core_concepts": "Stoichiometry applied to combustion reactions: mass-mass, mass-volume and volume-volume calculations to determine heat energy released, reactant/product amounts, and net volume or mass of greenhouse gases (CO₂, CH₄, H₂O) at SLC. Use of specific heat capacity of water to approximate heat energy from combustion. Principles of solution calorimetry including calibration factor, heat loss, and temperature-time graph analysis. Calculating energy transformation efficiency (%) and comparing energy values of foods containing carbohydrates, proteins, and fats and oils.",
+        "exam_style_guidance": "Expect multi-step stoichiometry calculations involving combustion, calorimetry questions requiring use of q = mcΔT, and analysis of temperature-time graphs from calorimetry experiments. Students should be able to calculate and compare energy efficiencies and food energy values. Questions may also assess understanding of assumptions and sources of error in calorimetry."
       },
-      "group": "unit1-How-are-materials-quantified-and-classified?"
+      "group": "unit3-What-are-the-current-and-future-options-for-supplying-energy?"
     },
     {
-      "name": "Molar Mass and Stoichiometry",
+      "name": "Primary galvanic cells and fuel cells",
       "technique_notes": {
-        "core_concepts": "Calculating $M$. Relationship $n = m/M$. Stoichiometric ratios in balanced equations.",
-        "exam_style_guidelines": "Solve mass-mass stoichiometry problems. Always check the limiting reagent.",
-        "anti_prompts": [
-          "Ensure significant figures are handled correctly throughout."
-        ]
+        "core_concepts": "Redox reactions as simultaneous oxidation and reduction; use of oxidation numbers to identify reducing agents, oxidising agents and conjugate redox pairs. Writing balanced half-equations and overall redox cell reactions in acidic and basic conditions. Design features and operating principles of non-rechargeable galvanic cells (electrode polarities, roles of electrodes and electrolytes). Use and limitations of the electrochemical series for designing galvanic cells, predicting redox products, deducing equations from half-equations, and determining maximum cell voltage. Design features and operating principles of fuel cells including porous electrodes. Application of Faraday's Laws and stoichiometry to galvanic/fuel cell calculations. Green chemistry principles: energy efficiency and renewable feedstocks.",
+        "exam_style_guidance": "Questions commonly require writing half-equations and overall redox equations (acidic and basic), using the electrochemical series to predict cell voltage or reaction spontaneity, and applying Faraday's Laws to calculate reactant/product quantities, current or time. Students may be asked to evaluate a fuel cell design with reference to green chemistry principles or compare galvanic cells and fuel cells in terms of design and energy conversion."
       },
-      "group": "unit1-How-are-materials-quantified-and-classified?"
+      "group": "unit3-What-are-the-current-and-future-options-for-supplying-energy?"
     },
     {
-      "name": "Empirical and Molecular Formulas",
+      "name": "Rates of chemical reactions",
       "technique_notes": {
-        "core_concepts": "Simplest ratio vs actual number of atoms. Percentage composition.",
-        "exam_style_guidelines": "Determine empirical formula from mass % and molecular formula using molar mass.",
-        "anti_prompts": ["Do not round intermediate mole ratios too early."]
-      },
-      "group": "unit1-How-are-materials-quantified-and-classified?"
-    },
-    {
-      "name": "Chromatography Principles",
-      "technique_notes": {
-        "core_concepts": "Stationary vs mobile phases. Adsorption and desorption. $R_f$ and $R_t$ values.",
-        "exam_style_guidelines": "Interpret chromatograms to identify components. Explain how polarity affects movement.",
-        "anti_prompts": ["Distinguish between paper, TLC, and HPLC."]
-      },
-      "group": "unit1-How-are-materials-quantified-and-classified?"
-    },
-    {
-      "name": "Properties of Water",
-      "technique_notes": {
-        "core_concepts": "Hydrogen bonding. Anomalous density of ice. High surface tension.",
-        "exam_style_guidelines": "Explain the significance of H-bonding in determining water's unique physical properties.",
-        "anti_prompts": [
-          "Avoid saying 'water has strong bonds' without specifying intermolecular forces."
-        ]
-      },
-      "group": "unit2-How-do-chemicals-interact-with-water?"
-    },
-    {
-      "name": "Specific Heat Capacity and Latent Heat",
-      "technique_notes": {
-        "core_concepts": "$q = mc\\Delta T$. Latent heat of fusion and vaporisation.",
-        "exam_style_guidelines": "Calculate energy changes during heating and phase changes of water. Link to climate regulation.",
-        "anti_prompts": [
-          "Ensure units of $c$ ($J \\text{ g}^{-1} \\text{ K}^{-1}$) match the mass units."
-        ]
-      },
-      "group": "unit2-How-do-chemicals-interact-with-water?"
-    },
-    {
-      "name": "Solubility and Precipitation Reactions",
-      "technique_notes": {
-        "core_concepts": "Solubility rules. Full and net ionic equations. Spectator ions.",
-        "exam_style_guidelines": "Predict the formation of a precipitate. Write balanced net ionic equations with states.",
-        "anti_prompts": [
-          "Do not include spectator ions in net ionic equations."
-        ]
-      },
-      "group": "unit2-How-do-chemicals-interact-with-water?"
-    },
-    {
-      "name": "Acids and Bases: Bronsted-Lowry Theory",
-      "technique_notes": {
-        "core_concepts": "Proton donors and acceptors. Conjugate acid-base pairs. Amphiprotic species.",
-        "exam_style_guidelines": "Identify conjugate pairs in an equation. Write equations for amphiprotic species like $H_2O$ or $HCO_3^-$.",
-        "anti_prompts": ["Avoid the Arrhenius definition in Unit 2."]
-      },
-      "group": "unit2-How-do-chemicals-interact-with-water?"
-    },
-    {
-      "name": "The pH Scale and Indicators",
-      "technique_notes": {
-        "core_concepts": "$\\\\text{pH} = -\\\\log_{10}[H^+]$. Self-ionisation of water ($K_w$). Strong vs weak acids.",
-        "exam_style_guidelines": "Calculate pH for strong acids and bases. Explain the role of indicators in identifying acidity.",
-        "anti_prompts": ["Do not confuse acid strength with concentration."]
-      },
-      "group": "unit2-How-do-chemicals-interact-with-water?"
-    },
-    {
-      "name": "Gas Laws and Molar Volume",
-      "technique_notes": {
-        "core_concepts": "Ideal gas law $PV=nRT$. Molar volume at SLC ($24.8 \\text{ L mol}^{-1}$).",
-        "exam_style_guidelines": "Calculate gas volumes in stoichiometric problems. Convert between units (kPa, atm, L, m3).",
-        "anti_prompts": [
-          "Use $R=8.31 \\text{ J mol}^{-1} \\text{ K}^{-1}$ with appropriate units."
-        ]
-      },
-      "group": "unit2-How-are-chemicals-measured-and-analysed?"
-    },
-    {
-      "name": "Redox: Oxidation Numbers",
-      "technique_notes": {
-        "core_concepts": "Rules for assigning oxidation numbers. Identifying oxidant and reductant.",
-        "exam_style_guidelines": "Use O.N. to determine if a redox reaction has occurred. Justify identification of species being oxidised/reduced.",
-        "anti_prompts": [
-          "Oxidation number of an element in its standard state is 0."
-        ]
-      },
-      "group": "unit2-How-are-chemicals-measured-and-analysed?"
-    },
-    {
-      "name": "Redox: Half-equations and Reactivity Series",
-      "technique_notes": {
-        "core_concepts": "Balancing half-equations in acidic conditions (KOHES). Reactivity series of metals.",
-        "exam_style_guidelines": "Combine half-equations into a full redox equation. Predict spontaneity using the series.",
-        "anti_prompts": ["Ensure charge is balanced using electrons."]
-      },
-      "group": "unit2-How-are-chemicals-measured-and-analysed?"
-    },
-    {
-      "name": "Volumetric Analysis: Titration Procedures",
-      "technique_notes": {
-        "core_concepts": "Standard solutions, primary standards. Pipettes, burettes, and flasks. End point vs Equivalence point.",
-        "exam_style_guidelines": "Describe the steps to perform a titration. Identify sources of error (e.g., rinsing technique).",
-        "anti_prompts": [
-          "Do not rinse the volumetric flask with the solution; use deionised water."
-        ]
-      },
-      "group": "unit2-How-are-chemicals-measured-and-analysed?"
-    },
-    {
-      "name": "Titration Calculations and Dilutions",
-      "technique_notes": {
-        "core_concepts": "Using $c=n/V$. Multi-step stoichiometry. Concordant titres.",
-        "exam_style_guidelines": "Calculate unknown concentration from titration data. Account for dilution factors.",
-        "anti_prompts": ["Average only the concordant titres (within 0.10 mL)."]
-      },
-      "group": "unit2-How-are-chemicals-measured-and-analysed?"
-    },
-    {
-      "name": "Fossil Fuels vs Biofuels",
-      "technique_notes": {
-        "core_concepts": "Coal, natural gas, LPG. Bioethanol, biogas, biodiesel. Carbon neutrality.",
-        "exam_style_guidelines": "Compare fuels based on renewability and environmental impact. Explain the production of biofuels.",
-        "anti_prompts": [
-          "Avoid generic 'biofuels are better' answers; use chemical reasoning."
-        ]
-      },
-      "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
-    },
-    {
-      "name": "Combustion and Thermochemical Equations",
-      "technique_notes": {
-        "core_concepts": "Complete vs incomplete combustion. $\\\\Delta H$ notation. Exothermic vs Endothermic.",
-        "exam_style_guidelines": "Write balanced thermochemical equations with states. Relate $\\\\Delta H$ to the energy per mole/gram.",
-        "anti_prompts": [
-          "Ensure the sign of $\\\\Delta H$ matches the reaction type (negative for exo)."
-        ]
-      },
-      "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
-    },
-    {
-      "name": "Calorimetry: Theory and Calculation",
-      "technique_notes": {
-        "core_concepts": "$q = mc\\\\Delta T$. Solution vs bomb calorimetry. Calibration factor (CF).",
-        "exam_style_guidelines": "Calculate CF using electrical or chemical calibration. Use CF to find the enthalpy of reaction from temperature change.",
-        "anti_prompts": [
-          "Do not forget to account for heat loss if the graph is provided (extrapolation)."
-        ]
-      },
-      "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
-    },
-    {
-      "name": "Galvanic Cells and Half-cells",
-      "technique_notes": {
-        "core_concepts": "Converting chemical to electrical energy. Anode (-), Cathode (+), Salt bridge. Cell potential ($E^0_{cell}$).",
-        "exam_style_guidelines": "Draw and label a standard galvanic cell. Predict electron and ion flow. Calculate cell voltage.",
-        "anti_prompts": [
-          "Electrons flow from anode to cathode through the external circuit."
-        ]
-      },
-      "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
-    },
-    {
-      "name": "Fuel Cells",
-      "technique_notes": {
-        "core_concepts": "Continuous reactant supply. Porous electrodes. Hydrogen-oxygen fuel cell.",
-        "exam_style_guidelines": "Explain the advantages of fuel cells over combustion. Write equations for alkaline or acidic conditions.",
-        "anti_prompts": ["Avoid confusing fuel cells with secondary cells."]
-      },
-      "group": "unit3-What-are-the-current-and-future-options-for-energy-production?"
-    },
-    {
-      "name": "Rates of Reaction and Collision Theory",
-      "technique_notes": {
-        "core_concepts": "Activation energy ($E_a$). Frequency and success of collisions. Maxwell-Boltzmann distribution.",
-        "exam_style_guidelines": "Explain how temperature, concentration, and surface area affect rate using collision theory.",
-        "anti_prompts": [
-          "Increasing temperature increases *both* frequency and the proportion of successful collisions."
-        ]
+        "core_concepts": "Factors affecting the frequency and success of reactant particle collisions and reaction rate in open and closed systems: temperature, surface area, concentration, gas pressure, presence of a catalyst, activation energy and orientation. Role of catalysts in increasing reaction rate via alternative reaction pathways of lower activation energy, represented using energy profile diagrams.",
+        "exam_style_guidance": "Questions may ask students to explain how changing a specific factor affects collision frequency or reaction rate using collision theory. Students may be required to interpret or sketch energy profile diagrams showing the effect of a catalyst. Experimental design questions may assess understanding of controlling variables when investigating reaction rates."
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
     {
-      "name": "Catalysts and Energy Profiles",
+      "name": "Extent of chemical reactions and equilibrium",
       "technique_notes": {
-        "core_concepts": "Alternative pathway with lower $E_a$. Homogeneous vs heterogeneous catalysts.",
-        "exam_style_guidelines": "Represent catalyst effect on energy profile diagrams. Discuss green chemistry benefits of catalysis.",
-        "anti_prompts": [
-          "Catalysts do not change the $\\\\Delta H$ of a reaction."
-        ]
+        "core_concepts": "Distinction between reversible and irreversible reactions, and between rate and extent of reaction. Dynamic nature of homogeneous equilibria (aqueous or gaseous); representation by balanced equations and concentration-time graphs. Changes in equilibrium position when temperature, species concentration, or volume/pressure are altered; representation using concentration-time graphs. Application of Le Chatelier's principle to predict factors favouring yield. Equilibrium constant (Kc) expressions including units, and dependence of Kc on temperature and the equation used. Reaction quotient (Q) as a measure of extent at a given point in time. Balancing optimal rate against temperature considerations, with reference to catalysis and energy efficiency (green chemistry).",
+        "exam_style_guidance": "Students should be able to write Kc expressions for homogeneous equilibria, calculate Kc or equilibrium concentrations from data, and use Q to determine the direction a reaction will proceed. Questions may require interpreting concentration-time graphs for equilibrium systems, or applying Le Chatelier's principle to predict and explain shifts. Multi-part questions often link reaction rate with yield optimisation in industrial contexts."
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
     {
-      "name": "Reversible Reactions and Equilibrium",
+      "name": "Production of chemicals using electrolysis",
       "technique_notes": {
-        "core_concepts": "Dynamic equilibrium. Closed systems. Equilibrium constant ($K_c$) and Reaction quotient ($Q$).",
-        "exam_style_guidelines": "Write $K_c$ expressions. Use $Q$ to predict the direction of net reaction to reach equilibrium.",
-        "anti_prompts": [
-          "Only species in aqueous or gaseous states appear in $K_c$ expressions."
-        ]
+        "core_concepts": "Use and limitations of the electrochemical series to explain or predict electrolysis products given state (molten or aqueous) and electrode materials; writing balanced equations (with states) for anode and cathode reactions and the overall redox equation. Design features and operating principles of commercial electrolytic cells (product removal, electrode materials, electrolyte, additives). Design and operating principles of rechargeable (secondary) cells: discharging as galvanic, recharging as electrolytic, reversed cell reactions, and electrode polarities in each mode. Role of innovation in producing 'green' hydrogen via polymer electrolyte membrane electrolysis (solar/wind-powered) and artificial photosynthesis (water oxidation and proton reduction catalyst systems), including equations in acidic conditions. Application of Faraday's Laws and stoichiometry to electrolytic cells.",
+        "exam_style_guidance": "Questions commonly require predicting electrolysis products at the anode and cathode for molten or aqueous electrolytes and writing balanced half-equations and overall equations. Students should be able to compare galvanic and electrolytic modes of secondary cells including electrode polarity changes. Faraday's Law calculations involving charge, current, time and moles of product are frequently examined. Evaluation of green hydrogen production methods with reference to sustainability is also common."
       },
       "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
     },
     {
-      "name": "Le Chatelier's Principle",
+      "name": "Structure, nomenclature and properties of organic compounds",
       "technique_notes": {
-        "core_concepts": "Responding to changes in temperature, concentration, or pressure/volume.",
-        "exam_style_guidelines": "Predict the shift in equilibrium position. Represent changes using concentration-time graphs.",
-        "anti_prompts": [
-          "Adding a catalyst or noble gas (at constant volume) does not shift equilibrium."
-        ]
-      },
-      "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
-    },
-    {
-      "name": "Electrolytic Cells",
-      "technique_notes": {
-        "core_concepts": "Converting electrical to chemical energy. Non-spontaneous redox. Anode (+), Cathode (-).",
-        "exam_style_guidelines": "Predict products for molten and aqueous electrolytes. Consider the role of active electrodes.",
-        "anti_prompts": [
-          "The strongest oxidant reacts at the cathode; the strongest reductant at the anode."
-        ]
-      },
-      "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
-    },
-    {
-      "name": "Faraday's Laws and Stoichiometry",
-      "technique_notes": {
-        "core_concepts": "$Q=It$. $n(e^-) = Q/F$. Faraday's constant ($96500 \\text{ C mol}^{-1}$).",
-        "exam_style_guidelines": "Calculate mass of product or time required for electrolysis. Use stoichiometric ratios from half-equations.",
-        "anti_prompts": [
-          "Check if the current is in Amperes and time is in seconds."
-        ]
-      },
-      "group": "unit3-How-can-the-rate-and-yield-of-chemical-reactions-be-optimised?"
-    },
-    {
-      "name": "Organic Naming: Hydrocarbons",
-      "technique_notes": {
-        "core_concepts": "Alkanes, alkenes, alkynes. Cyclic hydrocarbons. IUPAC nomenclature.",
-        "exam_style_guidelines": "Identify the longest chain. Number to give functional groups the lowest possible locants.",
-        "anti_prompts": [
-          "Avoid naming branched chains with more than 8 carbons."
-        ]
-      },
-      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
-    },
-    {
-      "name": "Organic Naming: Functional Groups",
-      "technique_notes": {
-        "core_concepts": "Alcohols, carboxylic acids, esters, aldehydes, ketones, amines, amides, haloalkanes.",
-        "exam_style_guidelines": "Identify priority for naming when multiple groups are present. Draw skeletal and semi-structural formulas.",
-        "anti_prompts": [
-          "Ensure the suffix matches the highest priority functional group."
-        ]
-      },
-      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
-    },
-    {
-      "name": "Structural and Stereoisomers",
-      "technique_notes": {
-        "core_concepts": "Chain, positional, and functional group isomers. Optical isomers (chiral centres).",
-        "exam_style_guidelines": "Identify chiral carbons. Draw pairs of enantiomers. Distinguish between cis-trans isomers in alkenes.",
-        "anti_prompts": [
-          "A chiral carbon must have four *different* groups attached."
-        ]
-      },
-      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
-    },
-    {
-      "name": "Infrared (IR) Spectroscopy",
-      "technique_notes": {
-        "core_concepts": "Molecular vibrations. Absorption bands. Fingerprint region.",
-        "exam_style_guidelines": "Identify specific functional groups (e.g., $C=O, O-H, N-H$) using Data Book values.",
-        "anti_prompts": [
-          "Distinguish between alcohol $O-H$ and acid $O-H$ bands."
-        ]
-      },
-      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
-    },
-    {
-      "name": "Mass Spectrometry",
-      "technique_notes": {
-        "core_concepts": "Ionisation and fragmentation. Mass-to-charge ratio ($m/z$). Molecular ion ($M^+$).",
-        "exam_style_guidelines": "Use the $M^+$ peak to determine molar mass. Identify simple fragments (e.g., $CH_3, OH, COOH$).",
-        "anti_prompts": [
-          "Fragmentation occurs due to high-energy electron impact."
-        ]
-      },
-      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
-    },
-    {
-      "name": "NMR Spectroscopy ($^1H$ and $^{13}C$)",
-      "technique_notes": {
-        "core_concepts": "Nuclear spin. Chemical environments. Splitting patterns ($n+1$ rule) for $^1H$. Integration curves.",
-        "exam_style_guidelines": "Determine the number of environments. Use splitting to identify neighbouring protons. Use chemical shifts from Data Book.",
-        "anti_prompts": ["$^{13}C$ NMR does not show splitting in VCE."]
-      },
-      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
-    },
-    {
-      "name": "Amino Acids and Proteins",
-      "technique_notes": {
-        "core_concepts": "Alpha-amino acids. Zwitterions. Peptide bonds. Primary, secondary, tertiary, quaternary structures.",
-        "exam_style_guidelines": "Draw the structure of a dipeptide. Explain the types of bonding at each structural level.",
-        "anti_prompts": ["Do not forget the $H_2O$ byproduct in condensation."]
+        "core_concepts": "Characteristics of carbon contributing to diversity: valence electrons, relative bond strength and stability, degree of unsaturation, structural isomers. Molecular, structural, semi-structural (condensed) formulas and skeletal structures of alkanes (including cyclohexane), alkenes, benzene, haloalkanes, primary amines, primary amides, alcohols (primary/secondary/tertiary), aldehydes, ketones, carboxylic acids and non-branched esters. IUPAC systematic naming up to C8 with no more than two functional groups (non-cyclic hydrocarbons, haloalkanes, primary amines, alcohols, aldehydes, ketones, carboxylic acids, non-branched esters). Trends in physical properties (boiling point, melting point, viscosity) within and between homologous series with reference to structure and bonding.",
+        "exam_style_guidance": "Questions frequently require drawing and identifying structural, semi-structural or skeletal formulas, naming organic compounds using IUPAC rules, and identifying or drawing structural isomers. Students should be able to explain trends in boiling and melting points and viscosity across homologous series with reference to intermolecular forces. Drawing and identifying functional groups is a core skill across many exam questions."
       },
       "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
     },
     {
-      "name": "Carbohydrates: Structure and Properties",
+      "name": "Reactions of organic compounds",
       "technique_notes": {
-        "core_concepts": "Monosaccharides (glucose, fructose). Disaccharides (sucrose). Polysaccharides (starch, cellulose, glycogen).",
-        "exam_style_guidelines": "Compare the structure and solubility of different carbohydrates. Write equations for hydrolysis.",
-        "anti_prompts": [
-          "Starch (amylose/amylopectin) vs Cellulose vs Glycogen differences are key."
-        ]
+        "core_concepts": "Organic reactions and pathways (including equations, reactants, products, conditions and catalysts — specific enzymes not required): synthesis of primary haloalkanes and primary alcohols by substitution; addition reactions of alkenes; esterification between alcohol and carboxylic acid; hydrolysis of esters; pathways for synthesis of primary amines and carboxylic acids; transesterification of plant triglycerides to produce biodiesel; hydrolytic reactions of proteins, carbohydrates and fats/oils to smaller molecules; condensation reactions to synthesise proteins, starch, glycogen and lipids. Calculations of percentage yield and atom economy for single-step and overall reaction pathways, and advantages of high atom economy. Sustainability of chemical production with reference to green chemistry principles: renewable feedstocks, catalysis, and designing safer chemicals.",
+        "exam_style_guidance": "Students should be able to write balanced equations for a range of organic reactions and identify reagents, conditions and catalysts. Multi-step reaction pathway questions are common, requiring students to propose a sequence of reactions to convert one organic compound into another. Percentage yield and atom economy calculations are frequently tested. Questions may also ask students to evaluate a synthesis route in terms of green chemistry principles."
       },
       "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
     },
     {
-      "name": "Lipids: Triglycerides",
+      "name": "Laboratory analysis of organic compounds",
       "technique_notes": {
-        "core_concepts": "Glycerol and fatty acids. Saturated vs unsaturated. Ester links.",
-        "exam_style_guidelines": "Explain the difference in melting points between fats and oils based on chain structure and packing.",
-        "anti_prompts": [
-          "Unsaturated fatty acids have $C=C$ double bonds which cause 'kinks' in the chain."
-        ]
+        "core_concepts": "Qualitative tests for the presence of carbon-carbon double bonds, hydroxyl and carboxyl functional groups. Applications and principles of melting point determination and distillation (simple and fractional) for verifying purity of consumer products. Measurement of degree of unsaturation using iodine. Volumetric analysis including calculations of excess and limiting reactants using redox titrations (excluding back titrations).",
+        "exam_style_guidance": "Questions may require students to describe qualitative test procedures and expected observations for identifying functional groups. Purity analysis questions may involve interpreting melting point data or explaining the principle of simple vs fractional distillation. Redox titration questions require stoichiometric calculations, including identifying the limiting reactant and calculating concentration or mass of an analyte."
       },
-      "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
+      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
     {
-      "name": "Enzymes and Medicinal Action",
+      "name": "Instrumental analysis of organic compounds",
       "technique_notes": {
-        "core_concepts": "Biological catalysts. Lock-and-key vs Induced fit. Enzyme inhibition (competitive/non-competitive).",
-        "exam_style_guidelines": "Explain how drugs act as inhibitors. Discuss the sensitivity of enzymes to temp and pH.",
-        "anti_prompts": ["Inhibitors bind to the enzyme, not the substrate."]
+        "core_concepts": "Mass spectrometry (MS): interpretation of molecular ion peak, molecular mass determination, and identification of simple fragments (excluding instrumentation details). Qualitative IR spectroscopy: identification of bond types using characteristic absorption bands. Carbon-13 NMR (¹³C-NMR): using chemical shift values to deduce number and nature of different carbon environments. Proton NMR (¹H-NMR): chemical shift values, integration curves, peak splitting patterns (n+1 rule, excluding coupling constants) to deduce proton environments. High performance liquid chromatography (HPLC): use of retention times and calibration curves to determine concentration of an organic compound. Combined use of MS, IR, ¹H-NMR and ¹³C-NMR to deduce structures of simple organic compounds. Roles and applications of laboratory and instrumental analysis for product purity and compound identification.",
+        "exam_style_guidance": "Students should be able to interpret provided MS, IR, ¹³C-NMR and ¹H-NMR spectra to identify functional groups, carbon environments and proton environments, and to determine or confirm the structure of an organic compound. Questions often require integrating data from multiple techniques. HPLC questions may involve reading calibration curves to calculate concentration. Students should be familiar with common IR absorption wavenumbers for functional groups."
       },
-      "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
+      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
     {
-      "name": "Reaction Pathways and Synthesis",
+      "name": "Medicinal chemistry",
       "technique_notes": {
-        "core_concepts": "Substitution, addition, oxidation, and esterification reactions.",
-        "exam_style_guidelines": "Design multi-step pathways to produce a target organic molecule. Identify reagents and conditions.",
-        "anti_prompts": [
-          "Yield for a pathway is the product of individual step yields."
-        ]
+        "core_concepts": "Extraction and purification of natural plant compounds as potential active ingredients using solvent extraction and distillation. Identification of structure and functional groups of organic molecules that function as medicines. Significance of isomers and identification of chiral centres (carbon atom bonded to four different groups) in medicine effectiveness. Enzymes as protein-based catalysts: primary, secondary, tertiary and quaternary structures; changes in enzyme function due to increased temperature (denaturation), decreased temperature (lowered activity), or changes in pH (zwitterion formation and denaturation). Medicines as competitive enzyme inhibitors: organic molecules binding via lock-and-key mechanism to an active site, preventing substrate binding.",
+        "exam_style_guidance": "Questions may require students to identify chiral centres in a given molecule and explain how chirality affects medicinal effectiveness. Students should be able to describe how temperature or pH changes affect enzyme structure and function. Competitive inhibition questions typically require explaining the mechanism by which a medicine prevents substrate binding. Exam questions may also involve identifying functional groups in a medicine structure or explaining principles of solvent extraction."
       },
-      "group": "unit4-How-are-organic-compounds-categorised-and-synthesised?"
+      "group": "unit4-How-are-organic-compounds-analysed-and-used?"
     },
     {
-      "name": "Scientific Investigations: Error Analysis",
+      "name": "Scientific investigation design and communication",
       "technique_notes": {
-        "core_concepts": "Random vs systematic error. Accuracy, precision, validity, and reliability.",
-        "exam_style_guidelines": "Evaluate experimental results. Identify outliers. Suggest improvements to minimise error.",
-        "anti_prompts": [
-          "Repeating an experiment improves reliability and reduces the impact of random error, but does not eliminate systematic error."
-        ]
+        "core_concepts": "Chemical concepts specific to the selected investigation including definitions of key terms. Characteristics and appropriateness of the selected scientific methodology and method; use of independent, dependent and controlled variables. Primary quantitative data generation techniques relevant to the investigation. Accuracy, precision, repeatability, reproducibility, resolution and validity of measurements. Health, safety and ethical guidelines applicable to the investigation. Nature of evidence that supports or refutes a hypothesis, model or theory. Organising, analysing and evaluating primary data to identify patterns and relationships, including sources of error and uncertainty. Authentication of data through a logbook. Assumptions and limitations of methodology and/or data generation/analysis. Conventions of science communication: terminology, representations, symbols, standard abbreviations and units. Conventions of scientific poster presentation including succinct communication, acknowledgements and references. Key findings and implications of the investigation.",
+        "exam_style_guidance": "This area of study is primarily assessed through the scientific poster and logbook (SAC) rather than the end-of-year examination; however, students should understand scientific investigation terminology and concepts as these underpin exam questions across all areas. Questions may test understanding of validity, reliability, accuracy and precision, or ask students to identify sources of error and suggest improvements to a described methodology."
       },
-      "group": "unit1-How-are-materials-quantified-and-classified?"
+      "group": "unit4-How-is-scientific-inquiry-used-to-investigate-sustainable-production?"
     }
   ]
 }

@@ -1,10 +1,7 @@
 {
   "name": "Specialist Mathematics",
   "icon": "SigmaSquare",
-  "examPdfs": [
-    "2025-SpecialistMaths1.pdf",
-    "2025-SpecialistMaths2.pdf"
-  ],
+  "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
   "reportPdfs": [
     "2025-SpecialistMaths1-report.pdf",
     "2025-SpecialistMaths2-report.pdf"
@@ -38,9 +35,7 @@
       "technique_notes": {
         "core_concepts": "Propositions, connectives (and, or, not, implies, iff). Truth tables for compound propositions. Tautologies and contradictions.",
         "exam_style_guidelines": "Construct full truth tables to prove logical equivalence. Identify the negation of complex statements.",
-        "anti_prompts": [
-          "Do not skip rows in truth tables."
-        ],
+        "anti_prompts": ["Do not skip rows in truth tables."],
         "tech_free_rules": "Construct truth tables for 2-3 variables.",
         "tech_active_rules": "Verify logical statements using Boolean algebra."
       },
@@ -77,9 +72,7 @@
       "technique_notes": {
         "core_concepts": "First-order linear recurrence relations $u_{n+1} = a u_n + b$. Arithmetic and geometric sequences as special cases.",
         "exam_style_guidelines": "Find explicit rules from recurrence relations. Model financial or growth scenarios.",
-        "anti_prompts": [
-          "Do not confuse $u_0$ and $u_1$ starting points."
-        ],
+        "anti_prompts": ["Do not confuse $u_0$ and $u_1$ starting points."],
         "tech_free_rules": "Find terms and explicit rules for simple parameters.",
         "tech_active_rules": "Analyze long-term convergence or oscillations."
       },
@@ -103,9 +96,7 @@
       "technique_notes": {
         "core_concepts": "Vertices, edges, degrees, loops, multiple edges. Adjacency matrices and isomorphism.",
         "exam_style_guidelines": "Sum of degrees = $2 \\times$ number of edges. Identify isomorphic graphs by degree sequence and connectivity.",
-        "anti_prompts": [
-          "A loop contributes 2 to the degree of a vertex."
-        ],
+        "anti_prompts": ["A loop contributes 2 to the degree of a vertex."],
         "tech_free_rules": "Identify features from graph diagrams.",
         "tech_active_rules": "Perform matrix operations on large adjacency matrices."
       },
@@ -129,9 +120,7 @@
       "technique_notes": {
         "core_concepts": "Planar graphs can be drawn without crossing edges. $V - E + F = 2$.",
         "exam_style_guidelines": "Verify planarity by redrawing the graph. Apply formula to solve for missing features.",
-        "anti_prompts": [
-          "The outer region counts as a face ($F$)."
-        ],
+        "anti_prompts": ["The outer region counts as a face ($F$)."],
         "tech_free_rules": "Solve for $V, E,$ or $F$ in planar diagrams.",
         "tech_active_rules": "N/A"
       },
@@ -142,9 +131,7 @@
       "technique_notes": {
         "core_concepts": "Inclusion-Exclusion principle. Combinatorial identities (e.g., Pascal's identity). Selections with constraints.",
         "exam_style_guidelines": "Use $\\binom{n}{r}$ notation. Address problems with 'at least' or 'together/separated' constraints.",
-        "anti_prompts": [
-          "Do not double count in overlapping sets."
-        ],
+        "anti_prompts": ["Do not double count in overlapping sets."],
         "tech_free_rules": "Calculate values for small $n$ and $r$ manually.",
         "tech_active_rules": "Solve complex probability problems involving counting."
       },
@@ -270,9 +257,7 @@
       "technique_notes": {
         "core_concepts": "Standard forms: $\\frac{(x-h)^2}{a^2} + \\frac{(y-k)^2}{b^2} = 1$ (ellipse), $\\frac{(x-h)^2}{a^2} - \\frac{(y-k)^2}{b^2} = 1$ (hyperbola).",
         "exam_style_guidelines": "Label center, vertices, and foci. For hyperbolas, draw dashed asymptotes and label with equations $y-k = \\pm \\frac{b}{a}(x-h)$.",
-        "anti_prompts": [
-          "Ensure asymptotes pass through the center $(h, k)$."
-        ],
+        "anti_prompts": ["Ensure asymptotes pass through the center $(h, k)$."],
         "tech_free_rules": "Complete the square to find standard form and sketch.",
         "tech_active_rules": "Find intersections between conics and lines."
       },
@@ -283,9 +268,7 @@
       "technique_notes": {
         "core_concepts": "Parametric equations $(x(t), y(t))$. Polar coordinates $(r, \\theta)$ and $r=f(\\theta)$. Conversion to Cartesian form.",
         "exam_style_guidelines": "Identify curves (e.g., circles $r=2a\\cos\\theta$). Sketch simple polar graphs like cardioids or roses.",
-        "anti_prompts": [
-          "Watch for parameter domain restrictions."
-        ],
+        "anti_prompts": ["Watch for parameter domain restrictions."],
         "tech_free_rules": "Convert between Cartesian and polar/parametric forms.",
         "tech_active_rules": "Plot complex polar curves on CAS."
       },
@@ -335,9 +318,7 @@
       "technique_notes": {
         "core_concepts": "Addition, subtraction, scalar multiplication. Dot product $\\mathbf{u} \\cdot \\mathbf{v} = |\\mathbf{u}||\\mathbf{v}| \\cos \\theta$.",
         "exam_style_guidelines": "Orthogonal vectors $\\iff \\mathbf{u} \\cdot \\mathbf{v} = 0$. Calculate the angle between vectors. Find scalar and vector resolutes.",
-        "anti_prompts": [
-          "The dot product results in a scalar, not a vector."
-        ],
+        "anti_prompts": ["The dot product results in a scalar, not a vector."],
         "tech_free_rules": "Manual dot product and angle calculations.",
         "tech_active_rules": "Use vectors in 3D (extension from 2D)."
       },
@@ -361,9 +342,7 @@
       "technique_notes": {
         "core_concepts": "Position $\\mathbf{r}(t)$, velocity $\\mathbf{v}(t)$, acceleration $\\mathbf{a}(t)$.",
         "exam_style_guidelines": "Differentiate/integrate component-wise. Find speed as the magnitude of velocity $|\\mathbf{v}(t)|$. Solve for collision or distance of closest approach.",
-        "anti_prompts": [
-          "Units are crucial in kinematics models."
-        ],
+        "anti_prompts": ["Units are crucial in kinematics models."],
         "tech_free_rules": "Basic constant acceleration problems.",
         "tech_active_rules": "Analyze path curves and intersection of two particles."
       },
@@ -426,9 +405,7 @@
       "technique_notes": {
         "core_concepts": "$\\\\int u \\\\frac{dv}{dx} dx = uv - \\\\int v \\\\frac{du}{dx} dx$.",
         "exam_style_guidelines": "Choose $u$ using the LIATE rule (Logs, Inverse trig, Algebraic, Trig, Exponential). Standard application for $\\\\int x e^x dx$ or $\\\\int \\\\log_e x dx$.",
-        "anti_prompts": [
-          "Do not forget the second integral term."
-        ],
+        "anti_prompts": ["Do not forget the second integral term."],
         "tech_free_rules": "Apply to basic products.",
         "tech_active_rules": "Evaluate cyclic integrals (e.g., $e^x \\sin x$)."
       },
@@ -504,9 +481,7 @@
       "technique_notes": {
         "core_concepts": "$\\frac{dP}{dt} = kP(1 - \\frac{P}{L})$. Modelling population growth with a carrying capacity $L$.",
         "exam_style_guidelines": "Identify the carrying capacity. Describe the point of maximum growth ($P = L/2$).",
-        "anti_prompts": [
-          "The growth rate is zero when $P=L$ or $P=0$."
-        ],
+        "anti_prompts": ["The growth rate is zero when $P=L$ or $P=0$."],
         "tech_free_rules": "Verify a solution to the logistic equation.",
         "tech_active_rules": "Fit a logistic model to population data."
       },
@@ -543,9 +518,7 @@
       "technique_notes": {
         "core_concepts": "$\\mathbf{r} = x\\mathbf{i} + y\\mathbf{j} + z\\mathbf{k}$. Distance between points $\\sqrt{(x_2-x_1)^2 + \\dots}$.",
         "exam_style_guidelines": "Sketch points and vectors in 3D space. Calculate unit vectors $\\hat{\\mathbf{v}} = \\mathbf{v}/|\\mathbf{v}|$.",
-        "anti_prompts": [
-          "Be careful with octant identification."
-        ],
+        "anti_prompts": ["Be careful with octant identification."],
         "tech_free_rules": "Basic arithmetic and magnitude in 3D.",
         "tech_active_rules": "Visualize 3D paths on CAS."
       },
@@ -556,9 +529,7 @@
       "technique_notes": {
         "core_concepts": "$\\mathbf{u} \times \\mathbf{v}$. Determinant form. Result is perpendicular to both $\\mathbf{u}$ and $\\mathbf{v}$.",
         "exam_style_guidelines": "Magnitude $|\\mathbf{u} \times \\mathbf{v}| = |\\mathbf{u}||\\mathbf{v}| \\sin \theta$ (area of parallelogram). Use for finding normal vectors to planes.",
-        "anti_prompts": [
-          "The cross product is a vector, not a scalar."
-        ],
+        "anti_prompts": ["The cross product is a vector, not a scalar."],
         "tech_free_rules": "Calculate cross product for $3 \\times 3$ components.",
         "tech_active_rules": "Use cross product to find areas of triangles in 3D."
       },
@@ -569,9 +540,7 @@
       "technique_notes": {
         "core_concepts": "$\\mathbf{r} = \\mathbf{a} + \\lambda \\mathbf{v}$. Direction vector $\\mathbf{v}$. Cartesian form $\frac{x-x_1}{l} = \frac{y-y_1}{m} = \frac{z-z_1}{n}$.",
         "exam_style_guidelines": "Identify if two lines are intersecting, parallel, or skew. Find intersection points by equating components.",
-        "anti_prompts": [
-          "Skew lines are non-parallel but do not intersect."
-        ],
+        "anti_prompts": ["Skew lines are non-parallel but do not intersect."],
         "tech_free_rules": "Convert between forms and check for parallelism.",
         "tech_active_rules": "Calculate distance between skew lines."
       },
@@ -621,9 +590,7 @@
       "technique_notes": {
         "core_concepts": "Null hypothesis $H_0$, Alternative hypothesis $H_1$. Test statistic $Z = \frac{\bar{x} - \\mu_0}{\\sigma/\\sqrt{n}}$.",
         "exam_style_guidelines": "Calculate $p$-value. Compare $p$ to significance level $\\alpha$. One-tailed vs two-tailed tests. State conclusion in context (e.g., 'There is evidence to suggest...').",
-        "anti_prompts": [
-          "Do not 'accept' $H_0$; only 'fail to reject' $H_0$."
-        ],
+        "anti_prompts": ["Do not 'accept' $H_0$; only 'fail to reject' $H_0$."],
         "tech_free_rules": "State hypotheses and identify tail type.",
         "tech_active_rules": "Perform full hypothesis test and interpret $p$-value."
       },
