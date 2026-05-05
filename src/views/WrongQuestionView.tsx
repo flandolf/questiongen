@@ -1002,6 +1002,7 @@ function ReattemptView({
                       );
                     }}
                     onImageRemove={() => setImage(undefined)}
+                    onToggleSketchpad={() => setMcSketchpadActive(false)}
                   />
                 ) : (
                   <McAnswerCard

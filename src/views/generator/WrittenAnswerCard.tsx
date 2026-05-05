@@ -68,6 +68,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
     setActiveTabByQuestionId(questionId, tab);
 
   const [confirmSketchSubmit, setConfirmSketchSubmit] = useState(false);
+  const [localIsMarking, setLocalIsMarking] = useState(false);
   const sketchpadRef = useRef<SketchpadHandle | null>(null);
   const [markStreamText, setMarkStreamText] = useState('');
   const [hasReceivedTokens, setHasReceivedTokens] = useState(false);
@@ -116,7 +117,11 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
         if (event.payload.topic === questionId) {
           streamBufferRef.current += event.payload.text;
           if (streamFlushRafRef.current === null) {
-            streamFlushRafRef.current = requestAnimationFrame(flush);
+            void Promise.resolve().then(() => {
+              if (streamBufferRef.current) {
+                streamFlushRafRef.current = requestAnimationFrame(flush);
+              }
+            });
           }
         }
       },
@@ -139,14 +144,18 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
   }, [questionId]);
 
   useEffect(() => {
-    if (!isMarking && markStreamText) {
+    setLocalIsMarking(isMarking);
+  }, [isMarking]);
+
+  useEffect(() => {
+    if (!localIsMarking && markStreamText) {
       const t = window.setTimeout(() => {
         setMarkStreamText('');
         setHasReceivedTokens(false);
       }, 2000);
       return () => window.clearTimeout(t);
     }
-  }, [isMarking, markStreamText]);
+  }, [localIsMarking, markStreamText]);
 
   async function handleSketchSave(dataUrl: string) {
     try {
@@ -185,6 +194,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
       setConfirmSketchSubmit(true);
       return;
     }
+    setLocalIsMarking(true);
     await handleSubmit();
   }
 
@@ -318,14 +328,14 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
         <Button
           size='lg'
           className={`mt-4 w-full h-12 text-base font-bold gap-2 transition-all duration-200 rounded-full ${
-            hasContent && !isMarking
+            hasContent && !localIsMarking
               ? 'shadow-md hover:shadow-primary/20 hover:-translate-y-0.5'
               : ''
           }`}
           onClick={() => void handleSubmitClick()}
-          disabled={!canSubmitFromSketchpad || isMarking}
+          disabled={!canSubmitFromSketchpad || localIsMarking}
         >
-          {isMarking ? (
+          {localIsMarking ? (
             <>
               <Loader2 className='w-4 h-4 animate-spin' /> Evaluating…
             </>
@@ -340,12 +350,14 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
             </>
           )}
         </Button>
-        {activeTab === 'sketchpad' && confirmSketchSubmit && !isMarking && (
-          <p className='mt-2 text-center text-xs text-muted-foreground'>
-            Tap again to confirm within 4 seconds.
-          </p>
-        )}
-        {isMarking && (markStreamText || !hasReceivedTokens) && (
+        {activeTab === 'sketchpad' &&
+          confirmSketchSubmit &&
+          !localIsMarking && (
+            <p className='mt-2 text-center text-xs text-muted-foreground'>
+              Tap again to confirm within 4 seconds.
+            </p>
+          )}
+        {localIsMarking && (markStreamText || !hasReceivedTokens) && (
           <div className='mt-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs'>
             {markStreamText ? (
               <div className='font-mono text-blue-600 dark:text-blue-400 max-h-48 overflow-auto whitespace-pre-wrap break-all'>
