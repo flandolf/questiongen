@@ -45,7 +45,6 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   localBackupIntervalMinutes: 0,
   theme: 'claude',
   customThemeSeedColor: DEFAULT_CUSTOM_THEME_SEED_COLOR,
-  globalRounding: 'md',
   interfaceFont: 'Inter Variable',
   headingFont: 'Manrope Variable',
   tutorPersona: '',
@@ -298,10 +297,6 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       data.customThemeSeedColor,
       DEFAULT_CUSTOM_THEME_SEED_COLOR,
     ),
-    globalRounding: normalizeRounding(
-      data.globalRounding,
-      DEFAULT_SETTINGS.globalRounding,
-    ),
     interfaceFont: normalizeNonEmptyString(
       data.interfaceFont,
       DEFAULT_SETTINGS.interfaceFont,
@@ -322,7 +317,7 @@ function normalizeSettings(raw: unknown): PersistedSettings {
         : DEFAULT_SETTINGS.shuffleQuestions,
     markerStyle: normalizeMarkerStyle(data.markerStyle),
     customMarkerStyle: asString(data.customMarkerStyle),
-  } as PersistedSettings;
+  };
 }
 
 function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
@@ -444,7 +439,9 @@ export function normalizeMcHistory(raw: unknown): McHistoryEntry[] {
   return raw.map((item) => item as McHistoryEntry);
 }
 
-export function normalizePdfMarkerHistory(raw: unknown): PdfMarkerHistoryEntry[] {
+export function normalizePdfMarkerHistory(
+  raw: unknown,
+): PdfMarkerHistoryEntry[] {
   if (!Array.isArray(raw)) return [];
   const result: PdfMarkerHistoryEntry[] = [];
   for (const item of raw) {
@@ -456,19 +453,20 @@ export function normalizePdfMarkerHistory(raw: unknown): PdfMarkerHistoryEntry[]
         : new Date().toISOString();
     const pdfBase64 =
       typeof item.pdfBase64 === 'string' ? item.pdfBase64 : null;
-    const questions = (
-      Array.isArray(item.questions) ? item.questions : []
-    ) as unknown as GeneratedQuestion[];
+    const questions = (Array.isArray(item.questions)
+      ? item.questions
+      : []) as unknown as GeneratedQuestion[];
     const resultsRaw = item.resultsByQuestionId;
     const resultsByQuestionId = isRecord(resultsRaw)
       ? (resultsRaw as unknown as Record<string, MarkAnswerResponse>)
       : {};
-    const pageMapping = (
-      Array.isArray(item.pageMapping) ? item.pageMapping : []
-    ) as unknown as { questionIndex: number; pageIndices: number[] }[];
+    const pageMapping = (Array.isArray(item.pageMapping)
+      ? item.pageMapping
+      : []) as unknown as { questionIndex: number; pageIndices: number[] }[];
     const statsRecord = isRecord(item.stats) ? item.stats : {};
     const stats = {
-      achieved: typeof statsRecord.achieved === 'number' ? statsRecord.achieved : 0,
+      achieved:
+        typeof statsRecord.achieved === 'number' ? statsRecord.achieved : 0,
       max: typeof statsRecord.max === 'number' ? statsRecord.max : 0,
       pct: typeof statsRecord.pct === 'number' ? statsRecord.pct : 0,
     };
@@ -532,8 +530,6 @@ function normalizeNonEmptyString(
   return text.length > 0 ? text : (fallback ?? '');
 }
 
-const VALID_ROUNDINGS = new Set(['sm', 'md', 'lg', 'xl']);
-
 const VALID_MARKER_STYLES = new Set([
   'strict',
   'relaxed',
@@ -548,14 +544,6 @@ function normalizeMarkerStyle(
   return VALID_MARKER_STYLES.has(text)
     ? (text as 'strict' | 'relaxed' | 'targeted' | 'custom')
     : 'strict';
-}
-
-function normalizeRounding(
-  value: unknown,
-  fallback: string | undefined,
-): string {
-  const text = asString(value).trim();
-  return VALID_ROUNDINGS.has(text) ? text : (fallback ?? 'md');
 }
 
 export function normalizeQuestionMode(value: unknown): QuestionMode {

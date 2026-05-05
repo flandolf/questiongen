@@ -518,7 +518,12 @@ export function drawShape(
     ctx.lineTo(adjustedEnd.x, adjustedEnd.y);
     ctx.stroke();
   } else if (tool === 'rect') {
-    ctx.strokeRect(start.x, start.y, adjustedEnd.x - start.x, adjustedEnd.y - start.y);
+    ctx.strokeRect(
+      start.x,
+      start.y,
+      adjustedEnd.x - start.x,
+      adjustedEnd.y - start.y,
+    );
   } else if (tool === 'ellipse') {
     const rx = Math.abs(adjustedEnd.x - start.x) / 2;
     const ry = Math.abs(adjustedEnd.y - start.y) / 2;

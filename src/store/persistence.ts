@@ -31,7 +31,6 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       localBackupIntervalMinutes: s.localBackupIntervalMinutes,
       theme: s.theme,
       customThemeSeedColor: normalizeHexColor(s.customThemeSeedColor),
-      globalRounding: s.globalRounding,
       interfaceFont: s.interfaceFont,
       headingFont: s.headingFont,
       tutorPersona: s.tutorPersona,
@@ -123,11 +122,6 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
       defaultSettings.localBackupIntervalMinutes,
     theme: normalizeThemeName(settings.theme ?? defaultSettings.theme),
     customThemeSeedColor: settings.customThemeSeedColor,
-    globalRounding: ['sm', 'md', 'lg', 'xl'].includes(
-      settings.globalRounding ? settings.globalRounding : '',
-    )
-      ? settings.globalRounding
-      : defaultSettings.globalRounding,
     interfaceFont:
       settings.interfaceFont?.trim() || defaultSettings.interfaceFont,
     headingFont: settings.headingFont?.trim() || defaultSettings.headingFont,

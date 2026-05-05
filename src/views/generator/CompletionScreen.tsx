@@ -713,7 +713,11 @@ export const CompletionScreen = memo(function CompletionScreen({
               icon={Target}
               label='Score'
               value={scoreDisplay}
-              sub={questionMode === 'written' ? 'marks achieved' : 'questions correct'}
+              sub={
+                questionMode === 'written'
+                  ? 'marks achieved'
+                  : 'questions correct'
+              }
               color={meta.color}
               delay={0.1}
             />

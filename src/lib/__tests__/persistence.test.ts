@@ -25,7 +25,6 @@ describe('persistence normalization', () => {
         markingModel: '',
         imageMarkingModel: '',
         theme: '',
-        globalRounding: '',
         interfaceFont: '',
         headingFont: '',
         tutorModel: '',
@@ -36,7 +35,6 @@ describe('persistence normalization', () => {
     expect(normalized.settings.markingModel).toBe('openai/gpt-5.4-mini');
     expect(normalized.settings.imageMarkingModel).toBe('openai/gpt-5.4-mini');
     expect(normalized.settings.theme).toBe('claude');
-    expect(normalized.settings.globalRounding).toBe('md');
     expect(normalized.settings.interfaceFont).toBe('Inter Variable');
     expect(normalized.settings.headingFont).toBe('Manrope Variable');
     expect(normalized.settings.tutorModel).toBe('openai/gpt-5.4-mini');

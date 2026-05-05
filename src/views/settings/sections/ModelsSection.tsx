@@ -248,9 +248,11 @@ export function ModelsSection() {
       setLocalState((prev) => ({ ...prev, [key]: value }));
       const setterName =
         `set${key.charAt(0).toUpperCase()}${key.slice(1)}` as keyof typeof settings;
-      const setter = settings[setterName];
+      const setter = settings[setterName] as
+        | ((v: (typeof localState)[K]) => void)
+        | undefined;
       if (typeof setter === 'function') {
-        (setter as (v: typeof value) => void)(value);
+        setter(value);
       }
     },
     [settings],

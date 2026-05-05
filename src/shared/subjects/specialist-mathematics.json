@@ -1,7 +1,10 @@
 {
   "name": "Specialist Mathematics",
   "icon": "SigmaSquare",
-  "examPdfs": ["2025-SpecialistMaths1.pdf", "2025-SpecialistMaths2.pdf"],
+  "examPdfs": [
+    "2025-SpecialistMaths1.pdf",
+    "2025-SpecialistMaths2.pdf"
+  ],
   "reportPdfs": [
     "2025-SpecialistMaths1-report.pdf",
     "2025-SpecialistMaths2-report.pdf"
@@ -35,7 +38,9 @@
       "technique_notes": {
         "core_concepts": "Propositions, connectives (and, or, not, implies, iff). Truth tables for compound propositions. Tautologies and contradictions.",
         "exam_style_guidelines": "Construct full truth tables to prove logical equivalence. Identify the negation of complex statements.",
-        "anti_prompts": ["Do not skip rows in truth tables."],
+        "anti_prompts": [
+          "Do not skip rows in truth tables."
+        ],
         "tech_free_rules": "Construct truth tables for 2-3 variables.",
         "tech_active_rules": "Verify logical statements using Boolean algebra."
       },
@@ -72,7 +77,9 @@
       "technique_notes": {
         "core_concepts": "First-order linear recurrence relations $u_{n+1} = a u_n + b$. Arithmetic and geometric sequences as special cases.",
         "exam_style_guidelines": "Find explicit rules from recurrence relations. Model financial or growth scenarios.",
-        "anti_prompts": ["Do not confuse $u_0$ and $u_1$ starting points."],
+        "anti_prompts": [
+          "Do not confuse $u_0$ and $u_1$ starting points."
+        ],
         "tech_free_rules": "Find terms and explicit rules for simple parameters.",
         "tech_active_rules": "Analyze long-term convergence or oscillations."
       },
@@ -96,7 +103,9 @@
       "technique_notes": {
         "core_concepts": "Vertices, edges, degrees, loops, multiple edges. Adjacency matrices and isomorphism.",
         "exam_style_guidelines": "Sum of degrees = $2 \\times$ number of edges. Identify isomorphic graphs by degree sequence and connectivity.",
-        "anti_prompts": ["A loop contributes 2 to the degree of a vertex."],
+        "anti_prompts": [
+          "A loop contributes 2 to the degree of a vertex."
+        ],
         "tech_free_rules": "Identify features from graph diagrams.",
         "tech_active_rules": "Perform matrix operations on large adjacency matrices."
       },
@@ -120,7 +129,9 @@
       "technique_notes": {
         "core_concepts": "Planar graphs can be drawn without crossing edges. $V - E + F = 2$.",
         "exam_style_guidelines": "Verify planarity by redrawing the graph. Apply formula to solve for missing features.",
-        "anti_prompts": ["The outer region counts as a face ($F$)."],
+        "anti_prompts": [
+          "The outer region counts as a face ($F$)."
+        ],
         "tech_free_rules": "Solve for $V, E,$ or $F$ in planar diagrams.",
         "tech_active_rules": "N/A"
       },
@@ -131,7 +142,9 @@
       "technique_notes": {
         "core_concepts": "Inclusion-Exclusion principle. Combinatorial identities (e.g., Pascal's identity). Selections with constraints.",
         "exam_style_guidelines": "Use $\\binom{n}{r}$ notation. Address problems with 'at least' or 'together/separated' constraints.",
-        "anti_prompts": ["Do not double count in overlapping sets."],
+        "anti_prompts": [
+          "Do not double count in overlapping sets."
+        ],
         "tech_free_rules": "Calculate values for small $n$ and $r$ manually.",
         "tech_active_rules": "Solve complex probability problems involving counting."
       },
@@ -151,35 +164,115 @@
       "group": "unit1-rational-discrete-matrices"
     },
     {
-      "name": "Trigonometry: Compound and Double Angle Formulas",
+      "name": "Trigonometry: Radian Measure, Arc Length, Sectors and Segments",
       "technique_notes": {
-        "core_concepts": "$\\\\sin(A \\pm B), \\\\cos(A \\pm B), \\\\tan(A \\pm B)$. Double angle formulas for $\\\\sin 2A, \\\\cos 2A, \\\\tan 2A$.",
-        "exam_style_guidelines": "Use identities to find exact values for non-standard angles (e.g., $15^\\circ, 75^\\circ$). Simplify expressions before solving equations.",
+        "core_concepts": "Radian definition $\\theta = s/r$. Arc length $s = r\\theta$. Sector area $A = \\frac{1}{2}r^2\\theta$. Segment area $A = \\frac{1}{2}r^2(\\theta - \\sin\\theta)$. Degree–radian conversion.",
+        "exam_style_guidelines": "Always confirm $\\theta$ is in radians before applying formulas. In multi-part questions, chain results (find $\\theta$ first, then $s$, then segment area). Express exact answers using $\\pi$ where possible.",
         "anti_prompts": [
-          "Do not forget multiple forms of $\\\\cos 2A$ ($1-2\\\\sin^2 A$ etc.)."
+          "Do not apply $s = r\\theta$ or $A = \\frac{1}{2}r^2\\theta$ when $\\theta$ is given in degrees.",
+          "Do not confuse sector area with segment area — subtract the triangle: $A_{\\text{seg}} = A_{\\text{sector}} - \\frac{1}{2}r^2\\sin\\theta$."
         ],
-        "tech_free_rules": "Evaluate trig ratios using identities and unit circle.",
-        "tech_active_rules": "Verify identity equivalence on CAS."
+        "tech_free_rules": "Convert between degrees and radians exactly. Evaluate $\\sin\\theta$ for special angles without a calculator.",
+        "tech_active_rules": "Use CAS to evaluate segment areas for non-special angles and verify radian/degree conversions."
       },
       "group": "unit1-trigonometry"
     },
     {
-      "name": "Reciprocal and Inverse Circular Functions",
+      "name": "Trigonometry: Sine Rule and Cosine Rule (2D and 3D)",
       "technique_notes": {
-        "core_concepts": "$\\\\sec x, \\\\csc x, \\\\cot x$. Inverse functions $\\\\arcsin x, \\\\arccos x, \\\\arctan x$.",
-        "exam_style_guidelines": "Identify domains and ranges of inverse functions clearly. Use principle ranges ($[-\\\\pi/2, \\\\pi/2]$ for arcsin). Label asymptotes on sketches.",
-        "anti_prompts": ["Do not confuse $\\\\sec x$ with $\\\\arccos x$."],
-        "tech_free_rules": "Find exact values and sketch basic transformations.",
-        "tech_active_rules": "Solve equations involving reciprocal or inverse functions."
+        "core_concepts": "Sine rule $\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}$. Cosine rule $a^2 = b^2 + c^2 - 2bc\\cos A$. Triangle area $= \\frac{1}{2}ab\\sin C$. In 3D: project lines onto planes to find angles; identify the correct right triangle for dihedral angles.",
+        "exam_style_guidelines": "State which rule you are using and why. In the ambiguous SSA case, check for two possible triangles. For 3D problems, draw a clear 2D cross-section showing the relevant triangle before applying rules.",
+        "anti_prompts": [
+          "Do not apply the sine rule when two sides and the included angle are known — use the cosine rule.",
+          "Do not assume 3D angles can be read directly; always reduce to a 2D triangle via projection.",
+          "Do not forget the ambiguous case when using the sine rule with SSA."
+        ],
+        "tech_free_rules": "Apply sine/cosine rule with exact trig values for special angles. Identify correct triangle in 3D diagrams.",
+        "tech_active_rules": "Use CAS to solve for unknown sides or angles and verify with the cosine rule rearrangement."
       },
-      "group": "unit2-graphing-relations-and-complex-numbers"
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Trigonometry: Compound and Double Angle Formulas",
+      "technique_notes": {
+        "core_concepts": "$\\sin(A \\pm B) = \\sin A\\cos B \\pm \\cos A\\sin B$. $\\cos(A \\pm B) = \\cos A\\cos B \\mp \\sin A\\sin B$. $\\tan(A \\pm B) = \\frac{\\tan A \\pm \\tan B}{1 \\mp \\tan A\\tan B}$. Double angles: $\\sin 2A = 2\\sin A\\cos A$, three forms of $\\cos 2A$, $\\tan 2A = \\frac{2\\tan A}{1 - \\tan^2 A}$.",
+        "exam_style_guidelines": "Use compound angle formulas to find exact values for non-standard angles (e.g., $15°, 75°, \\frac{5\\pi}{12}$). Choose the $\\cos 2A$ form strategically: use $1 - 2\\sin^2 A$ to eliminate $\\cos$, and $2\\cos^2 A - 1$ to eliminate $\\sin$.",
+        "anti_prompts": [
+          "Do not forget the sign flip in $\\cos(A \\pm B)$ — it is opposite to $\\sin(A \\pm B)$.",
+          "Do not use only one form of $\\cos 2A$; select the form that simplifies the given expression.",
+          "Do not expand $\\sin(A + B)$ as $\\sin A + \\sin B$."
+        ],
+        "tech_free_rules": "Derive exact values by splitting into known angles. Prove identities by expanding one side fully.",
+        "tech_active_rules": "Verify identity equivalence numerically on CAS. Solve equations after applying double angle substitution."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Trigonometry: Pythagorean Identities (secant and cosecant forms)",
+      "technique_notes": {
+        "core_concepts": "$\\sin^2 x + \\cos^2 x = 1$. Dividing by $\\cos^2 x$: $\\sec^2 x = 1 + \\tan^2 x$. Dividing by $\\sin^2 x$: $\\cosec^2 x = 1 + \\cot^2 x$.",
+        "exam_style_guidelines": "Use these identities to eliminate squared reciprocal functions in proofs and equation solving. In equation solving, substitute $\\sec^2 x = 1 + \\tan^2 x$ to get a quadratic in $\\tan x$.",
+        "anti_prompts": [
+          "Do not write $\\sec^2 x = 1 + \\cot^2 x$ — keep the identity pairs straight.",
+          "Do not forget $\\cosec x$ is undefined at $x = n\\pi$ and $\\sec x$ is undefined at $x = \\frac{\\pi}{2} + n\\pi$."
+        ],
+        "tech_free_rules": "Derive all three Pythagorean forms from $\\sin^2 x + \\cos^2 x = 1$. Use to simplify expressions and complete identity proofs without CAS.",
+        "tech_active_rules": "Solve equations like $2\\sec^2 x - \\tan x = 5$ by converting to a single trig function and solving with CAS."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Trigonometry: Linear Combinations of Sine and Cosine",
+      "technique_notes": {
+        "core_concepts": "$a\\sin x + b\\cos x = r\\sin(x + \\alpha)$ where $r = \\sqrt{a^2 + b^2}$ and $\\tan\\alpha = b/a$, $\\alpha \\in [0, \\frac{\\pi}{2}]$. Alternatively express as $r\\cos(x - \\beta)$. Maximum value is $r$, minimum is $-r$.",
+        "exam_style_guidelines": "Always expand $r\\sin(x \\pm \\alpha)$ and equate coefficients — do not guess the sign of $\\alpha$. State $r > 0$ and $\\alpha$ in the first quadrant explicitly. Use the form to find max/min values and the $x$-values at which they occur.",
+        "anti_prompts": [
+          "Do not use $\\tan\\alpha = a/b$ — it is $\\tan\\alpha = b/a$ when converting to $r\\sin(x+\\alpha)$.",
+          "Do not forget to find all solutions in the given domain after converting the equation to $\\sin(x \\pm \\alpha) = k$.",
+          "Do not mix up $r\\sin(x+\\alpha)$ and $r\\sin(x-\\alpha)$ — expand carefully to match signs."
+        ],
+        "tech_free_rules": "Find $r$ and $\\alpha$ by equating coefficients. Identify maximum and minimum values and their locations exactly.",
+        "tech_active_rules": "Graph $a\\sin x + b\\cos x$ on CAS to verify $r$ and the phase shift $\\alpha$. Solve equations in a given domain."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Trigonometry: Product-to-Sum Identities",
+      "technique_notes": {
+        "core_concepts": "$\\cos A\\cos B = \\frac{1}{2}[\\cos(A-B) + \\cos(A+B)]$. $\\sin A\\sin B = \\frac{1}{2}[\\cos(A-B) - \\cos(A+B)]$. $\\sin A\\cos B = \\frac{1}{2}[\\sin(A+B) + \\sin(A-B)]$. $\\cos A\\sin B = \\frac{1}{2}[\\sin(A+B) - \\sin(A-B)]$.",
+        "exam_style_guidelines": "Use product-to-sum to evaluate definite integrals of products of trig functions, and to simplify products in identity proofs. Identify which product form applies before substituting.",
+        "anti_prompts": [
+          "Do not confuse the $\\sin A\\sin B$ and $\\cos A\\cos B$ forms — the difference is the sign between the two cosine terms.",
+          "Do not apply sum-to-product when the question involves a product — select the correct direction."
+        ],
+        "tech_free_rules": "Derive product-to-sum identities by adding/subtracting compound angle formulas. Apply in identity proofs without CAS.",
+        "tech_active_rules": "Verify simplified forms numerically. Use in CAS-assisted integration of trig products."
+      },
+      "group": "unit1-trigonometry"
+    },
+    {
+      "name": "Trigonometry: Sum-to-Product Identities",
+      "technique_notes": {
+        "core_concepts": "$\\sin P + \\sin Q = 2\\sin\\frac{P+Q}{2}\\cos\\frac{P-Q}{2}$. $\\sin P - \\sin Q = 2\\cos\\frac{P+Q}{2}\\sin\\frac{P-Q}{2}$. $\\cos P + \\cos Q = 2\\cos\\frac{P+Q}{2}\\cos\\frac{P-Q}{2}$. $\\cos P - \\cos Q = -2\\sin\\frac{P+Q}{2}\\sin\\frac{P-Q}{2}$.",
+        "exam_style_guidelines": "Use sum-to-product to factor trig equations of the form $\\sin A + \\sin B = 0$ into a product, then solve each factor. Use in proofs where a ratio of sum/difference of trig functions simplifies to a single function.",
+        "anti_prompts": [
+          "Do not forget the negative sign in $\\cos P - \\cos Q = -2\\sin\\frac{P+Q}{2}\\sin\\frac{P-Q}{2}$.",
+          "Do not mix up which identity uses $\\sin\\frac{P-Q}{2}$ versus $\\cos\\frac{P-Q}{2}$ — the $\\sin P - \\sin Q$ form uses $\\cos$ of the average and $\\sin$ of the half-difference.",
+          "Do not lose solutions when factoring — set each factor equal to zero separately."
+        ],
+        "tech_free_rules": "Factor and solve trig equations exactly using sum-to-product. Complete quotient-type identity proofs by transforming numerator and denominator independently.",
+        "tech_active_rules": "Verify factored forms and check all solutions in the domain on CAS."
+      },
+      "group": "unit1-trigonometry"
     },
     {
       "name": "Conics: Circles, Ellipses and Hyperbolas",
       "technique_notes": {
         "core_concepts": "Standard forms: $\\frac{(x-h)^2}{a^2} + \\frac{(y-k)^2}{b^2} = 1$ (ellipse), $\\frac{(x-h)^2}{a^2} - \\frac{(y-k)^2}{b^2} = 1$ (hyperbola).",
         "exam_style_guidelines": "Label center, vertices, and foci. For hyperbolas, draw dashed asymptotes and label with equations $y-k = \\pm \\frac{b}{a}(x-h)$.",
-        "anti_prompts": ["Ensure asymptotes pass through the center $(h, k)$."],
+        "anti_prompts": [
+          "Ensure asymptotes pass through the center $(h, k)$."
+        ],
         "tech_free_rules": "Complete the square to find standard form and sketch.",
         "tech_active_rules": "Find intersections between conics and lines."
       },
@@ -190,7 +283,9 @@
       "technique_notes": {
         "core_concepts": "Parametric equations $(x(t), y(t))$. Polar coordinates $(r, \\theta)$ and $r=f(\\theta)$. Conversion to Cartesian form.",
         "exam_style_guidelines": "Identify curves (e.g., circles $r=2a\\cos\\theta$). Sketch simple polar graphs like cardioids or roses.",
-        "anti_prompts": ["Watch for parameter domain restrictions."],
+        "anti_prompts": [
+          "Watch for parameter domain restrictions."
+        ],
         "tech_free_rules": "Convert between Cartesian and polar/parametric forms.",
         "tech_active_rules": "Plot complex polar curves on CAS."
       },
@@ -240,7 +335,9 @@
       "technique_notes": {
         "core_concepts": "Addition, subtraction, scalar multiplication. Dot product $\\mathbf{u} \\cdot \\mathbf{v} = |\\mathbf{u}||\\mathbf{v}| \\cos \\theta$.",
         "exam_style_guidelines": "Orthogonal vectors $\\iff \\mathbf{u} \\cdot \\mathbf{v} = 0$. Calculate the angle between vectors. Find scalar and vector resolutes.",
-        "anti_prompts": ["The dot product results in a scalar, not a vector."],
+        "anti_prompts": [
+          "The dot product results in a scalar, not a vector."
+        ],
         "tech_free_rules": "Manual dot product and angle calculations.",
         "tech_active_rules": "Use vectors in 3D (extension from 2D)."
       },
@@ -264,7 +361,9 @@
       "technique_notes": {
         "core_concepts": "Position $\\mathbf{r}(t)$, velocity $\\mathbf{v}(t)$, acceleration $\\mathbf{a}(t)$.",
         "exam_style_guidelines": "Differentiate/integrate component-wise. Find speed as the magnitude of velocity $|\\mathbf{v}(t)|$. Solve for collision or distance of closest approach.",
-        "anti_prompts": ["Units are crucial in kinematics models."],
+        "anti_prompts": [
+          "Units are crucial in kinematics models."
+        ],
         "tech_free_rules": "Basic constant acceleration problems.",
         "tech_active_rules": "Analyze path curves and intersection of two particles."
       },
@@ -327,7 +426,9 @@
       "technique_notes": {
         "core_concepts": "$\\\\int u \\\\frac{dv}{dx} dx = uv - \\\\int v \\\\frac{du}{dx} dx$.",
         "exam_style_guidelines": "Choose $u$ using the LIATE rule (Logs, Inverse trig, Algebraic, Trig, Exponential). Standard application for $\\\\int x e^x dx$ or $\\\\int \\\\log_e x dx$.",
-        "anti_prompts": ["Do not forget the second integral term."],
+        "anti_prompts": [
+          "Do not forget the second integral term."
+        ],
         "tech_free_rules": "Apply to basic products.",
         "tech_active_rules": "Evaluate cyclic integrals (e.g., $e^x \\sin x$)."
       },
@@ -403,7 +504,9 @@
       "technique_notes": {
         "core_concepts": "$\\frac{dP}{dt} = kP(1 - \\frac{P}{L})$. Modelling population growth with a carrying capacity $L$.",
         "exam_style_guidelines": "Identify the carrying capacity. Describe the point of maximum growth ($P = L/2$).",
-        "anti_prompts": ["The growth rate is zero when $P=L$ or $P=0$."],
+        "anti_prompts": [
+          "The growth rate is zero when $P=L$ or $P=0$."
+        ],
         "tech_free_rules": "Verify a solution to the logistic equation.",
         "tech_active_rules": "Fit a logistic model to population data."
       },
@@ -440,7 +543,9 @@
       "technique_notes": {
         "core_concepts": "$\\mathbf{r} = x\\mathbf{i} + y\\mathbf{j} + z\\mathbf{k}$. Distance between points $\\sqrt{(x_2-x_1)^2 + \\dots}$.",
         "exam_style_guidelines": "Sketch points and vectors in 3D space. Calculate unit vectors $\\hat{\\mathbf{v}} = \\mathbf{v}/|\\mathbf{v}|$.",
-        "anti_prompts": ["Be careful with octant identification."],
+        "anti_prompts": [
+          "Be careful with octant identification."
+        ],
         "tech_free_rules": "Basic arithmetic and magnitude in 3D.",
         "tech_active_rules": "Visualize 3D paths on CAS."
       },
@@ -451,7 +556,9 @@
       "technique_notes": {
         "core_concepts": "$\\mathbf{u} \times \\mathbf{v}$. Determinant form. Result is perpendicular to both $\\mathbf{u}$ and $\\mathbf{v}$.",
         "exam_style_guidelines": "Magnitude $|\\mathbf{u} \times \\mathbf{v}| = |\\mathbf{u}||\\mathbf{v}| \\sin \theta$ (area of parallelogram). Use for finding normal vectors to planes.",
-        "anti_prompts": ["The cross product is a vector, not a scalar."],
+        "anti_prompts": [
+          "The cross product is a vector, not a scalar."
+        ],
         "tech_free_rules": "Calculate cross product for $3 \\times 3$ components.",
         "tech_active_rules": "Use cross product to find areas of triangles in 3D."
       },
@@ -462,7 +569,9 @@
       "technique_notes": {
         "core_concepts": "$\\mathbf{r} = \\mathbf{a} + \\lambda \\mathbf{v}$. Direction vector $\\mathbf{v}$. Cartesian form $\frac{x-x_1}{l} = \frac{y-y_1}{m} = \frac{z-z_1}{n}$.",
         "exam_style_guidelines": "Identify if two lines are intersecting, parallel, or skew. Find intersection points by equating components.",
-        "anti_prompts": ["Skew lines are non-parallel but do not intersect."],
+        "anti_prompts": [
+          "Skew lines are non-parallel but do not intersect."
+        ],
         "tech_free_rules": "Convert between forms and check for parallelism.",
         "tech_active_rules": "Calculate distance between skew lines."
       },
@@ -512,7 +621,9 @@
       "technique_notes": {
         "core_concepts": "Null hypothesis $H_0$, Alternative hypothesis $H_1$. Test statistic $Z = \frac{\bar{x} - \\mu_0}{\\sigma/\\sqrt{n}}$.",
         "exam_style_guidelines": "Calculate $p$-value. Compare $p$ to significance level $\\alpha$. One-tailed vs two-tailed tests. State conclusion in context (e.g., 'There is evidence to suggest...').",
-        "anti_prompts": ["Do not 'accept' $H_0$; only 'fail to reject' $H_0$."],
+        "anti_prompts": [
+          "Do not 'accept' $H_0$; only 'fail to reject' $H_0$."
+        ],
         "tech_free_rules": "State hypotheses and identify tail type.",
         "tech_active_rules": "Perform full hypothesis test and interpret $p$-value."
       },

@@ -408,9 +408,9 @@ function SetupPanelImpl({
   return (
     <TooltipProvider>
       <div className='selection:bg-foreground/10 flex flex-col h-screen'>
-        <div className="relative px-6 py-8 flex flex-col lg:flex-row gap-12 flex-1 overflow-y-auto">
+        <div className='relative px-6 py-8 flex flex-col lg:flex-row gap-12 flex-1 overflow-y-auto'>
           {/* ── LEFT COLUMN ── */}
-          <div className="w-full lg:w-104 xl:w-md flex flex-col gap-8 shrink-0">
+          <div className='w-full lg:w-104 xl:w-md flex flex-col gap-8 shrink-0'>
             {/* Header */}
             <PageHeader
               title='Generator'
@@ -725,7 +725,7 @@ function SetupPanelImpl({
           </div>
 
           {/* ── RIGHT COLUMN ── */}
-          <div className="w-full lg:flex-1 flex flex-col gap-8">
+          <div className='w-full lg:flex-1 flex flex-col gap-8'>
             {/* Presets */}
             <div className='flex flex-col gap-3'>
               <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>

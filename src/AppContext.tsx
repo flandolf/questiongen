@@ -242,8 +242,6 @@ export function useAppSettings() {
       setTheme: s.setTheme,
       customThemeSeedColor: s.customThemeSeedColor,
       setCustomThemeSeedColor: s.setCustomThemeSeedColor,
-      globalRounding: s.globalRounding,
-      setGlobalRounding: s.setGlobalRounding,
       interfaceFont: s.interfaceFont,
       setInterfaceFont: s.setInterfaceFont,
       headingFont: s.headingFont,
