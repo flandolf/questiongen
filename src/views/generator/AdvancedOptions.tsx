@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Book, Calculator, Pen } from 'lucide-react';
+import { Calculator, Pen } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,21 +12,25 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import type {
+  CustomSubtopic,
+  DiversityStrictness,
+  QuestionMode,
+  TechMode,
+  Topic,
+  TopicSubtopicGroup,
+} from '@/types';
 import {
   BIOLOGY_SUBTOPIC_GROUPS,
   CHEMISTRY_SUBTOPIC_GROUPS,
-  type DiversityStrictness,
   GENERAL_MATHEMATICS_SUBTOPIC_GROUPS,
   MATH_METHODS_SUBTOPIC_GROUPS,
   PE_SUBTOPIC_GROUPS,
-  type QuestionMode,
   SPECIALIST_MATH_SUBTOPIC_GROUPS,
-  type TechMode,
-  type Topic,
   toScopedSubtopicGroups,
 } from '@/types';
 
-import { GroupedSubtopicSelector, SectionLabel } from './SetupUI';
+import { GroupedSubtopicSelector } from './SetupUI';
 
 const MATH_METHODS_SCOPED_SUBTOPIC_GROUPS = toScopedSubtopicGroups(
   MATH_METHODS_SUBTOPIC_GROUPS,
@@ -89,6 +93,7 @@ export type AdvancedOptionsGroupProps = {
   hasSubtopicSection: boolean;
   selectedSubtopics: Record<string, string[]>;
   onToggleSubtopic: (topic: Topic, sub: string | string[]) => void;
+  customSubtopics: Record<Topic, CustomSubtopic[]>;
   hasAnyMathTopic: boolean;
   techMode: TechMode;
   onSetTechMode: (mode: TechMode) => void;
@@ -108,29 +113,51 @@ export function AdvancedOptionsGroup({
   hasSubtopicSection,
   selectedSubtopics,
   onToggleSubtopic,
+  customSubtopics,
   hasAnyMathTopic,
   techMode,
   onSetTechMode,
   customFocusArea,
   onSetCustomFocusArea,
 }: AdvancedOptionsGroupProps) {
-  const getSubtopicGroups = (topic: Topic) => {
+  const getSubtopicGroups = (topic: Topic): readonly TopicSubtopicGroup[] => {
+    let groups: readonly TopicSubtopicGroup[];
     switch (topic) {
       case 'Mathematical Methods':
-        return MATH_METHODS_SCOPED_SUBTOPIC_GROUPS;
+        groups = MATH_METHODS_SCOPED_SUBTOPIC_GROUPS;
+        break;
       case 'Specialist Mathematics':
-        return SPECIALIST_MATH_SUBTOPIC_GROUPS;
+        groups = SPECIALIST_MATH_SUBTOPIC_GROUPS;
+        break;
       case 'Chemistry':
-        return CHEMISTRY_SUBTOPIC_GROUPS;
+        groups = CHEMISTRY_SUBTOPIC_GROUPS;
+        break;
       case 'Physical Education':
-        return PE_SUBTOPIC_GROUPS;
+        groups = PE_SUBTOPIC_GROUPS;
+        break;
       case 'Biology':
-        return BIOLOGY_SUBTOPIC_GROUPS;
+        groups = BIOLOGY_SUBTOPIC_GROUPS;
+        break;
       case 'General Mathematics':
-        return GENERAL_MATHEMATICS_SUBTOPIC_GROUPS;
+        groups = GENERAL_MATHEMATICS_SUBTOPIC_GROUPS;
+        break;
       default:
-        return [];
+        groups = [];
     }
+
+    const customSubs = customSubtopics[topic] || [];
+    if (customSubs.length === 0) return groups;
+
+    const customGroup: TopicSubtopicGroup = {
+      topic,
+      groupId: 'custom',
+      unit: 'Custom',
+      aos: 'Custom Subtopics',
+      label: 'Custom Subtopics',
+      subtopics: customSubs.map((s) => s.name),
+    };
+
+    return [...groups, customGroup];
   };
 
   return (
@@ -246,23 +273,16 @@ export function AdvancedOptionsGroup({
 
       {/* Subtopics */}
       {hasSubtopicSection && (
-        <div className='flex flex-col gap-3'>
-          <SectionLabel>
-            <span className='flex items-center gap-2'>
-              <Book className='w-3.5 h-3.5' /> Subtopic Focus
-            </span>
-          </SectionLabel>
-          <div className='flex flex-col gap-6'>
-            {selectedTopics.map((topic) => (
-              <GroupedSubtopicSelector
-                key={topic}
-                label={topic}
-                groups={getSubtopicGroups(topic)}
-                selected={selectedSubtopics[topic] || []}
-                onToggle={(sub) => onToggleSubtopic(topic, sub)}
-              />
-            ))}
-          </div>
+        <div className='flex flex-col gap-6'>
+          {selectedTopics.map((topic) => (
+            <GroupedSubtopicSelector
+              key={topic}
+              label={topic}
+              groups={getSubtopicGroups(topic)}
+              selected={selectedSubtopics[topic] || []}
+              onToggle={(sub) => onToggleSubtopic(topic, sub)}
+            />
+          ))}
         </div>
       )}
     </div>

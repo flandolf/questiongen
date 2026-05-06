@@ -1,5 +1,6 @@
 import type {
   BatchTopicProgress,
+  CustomSubtopic,
   Difficulty,
   GeneratedQuestion,
   GenerationRecord,
@@ -212,6 +213,17 @@ export interface AppActions {
   setGenerationStrategy: (strategy: GenerationStrategy) => void;
   applyPreferences: (prefs: Partial<PresetPreferences>) => void;
   resetPreferences: () => void;
+
+  // Custom Subtopics
+  customSubtopics: Record<Topic, CustomSubtopic[]>;
+  isLoadingCustomSubtopics: boolean;
+  loadCustomSubtopics: (topic: Topic) => Promise<void>;
+  addCustomSubtopic: (topic: Topic, subtopic: CustomSubtopic) => Promise<void>;
+  updateCustomSubtopic: (
+    topic: Topic,
+    subtopic: CustomSubtopic,
+  ) => Promise<void>;
+  deleteCustomSubtopic: (topic: Topic, subtopicId: string) => Promise<void>;
 
   // Written session
   setQuestions: (questions: GeneratedQuestion[]) => void;

@@ -11,6 +11,7 @@ import debounce from 'lodash.debounce';
 
 import { auth, db } from '@/context/modules/firebase-init';
 import { removeUndefined } from '@/lib/app-utils';
+import type { CustomSubtopic } from '@/types';
 import type {
   GenerationRecord,
   McHistoryEntry,
@@ -308,6 +309,63 @@ export async function migrateSettings() {
     console.info('[Sync] Settings migration successful.');
   } catch (error) {
     console.error('[Sync] Settings migration failed:', error);
+  }
+}
+
+// ─── Custom Subtopics ───────────────────────────────────────────────────────────
+
+export async function saveCustomSubtopics(
+  topic: string,
+  subtopics: CustomSubtopic[],
+) {
+  const uid = getUid();
+  if (!uid) {
+    console.warn('[Sync] No UID available to save custom subtopics');
+    return;
+  }
+  try {
+    await setDoc(
+      doc(db, `users/${uid}/customSubtopics`, topic),
+      removeUndefined({
+        subtopics,
+        updatedAt: serverTimestamp(),
+      }),
+      { merge: true },
+    );
+  } catch (error) {
+    console.error('[Sync] Failed to save custom subtopics:', error);
+  }
+}
+
+export async function loadCustomSubtopics(
+  topic: string,
+): Promise<CustomSubtopic[]> {
+  const uid = getUid();
+  if (!uid) {
+    console.warn('[Sync] No UID available to load custom subtopics');
+    return [];
+  }
+  try {
+    const snap = await getDoc(doc(db, `users/${uid}/customSubtopics`, topic));
+    if (snap.exists()) {
+      const data = snap.data();
+      return (data.subtopics as CustomSubtopic[]) || [];
+    }
+  } catch (error) {
+    console.error('[Sync] Failed to load custom subtopics:', error);
+  }
+  return [];
+}
+
+export async function deleteCustomSubtopic(topic: string, subtopicId: string) {
+  const uid = getUid();
+  if (!uid) return;
+  try {
+    const existing = await loadCustomSubtopics(topic);
+    const filtered = existing.filter((s) => s.id !== subtopicId);
+    await saveCustomSubtopics(topic, filtered);
+  } catch (error) {
+    console.error('[Sync] Failed to delete custom subtopic:', error);
   }
 }
 

@@ -254,6 +254,8 @@ function SetupPanelImpl({
   const navigate = useNavigate();
   const { apiKey, model, setModel } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
+  const customSubtopics = useAppStore((s) => s.customSubtopics);
+  const loadCustomSubtopics = useAppStore((s) => s.loadCustomSubtopics);
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(
     null,
   );
@@ -308,6 +310,12 @@ function SetupPanelImpl({
       ),
     [selectedSubtopics],
   );
+
+  useEffect(() => {
+    selectedTopics.forEach((topic) => {
+      void loadCustomSubtopics(topic);
+    });
+  }, [selectedTopics, loadCustomSubtopics]);
 
   useEffect(() => {
     let cancelled = false;
@@ -758,6 +766,7 @@ function SetupPanelImpl({
                 hasSubtopicSection={hasSubtopicSection}
                 selectedSubtopics={selectedSubtopics}
                 onToggleSubtopic={onToggleSubtopic}
+                customSubtopics={customSubtopics}
                 hasAnyMathTopic={hasAnyMathTopic}
                 techMode={techMode}
                 onSetTechMode={onSetTechMode}
