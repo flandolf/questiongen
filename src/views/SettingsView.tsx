@@ -28,6 +28,7 @@ import { GoalsSection } from './settings/sections/GoalsSection';
 import { ImportExportSection } from './settings/sections/ImportExportSection';
 import { LogsSection } from './settings/sections/LogsSection';
 import { ModelsSection } from './settings/sections/ModelsSection';
+import { SubtopicsSection } from './settings/sections/SubtopicsSection';
 import { SyncSection } from './settings/sections/SyncSection';
 import { TimeAllocationSection } from './settings/sections/TimeAllocationSection';
 import { TutorSection } from './settings/sections/TutorSection';
@@ -72,6 +73,11 @@ const SIDEBAR_CATEGORIES: {
         id: 'time-allocation',
         label: 'Time & Marks',
         icon: <Clock className='h-4 w-4' />,
+      },
+      {
+        id: 'subtopics',
+        label: 'Custom Subtopics',
+        icon: <Wand2 className='h-4 w-4' />,
       },
     ],
   },
@@ -133,6 +139,8 @@ function renderSection(activeSection: Section) {
       return <CleanupSection />;
     case 'import-export':
       return <ImportExportSection />;
+    case 'subtopics':
+      return <SubtopicsSection />;
   }
 }
 

@@ -3,6 +3,7 @@ import type { StateCreator } from 'zustand';
 import { updateApiKey, updatePresets } from '@/context/modules/sync/mutations';
 import { normalizeHexColor } from '@/lib/color-helpers';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
+import { cleanPresetSubtopics } from '@/lib/preset-utils';
 import { normalizeThemeName, resolve } from '@/store/helpers';
 import type { AppActions, AppState } from '@/store/types';
 
@@ -212,13 +213,33 @@ export const createSettingsSlice: StateCreator<
   setPresets: (presets) => set({ presets }),
   addPreset: (preset) =>
     set((s) => {
-      const next = [preset, ...s.presets];
+      const cleanedPrefs = {
+        ...preset.preferences,
+        selectedSubtopics: cleanPresetSubtopics(
+          preset.preferences.selectedSubtopics,
+          s.selectedTopics,
+          s.customSubtopics,
+        ),
+      };
+      const cleanedPreset = { ...preset, preferences: cleanedPrefs };
+      const next = [cleanedPreset, ...s.presets];
       void updatePresets(next);
       return { presets: next };
     }),
   updatePreset: (preset) =>
     set((s) => {
-      const next = s.presets.map((p) => (p.id === preset.id ? preset : p));
+      const cleanedPrefs = {
+        ...preset.preferences,
+        selectedSubtopics: cleanPresetSubtopics(
+          preset.preferences.selectedSubtopics,
+          s.selectedTopics,
+          s.customSubtopics,
+        ),
+      };
+      const cleanedPreset = { ...preset, preferences: cleanedPrefs };
+      const next = s.presets.map((p) =>
+        p.id === preset.id ? cleanedPreset : p,
+      );
       void updatePresets(next);
       return { presets: next };
     }),
@@ -277,7 +298,7 @@ export const createSettingsSlice: StateCreator<
   setShuffleQuestions: (shuffleQuestions) => set({ shuffleQuestions }),
   setGenerationStrategy: (generationStrategy) => set({ generationStrategy }),
   applyPreferences: (prefs) =>
-    set(() => {
+    set((state) => {
       const next: Partial<AppState> = {};
       if (prefs.selectedTopics !== undefined)
         next.selectedTopics = prefs.selectedTopics;
@@ -292,9 +313,14 @@ export const createSettingsSlice: StateCreator<
       if (prefs.customFocusArea !== undefined)
         next.customFocusArea = prefs.customFocusArea;
 
-      // Atomic replacement to avoid "ghost" state from previous selections
+      // Clean subtopics to remove any that no longer exist in the catalog
       if (prefs.selectedSubtopics !== undefined) {
-        next.selectedSubtopics = prefs.selectedSubtopics;
+        const cleaned = cleanPresetSubtopics(
+          prefs.selectedSubtopics,
+          state.selectedTopics,
+          state.customSubtopics,
+        );
+        next.selectedSubtopics = cleaned ?? {};
       }
 
       return next;

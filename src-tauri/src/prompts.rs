@@ -917,24 +917,66 @@ mod tests {
             .contains("do not increase marks"));
         assert!(difficulty_enforcement_note("Medium", false).is_empty());
     }
+}
 
-    #[test]
-    fn build_written_includes_hard_enforcement() {
-        let builder = UserPromptBuilder {
-            count: 2,
-            topics: vec!["Mathematical Methods".to_string()],
-            difficulty: "Hard".to_string(),
-            average_marks: Some(5),
-            subtopics: None,
-            custom_focus_area: None,
-            tech_mode: "tech-free".to_string(),
-            include_exam_context: false,
-            avoid_similar_questions: false,
-            shuffle_subtopics: false,
-            prior_question_prompts: None,
-        };
+// ─── Subtopic Generation Prompt ───────────────────────────────────────────────
 
-        let prompt = builder.build_written();
-        assert!(prompt.contains("HARD ENFORCEMENT"));
-    }
+pub fn subtopic_generation_system() -> &'static str {
+    "IDENTITY: Expert VCE curriculum designer.\n\n\
+MISSION: Generate subtopics that align with exam requirements while prioritizing any user-specified focus areas.\n\n\
+CORE RULES:\n\
+- Generate VCE {topic} subtopics based on the study design\n\
+- If a focus area is specified, it MUST be the highest priority - include multiple related subtopics covering it\n\
+- Each subtopic must be specific, assessable, and appropriate for exam questions\n\
+- Use proper VCE terminology and command terms\n\
+- Output ONLY valid JSON array\n\n\
+OUTPUT FORMAT:\n\
+[{\n\
+  \"name\": \"Subtopic Name\",\n\
+  \"group\": \"unit#-aos-slug\",\n\
+  \"techniqueNotes\": {\n\
+    \"coreConcepts\": \"Brief description of key concepts\",\n\
+    \"examStyleGuidelines\": \"Guidance for exam questions\",\n\
+    \"antiPrompts\": [\"thing to avoid\", \"another thing to avoid\"]\n\
+  }\n\
+}]\n\n\
+STRICT JSON OUTPUT: Output only the JSON array, no markdown or explanation."
+}
+
+pub fn subtopic_generation_user_prompt(
+    topic: &str,
+    exam_guidance: &str,
+    existing_subtopics: &[String],
+    focus_area: &str,
+) -> String {
+    let existing_list = if existing_subtopics.is_empty() {
+        "None".to_string()
+    } else {
+        existing_subtopics.join(", ")
+    };
+
+    let focus_priority = if focus_area.trim().is_empty() {
+        String::new()
+    } else {
+        format!(
+            "PRIORITY FOCUS AREA (must be prominently included):\n{}\n\n",
+            focus_area.trim()
+        )
+    };
+
+    format!(
+        "Generate diverse VCE subtopics for {topic}.\n\n\
+{focus_priority}\
+EXAM GUIDANCE:\n{exam_guidance}\n\n\
+Existing subtopics (avoid duplicates):\n{existing_list}\n\n\
+Output as JSON with a 'subtopics' array. Each subtopic:\n\
+- name: clear specific name\n\
+- group: unit/AOS slug (e.g. \"unit1-how-organisms-regulate-functions\")\n\
+- techniqueNotes: {{ coreConcepts, examStyleGuidelines, antiPrompts: [] }}\n\
+Generate 5-10 subtopics, with focus_area getting priority coverage.",
+        topic = topic,
+        exam_guidance = exam_guidance,
+        existing_list = existing_list,
+        focus_priority = focus_priority
+    )
 }

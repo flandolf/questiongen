@@ -8,6 +8,7 @@ import {
   setupPersistence,
   snapshotToState,
 } from './persistence';
+import { createCustomSubtopicsSlice } from './slices/custom-subtopics-slice';
 import { createHistorySlice } from './slices/history-slice';
 import { createPdfMarkerSlice } from './slices/pdf-marker-slice';
 import { createSessionSlice } from './slices/session-slice';
@@ -23,6 +24,7 @@ export const useAppStore = create<AppState & AppActions>()(
     ...createSessionSlice(set, get, store),
     ...createHistorySlice(set, get, store),
     ...createPdfMarkerSlice(set, get, store),
+    ...createCustomSubtopicsSlice(set, get, store),
 
     isHydrated: false,
 

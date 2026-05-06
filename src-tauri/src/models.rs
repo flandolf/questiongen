@@ -539,6 +539,41 @@ pub struct GenerateMcQuestionsResponse {
     pub quality_diagnostics: Option<GenerationQualityDiagnostics>,
 }
 
+// ─── AI Subtopic Generation ───────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateSubtopicsRequest {
+    pub topic: String,
+    pub model: String,
+    pub api_key: String,
+    pub existing_subtopics: Option<Vec<String>>,
+    pub focus_area: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedSubtopic {
+    pub name: String,
+    pub group: Option<String>,
+    pub technique_notes: Option<TechniqueNotes>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TechniqueNotes {
+    pub core_concepts: Option<String>,
+    pub exam_style_guidelines: Option<String>,
+    #[serde(default)]
+    pub anti_prompts: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateSubtopicsResponse {
+    pub subtopics: Vec<GeneratedSubtopic>,
+}
+
 // ─── Persistence / App State ──────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

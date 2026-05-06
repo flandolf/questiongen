@@ -51,7 +51,8 @@ export type Section =
   | 'sync'
   | 'cleanup'
   | 'import-export'
-  | 'logs';
+  | 'logs'
+  | 'subtopics';
 
 export type ImageValidationState =
   | { status: 'idle' }

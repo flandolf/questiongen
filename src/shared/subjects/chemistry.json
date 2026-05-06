@@ -1,12 +1,8 @@
 {
   "name": "Chemistry",
   "icon": "FlaskConical",
-  "examPdfs": [
-    "2025-Chemistry.pdf"
-  ],
-  "reportPdfs": [
-    "2025-Chemistry-report.pdf"
-  ],
+  "examPdfs": ["2025-Chemistry.pdf"],
+  "reportPdfs": ["2025-Chemistry-report.pdf"],
   "examGuidance": "Render every chemical formula and ionic species in LaTeX using \\text{}: e.g., $\\text{H}_2\\text{O}$, $\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. Use VCE command verbs (calculate, explain, deduce, justify). All chemical equations must be balanced and include state symbols: $(s), (l), (g), (aq)$. Thermochemical equations must include $\\Delta H$ in $kJ \\text{ mol}^{-1}$. Stoichiometry problems should require significant figure awareness (typically 3 sig figs). Use standard IUPAC naming for organic molecules. Refer to the VCAA Chemistry Data Book for standard values (molar masses, specific heat capacities, electrochemical series). Confine questions to the VCE Chemistry Study Design (2024–2027).",
   "out_of_scope": [
     "Quantum mechanics beyond subshell notation",

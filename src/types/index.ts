@@ -1,6 +1,7 @@
 export * from './anki';
 export * from './api';
 export * from './catalog';
+export * from './custom-subtopics';
 export * from './events';
 export * from './generator';
 export * from './history';

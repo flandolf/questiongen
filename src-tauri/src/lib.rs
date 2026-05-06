@@ -357,6 +357,115 @@ async fn export_question_to_anki(
     })
 }
 
+#[tauri::command]
+async fn generate_subtopics(
+    _app: tauri::AppHandle,
+    request: GenerateSubtopicsRequest,
+) -> CommandResult<GenerateSubtopicsResponse> {
+    use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
+    use crate::prompts::{subtopic_generation_system, subtopic_generation_user_prompt};
+
+    if request.api_key.trim().is_empty() {
+        return Err(AppError::new(
+            "NO_API_KEY",
+            "OpenRouter API key is required",
+        ));
+    }
+
+    let exam_guidance = catalog::topic_exam_guidance(&request.topic);
+    if exam_guidance.is_empty() {
+        return Err(AppError::new("INVALID_TOPIC", "Topic not found in catalog"));
+    }
+
+    let user_prompt = subtopic_generation_user_prompt(
+        &request.topic,
+        exam_guidance,
+        &request.existing_subtopics.unwrap_or_default(),
+        request.focus_area.as_deref().unwrap_or(""),
+    );
+
+    let response_format = serde_json::json!({ "type": "json_object" });
+
+    let config = OpenRouterRequestConfig::new(
+        &request.api_key,
+        &request.model,
+        subtopic_generation_system(),
+        serde_json::json!(user_prompt),
+        response_format,
+        4000,
+    );
+
+    let result = call_openrouter(config).await?;
+
+    let content = result.content.trim();
+    let json_start = content.find('{').or_else(|| content.find('['));
+    let json_str = if let Some(start) = json_start {
+        &content[start..]
+    } else {
+        content
+    };
+
+    let parsed: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+        AppError::new(
+            "PARSE_ERROR",
+            format!(
+                "Failed to parse response: {}. Content: {}",
+                e,
+                &json_str[..json_str.len().min(200)]
+            ),
+        )
+    })?;
+
+    let subtopics: Vec<GeneratedSubtopic> = parsed
+        .get("subtopics")
+        .and_then(|s| s.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| {
+                    Some(GeneratedSubtopic {
+                        name: item.get("name")?.as_str()?.to_string(),
+                        group: item.get("group").and_then(|g| g.as_str()).map(String::from),
+                        technique_notes: item
+                            .get("techniqueNotes")
+                            .or_else(|| item.get("technique_notes"))
+                            .map(|tn| crate::models::TechniqueNotes {
+                                core_concepts: tn
+                                    .get("coreConcepts")
+                                    .or_else(|| tn.get("core_concepts"))
+                                    .and_then(|c| c.as_str())
+                                    .map(String::from),
+                                exam_style_guidelines: tn
+                                    .get("examStyleGuidelines")
+                                    .or_else(|| tn.get("exam_style_guidelines"))
+                                    .and_then(|e| e.as_str())
+                                    .map(String::from),
+                                anti_prompts: tn
+                                    .get("antiPrompts")
+                                    .or_else(|| tn.get("anti_prompts"))
+                                    .and_then(|a| a.as_array())
+                                    .map(|arr| {
+                                        arr.iter()
+                                            .filter_map(|p| p.as_str().map(String::from))
+                                            .collect()
+                                    })
+                                    .unwrap_or_default(),
+                            }),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if subtopics.is_empty() {
+        return Err(AppError::new(
+            "NO_SUBTOPICS",
+            "No valid subtopics found in response",
+        ));
+    }
+
+    Ok(GenerateSubtopicsResponse { subtopics })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -403,6 +512,7 @@ pub fn run() {
             abort_generation,
             mark_pdf,
             discover_pdf_questions,
+            generate_subtopics,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
