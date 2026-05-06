@@ -363,6 +363,7 @@ async fn generate_subtopics(
     request: GenerateSubtopicsRequest,
 ) -> CommandResult<GenerateSubtopicsResponse> {
     use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
+    
     use crate::prompts::{subtopic_generation_system, subtopic_generation_user_prompt};
 
     if request.api_key.trim().is_empty() {
@@ -386,11 +387,30 @@ async fn generate_subtopics(
 
     let response_format = serde_json::json!({ "type": "json_object" });
 
+    let mut content_parts = vec![serde_json::json!({ "type": "text", "text": user_prompt })];
+
+    if let Some(ref pdf_content) = request.pdf_content {
+        if !pdf_content.trim().is_empty() {
+            let data_url = if pdf_content.starts_with("data:application/pdf;base64,") {
+                pdf_content.clone()
+            } else {
+                format!("data:application/pdf;base64,{}", pdf_content)
+            };
+            content_parts.push(serde_json::json!({
+                "type": "file",
+                "file": {
+                    "filename": "reference.pdf",
+                    "file_data": data_url
+                }
+            }));
+        }
+    }
+
     let config = OpenRouterRequestConfig::new(
         &request.api_key,
         &request.model,
         subtopic_generation_system(),
-        serde_json::json!(user_prompt),
+        serde_json::json!(content_parts),
         response_format,
         4000,
     );

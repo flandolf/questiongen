@@ -549,6 +549,7 @@ pub struct GenerateSubtopicsRequest {
     pub api_key: String,
     pub existing_subtopics: Option<Vec<String>>,
     pub focus_area: Option<String>,
+    pub pdf_content: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

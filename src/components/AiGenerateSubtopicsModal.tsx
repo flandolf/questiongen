@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { Loader2, Sparkles, Wand2 } from 'lucide-react';
-import { useState } from 'react';
+import { FileText, Loader2, Sparkles, Wand2, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -29,12 +29,36 @@ export function AiGenerateSubtopicsModal({
     PRESET_MODELS[0]?.id || 'anthropic/claude-3.5-sonnet',
   );
   const [focusArea, setFocusArea] = useState('');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedSubtopic[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!open) return null;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setPdfFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        setPdfBase64(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemovePdf = () => {
+    setPdfFile(null);
+    setPdfBase64(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleGenerate = () => {
     setIsGenerating(true);
@@ -50,6 +74,7 @@ export function AiGenerateSubtopicsModal({
               apiKey,
               existingSubtopics: existingSubtopicNames,
               focusArea,
+              pdfContent: pdfBase64,
             },
           },
         );
@@ -173,6 +198,51 @@ export function AiGenerateSubtopicsModal({
                 placeholder='e.g., Focus on molecular biology aspects, enzyme kinetics...'
                 rows={2}
                 className='resize-none'
+              />
+            </div>
+
+            <div className='space-y-2'>
+              <Label className='text-sm font-medium text-muted-foreground'>
+                Reference PDF (optional)
+              </Label>
+              {pdfFile ? (
+                <div className='flex items-center gap-2 p-3 rounded-md border bg-background'>
+                  <FileText className='w-4 h-4 text-primary shrink-0' />
+                  <span className='text-sm truncate flex-1'>{pdfFile.name}</span>
+                  <button
+                    type='button'
+                    onClick={handleRemovePdf}
+                    className='p-1 hover:bg-destructive/10 rounded'
+                  >
+                    <X className='w-4 h-4 text-muted-foreground hover:text-destructive' />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  role='button'
+                  tabIndex={0}
+                  className='flex items-center justify-center gap-2 p-4 rounded-md border-2 border-dashed border-border/60 hover:bg-primary/5 hover:border-primary/40 transition-colors cursor-pointer'
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <FileText className='w-4 h-4 text-muted-foreground' />
+                  <span className='text-sm text-muted-foreground'>
+                    Click to upload PDF
+                  </span>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type='file'
+                accept='application/pdf'
+                onChange={handleFileChange}
+                className='hidden'
               />
             </div>
 
