@@ -80,6 +80,15 @@ export interface UseSyncReturn {
   markLocalWrite: (key: string) => void;
 }
 
+const EMPTY_CUSTOM_SUBTOPICS = {
+  Biology: [],
+  Chemistry: [],
+  'General Mathematics': [],
+  'Mathematical Methods': [],
+  'Physical Education': [],
+  'Specialist Mathematics': [],
+};
+
 export function useSync(): UseSyncReturn {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -408,6 +417,18 @@ export function useSync(): UseSyncReturn {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      const previousUid = activeUidRef.current;
+      const nextUid = firebaseUser?.uid ?? null;
+
+      if (previousUid !== nextUid) {
+        // Clear user-scoped custom subtopics whenever auth identity changes so
+        // a fresh sync can run for the active account.
+        useAppStore.setState({
+          customSubtopics: EMPTY_CUSTOM_SUBTOPICS,
+          customSubtopicsSynced: false,
+        });
+      }
+
       console.info(
         `[FirebaseSync] Auth state changed: ${
           firebaseUser
@@ -417,10 +438,14 @@ export function useSync(): UseSyncReturn {
       );
       setUser(firebaseUser);
       setIsLoading(false);
-      activeUidRef.current = firebaseUser?.uid ?? null;
+      activeUidRef.current = nextUid;
 
       if (firebaseUser) {
         setupListeners(firebaseUser.uid);
+        // Kick off a one-time sync for custom subtopics so local state can be
+        // reconciled with the server if there are changes. The store will
+        // avoid unnecessary overwrites (local wins when newer).
+        void useAppStore.getState().syncCustomSubtopics?.();
       } else {
         cleanupListeners();
         setSyncStatus('idle');

@@ -1,8 +1,10 @@
 import {
+  collection,
   deleteDoc,
   doc,
   type DocumentData,
   getDoc,
+  getDocs,
   serverTimestamp,
   setDoc,
   writeBatch,
@@ -355,6 +357,68 @@ export async function loadCustomSubtopics(
     console.error('[Sync] Failed to load custom subtopics:', error);
   }
   return [];
+}
+
+/**
+ * Load all custom subtopics documents for the current user and return a mapping
+ * of topic -> { subtopics, updatedAt } where `updatedAt` is normalized to ms.
+ */
+export async function loadAllCustomSubtopics(): Promise<
+  Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }>
+> {
+  const uid = getUid();
+  if (!uid) {
+    console.warn('[Sync] No UID available to load custom subtopics');
+    return {};
+  }
+
+  type TimestampLike = {
+    toDate?: () => Date;
+    seconds?: number;
+    nanoseconds?: number;
+  };
+
+  function toMs(value: unknown): number | null {
+    if (value == null) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Math.abs(value) < 1_000_000_000_000 ? value * 1000 : value;
+    }
+    if (typeof value === 'object') {
+      const ts = value as TimestampLike;
+      const maybeToDate = ts.toDate;
+      if (typeof maybeToDate === 'function') {
+        try {
+          const d = maybeToDate();
+          if (d instanceof Date && !Number.isNaN(d.getTime())) {
+            return d.getTime();
+          }
+        } catch {
+          // fall through
+        }
+      }
+      const seconds = ts.seconds;
+      const nanos = ts.nanoseconds;
+      if (typeof seconds === 'number' && Number.isFinite(seconds)) {
+        return seconds * 1000 + Math.floor((nanos ?? 0) / 1_000_000);
+      }
+    }
+    return null;
+  }
+
+  try {
+    const snap = await getDocs(collection(db, `users/${uid}/customSubtopics`));
+    const result: Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }> = {};
+    snap.forEach((d) => {
+      const data = d.data();
+      const subtopics = (data.subtopics as CustomSubtopic[]) || [];
+      const updatedAt = toMs(data.updatedAt);
+      result[d.id] = { subtopics, updatedAt };
+    });
+    return result;
+  } catch (error) {
+    console.error('[Sync] Failed to load all custom subtopics:', error);
+    throw error;
+  }
 }
 
 export async function deleteCustomSubtopic(topic: string, subtopicId: string) {
