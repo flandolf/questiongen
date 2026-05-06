@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { onAuthStateChanged } from 'firebase/auth';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -256,7 +257,7 @@ function SetupPanelImpl({
   const { apiKey, model, setModel } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const customSubtopics = useAppStore((s) => s.customSubtopics);
-  const loadCustomSubtopics = useAppStore((s) => s.loadCustomSubtopics);
+  const syncCustomSubtopics = useAppStore((s) => s.syncCustomSubtopics);
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(
     null,
   );
@@ -312,20 +313,22 @@ function SetupPanelImpl({
     [selectedSubtopics],
   );
 
-  const loadCustomSubtopicsCb = useCallback(
-    (topic: Topic) => loadCustomSubtopics(topic),
-    [loadCustomSubtopics],
+  const syncCustomSubtopicsCb = useCallback(
+    () => syncCustomSubtopics(),
+    [syncCustomSubtopics],
   );
 
-  // Load custom subtopics on mount when user is authenticated
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user?.uid) return;
-    const topicsToLoad = selectedTopics.length > 0 ? selectedTopics : (['Biology', 'Chemistry'] as Topic[]);
-    topicsToLoad.forEach((topic) => {
-      void loadCustomSubtopicsCb(topic);
+    let cancelled = false;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (cancelled || !user) return;
+      void syncCustomSubtopicsCb();
     });
-  }, [selectedTopics, loadCustomSubtopicsCb]);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [syncCustomSubtopicsCb]);
 
   useEffect(() => {
     let cancelled = false;

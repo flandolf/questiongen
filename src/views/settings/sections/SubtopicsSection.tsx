@@ -23,7 +23,7 @@ export function SubtopicsSection() {
   const { user } = useFirebaseSyncContext();
   const {
     customSubtopics,
-    loadCustomSubtopics,
+    syncCustomSubtopics,
     addCustomSubtopic,
     updateCustomSubtopic,
     deleteCustomSubtopic,
@@ -39,11 +39,11 @@ export function SubtopicsSection() {
 
   useEffect(() => {
     if (user) {
-      TOPICS.forEach((topic) => {
-        void loadCustomSubtopics(topic);
-      });
+      // One-time sync when a user is present. The store will avoid
+      // re-fetching if we've already synced.
+      void syncCustomSubtopics();
     }
-  }, [user, loadCustomSubtopics]);
+  }, [user, syncCustomSubtopics]);
 
   const getCatalogSubtopics = (topic: Topic): readonly string[] => {
     switch (topic) {

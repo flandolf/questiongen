@@ -1,4 +1,5 @@
 import type { Topic } from './catalog';
+import type { CustomSubtopic } from './custom-subtopics';
 import type {
   Difficulty,
   DiversityStrictness,
@@ -119,6 +120,9 @@ export type PersistedAppState = {
   mcHistory: McHistoryEntry[];
   pdfMarkerHistory?: PdfMarkerHistoryEntry[];
   savedSets: SavedQuestionSet[];
+  // Persist custom subtopics for offline-first usage
+  customSubtopics?: Record<Topic, CustomSubtopic[]>;
+  customSubtopicsSynced?: boolean;
   studyGoals?: StudyGoals;
   streakData?: StreakData;
   generationHistory?: GenerationRecord[];

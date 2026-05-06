@@ -134,6 +134,11 @@ export interface AppState {
   // ─── Generator Parameter Presets (Firebase-synced) ─────────────
   presets: Preset[];
 
+  // ── Custom Subtopics ──────────────────────────────────────────────────────
+  customSubtopics: Record<Topic, CustomSubtopic[]>;
+  isLoadingCustomSubtopics: boolean;
+  customSubtopicsSynced: boolean;
+
   // ── Timer v2 ───────────────────────────────────────────────────
   writtenTimer: TimerState | null;
   mcTimer: TimerState | null;
@@ -217,7 +222,8 @@ export interface AppActions {
   // Custom Subtopics
   customSubtopics: Record<Topic, CustomSubtopic[]>;
   isLoadingCustomSubtopics: boolean;
-  loadCustomSubtopics: (topic: Topic) => Promise<void>;
+  customSubtopicsSynced: boolean;
+  syncCustomSubtopics: () => Promise<void>;
   addCustomSubtopic: (topic: Topic, subtopic: CustomSubtopic) => Promise<void>;
   updateCustomSubtopic: (
     topic: Topic,

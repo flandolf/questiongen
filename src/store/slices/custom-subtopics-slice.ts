@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand';
 
 import {
-  loadCustomSubtopics as loadCustomSubtopicsFromFirebase,
+  loadAllCustomSubtopics as loadAllCustomSubtopicsFromFirebase,
   saveCustomSubtopics as saveCustomSubtopicsToFirebase,
 } from '@/context/modules/sync/mutations';
 import type { AppActions, AppState } from '@/store/types';
@@ -10,8 +10,9 @@ import type { CustomSubtopic, Topic } from '@/types';
 export interface CustomSubtopicsSlice {
   customSubtopics: Record<Topic, CustomSubtopic[]>;
   isLoadingCustomSubtopics: boolean;
+  customSubtopicsSynced: boolean;
 
-  loadCustomSubtopics: (topic: Topic) => Promise<void>;
+  syncCustomSubtopics: () => Promise<void>;
   addCustomSubtopic: (topic: Topic, subtopic: CustomSubtopic) => Promise<void>;
   updateCustomSubtopic: (
     topic: Topic,
@@ -35,20 +36,53 @@ export const createCustomSubtopicsSlice: StateCreator<
     'Specialist Mathematics': [],
   },
   isLoadingCustomSubtopics: false,
+  customSubtopicsSynced: false,
 
-  loadCustomSubtopics: async (topic: Topic) => {
+  syncCustomSubtopics: async () => {
+    const state = get();
+    if (state.customSubtopicsSynced) return;
+
     set({ isLoadingCustomSubtopics: true });
     try {
-      const subtopics = await loadCustomSubtopicsFromFirebase(topic);
-      set((state) => ({
-        customSubtopics: {
-          ...state.customSubtopics,
-          [topic]: subtopics,
-        },
+      const topics: Topic[] = [
+        'Biology',
+        'Chemistry',
+        'General Mathematics',
+        'Mathematical Methods',
+        'Physical Education',
+        'Specialist Mathematics',
+      ];
+
+      const remoteMap = await loadAllCustomSubtopicsFromFirebase();
+
+      const merged: Record<Topic, CustomSubtopic[]> = {
+        ...state.customSubtopics,
+      };
+
+      for (const topic of topics) {
+        const remoteEntry = remoteMap[topic as string];
+        if (!remoteEntry) continue;
+
+        const remoteUpdatedAt = remoteEntry.updatedAt ?? 0;
+        const localList = state.customSubtopics[topic] || [];
+        const localLatest =
+          localList.length > 0
+            ? Math.max(...localList.map((s) => s.updatedAt || s.createdAt || 0))
+            : 0;
+
+        // If remote is newer, adopt remote; otherwise keep local (local changes win).
+        if (remoteUpdatedAt > localLatest) {
+          merged[topic] = remoteEntry.subtopics;
+        }
+      }
+
+      set({
+        customSubtopics: merged,
+        customSubtopicsSynced: true,
         isLoadingCustomSubtopics: false,
-      }));
+      });
     } catch (error) {
-      console.error('Failed to load custom subtopics:', error);
+      console.error('Failed to sync custom subtopics:', error);
       set({ isLoadingCustomSubtopics: false });
     }
   },
