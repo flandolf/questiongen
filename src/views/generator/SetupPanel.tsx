@@ -14,7 +14,7 @@ import {
   TestTubeDiagonal,
   Zap,
 } from 'lucide-react';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAppSettings } from '@/AppContext';
@@ -35,6 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { auth } from '@/context/modules/firebase-init';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
 import { normalizeDifficulty } from '@/lib/persistence';
 import { cn } from '@/lib/utils';
@@ -311,11 +312,20 @@ function SetupPanelImpl({
     [selectedSubtopics],
   );
 
+  const loadCustomSubtopicsCb = useCallback(
+    (topic: Topic) => loadCustomSubtopics(topic),
+    [loadCustomSubtopics],
+  );
+
+  // Load custom subtopics on mount when user is authenticated
   useEffect(() => {
-    selectedTopics.forEach((topic) => {
-      void loadCustomSubtopics(topic);
+    const user = auth.currentUser;
+    if (!user?.uid) return;
+    const topicsToLoad = selectedTopics.length > 0 ? selectedTopics : (['Biology', 'Chemistry'] as Topic[]);
+    topicsToLoad.forEach((topic) => {
+      void loadCustomSubtopicsCb(topic);
     });
-  }, [selectedTopics, loadCustomSubtopics]);
+  }, [selectedTopics, loadCustomSubtopicsCb]);
 
   useEffect(() => {
     let cancelled = false;

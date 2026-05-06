@@ -27,11 +27,16 @@ pub fn extract_pages_from_pdf(pdf_base64: &str, page_indices: &[usize]) -> Resul
         return Err("PDF has no pages".to_string());
     }
 
-    let valid_indices: Vec<u32> = page_indices
-        .iter()
-        .filter(|&&i| i < page_count)
-        .map(|&i| i as u32)
-        .collect();
+    // If page_indices is empty, return all pages (convenience for tools that don't need specific pages)
+    let valid_indices: Vec<u32> = if page_indices.is_empty() {
+        doc.get_pages().keys().cloned().collect()
+    } else {
+        page_indices
+            .iter()
+            .filter(|&&i| i < page_count)
+            .map(|&i| i as u32)
+            .collect()
+    };
 
     if valid_indices.is_empty() {
         return Err("No valid page indices provided".to_string());

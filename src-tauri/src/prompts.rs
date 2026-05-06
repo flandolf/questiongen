@@ -930,16 +930,20 @@ CORE RULES:\n\
 - Each subtopic must be specific, assessable, and appropriate for exam questions\n\
 - Use proper VCE terminology and command terms\n\
 - Output ONLY valid JSON array\n\n\
-OUTPUT FORMAT:\n\
+OUTPUT FORMAT - Each subtopic MUST include all three techniqueNotes fields:\n\
 [{\n\
   \"name\": \"Subtopic Name\",\n\
   \"group\": \"unit#-aos-slug\",\n\
   \"techniqueNotes\": {\n\
-    \"coreConcepts\": \"Brief description of key concepts\",\n\
-    \"examStyleGuidelines\": \"Guidance for exam questions\",\n\
-    \"antiPrompts\": [\"thing to avoid\", \"another thing to avoid\"]\n\
+    \"coreConcepts\": \"Key concepts students must understand (2-4 sentences)\",\n\
+    \"examStyleGuidelines\": \"How to approach exam questions on this subtopic, common mistakes to avoid\",\n\
+    \"antiPrompts\": [\"What NOT to do\", \"Common student errors\", \"Misconceptions to correct\"]\n\
   }\n\
 }]\n\n\
+REQUIREMENTS:\n\
+- coreConcepts: Essential knowledge students need for this subtopic\n\
+- examStyleGuidelines: Strategic advice for exam success, what examiners look for\n\
+- antiPrompts: At least 2-3 items students should avoid or common pitfalls\n\n\
 STRICT JSON OUTPUT: Output only the JSON array, no markdown or explanation."
 }
 
