@@ -169,6 +169,8 @@ pub struct GenerateQuestionsRequest {
     pub average_marks_per_question: Option<u8>,
     pub shuffle_subtopics: Option<bool>,
     pub ai_difficulty_scaling_enabled: Option<bool>,
+    #[serde(default)]
+    pub custom_subtopics: Option<HashMap<String, Vec<String>>>,
     pub recent_average_score: Option<f64>,
     pub recent_difficulty: Option<String>,
 }
@@ -508,6 +510,8 @@ pub struct GenerateMcQuestionsRequest {
     pub diversity_strictness: Option<String>,
     pub ai_difficulty_scaling_enabled: Option<bool>,
     pub shuffle_subtopics: Option<bool>,
+    #[serde(default)]
+    pub custom_subtopics: Option<HashMap<String, Vec<String>>>,
     pub recent_average_score: Option<f64>,
     pub recent_difficulty: Option<String>,
     pub average_marks_per_question: Option<u8>,

@@ -34,6 +34,10 @@ function getSubtopicsForTopic(topic: Topic, store: AppState): string[] {
   return store.selectedSubtopics[topic] || [];
 }
 
+function getCustomSubtopicsForTopic(topic: Topic, store: AppState): string[] {
+  return (store.customSubtopics[topic] || []).map((subtopic) => subtopic.name);
+}
+
 function updateBatchEntry(idx: number, update: Partial<BatchTopicProgress>) {
   const store = useAppStore.getState();
   store.setBatchProgress((prev) => {
@@ -106,6 +110,7 @@ async function generateTopicQuestions(
 
   try {
     const topicSubtopics = getSubtopicsForTopic(topic, store);
+    const customTopicSubtopics = getCustomSubtopicsForTopic(topic, store);
     let topicQuestions: (GeneratedQuestion | McQuestion)[] = [];
     const topicTelemetry: GenerationTelemetry = {
       durationMs: 0,
@@ -140,6 +145,10 @@ async function generateTopicQuestions(
           techMode,
           includeExamContext,
           subtopics: shuffled,
+          customSubtopics:
+            customTopicSubtopics.length > 0
+              ? { [topic]: customTopicSubtopics }
+              : undefined,
           shuffleSubtopics: true,
           avoidSimilarQuestions,
           aiDifficultyScalingEnabled,
@@ -186,6 +195,10 @@ async function generateTopicQuestions(
             techMode,
             includeExamContext,
             subtopics: call.subtopics,
+            customSubtopics:
+              customTopicSubtopics.length > 0
+                ? { [topic]: customTopicSubtopics }
+                : undefined,
             shuffleSubtopics,
             avoidSimilarQuestions,
             aiDifficultyScalingEnabled,

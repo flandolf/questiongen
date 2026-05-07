@@ -23,7 +23,8 @@ import {
   normalizeSavedSet,
 } from '@/lib/persistence';
 import { useAppStore } from '@/store';
-import type { Preset, StreakData, StudyGoals } from '@/types';
+import type { AppState } from '@/store/types';
+import type { CustomSubtopic, Preset, StreakData, StudyGoals, Topic } from '@/types';
 
 import {
   migrateSettings,
@@ -63,6 +64,54 @@ function mergeById<T extends { id: string; lastModified?: number }>(
   }
   return result;
 }
+
+function getCustomSubtopicLatestTimestamp(subtopics: CustomSubtopic[]): number {
+  if (subtopics.length === 0) return 0;
+  return Math.max(...subtopics.map((subtopic) => subtopic.updatedAt || subtopic.createdAt || 0));
+}
+
+function mergeCustomSubtopics(
+  local: Record<Topic, CustomSubtopic[]>,
+  remote: Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }>,
+): {
+  merged: Record<Topic, CustomSubtopic[]>;
+  topicsToPush: Topic[];
+} {
+  const merged: Record<Topic, CustomSubtopic[]> = { ...local };
+  const topicsToPush: Topic[] = [];
+  const topics: Topic[] = [
+    'Biology',
+    'Chemistry',
+    'General Mathematics',
+    'Mathematical Methods',
+    'Physical Education',
+    'Specialist Mathematics',
+  ];
+
+  for (const topic of topics) {
+    const remoteEntry = remote[topic];
+    const localList = local[topic] || [];
+    const localLatest = getCustomSubtopicLatestTimestamp(localList);
+
+    if (!remoteEntry) {
+      if (localList.length > 0) topicsToPush.push(topic);
+      continue;
+    }
+
+    const remoteUpdatedAt = remoteEntry.updatedAt ?? 0;
+    if (remoteUpdatedAt > localLatest) {
+      merged[topic] = remoteEntry.subtopics;
+    } else if (localList.length > 0) {
+      topicsToPush.push(topic);
+    }
+  }
+
+  return { merged, topicsToPush };
+}
+
+type SettingsProfileUpdates = Partial<
+  Pick<AppState, 'apiKey' | 'studyGoals' | 'streakData' | 'presets'>
+>;
 
 export interface UseSyncReturn {
   user: FirebaseUser | null;
@@ -105,6 +154,7 @@ export function useSync(): UseSyncReturn {
     mcHistory: -1,
     generationHistory: -1,
     savedSets: -1,
+    customSubtopics: -1,
   });
 
   const cleanupListeners = useCallback(() => {
@@ -159,6 +209,7 @@ export function useSync(): UseSyncReturn {
         mcHistory: -1,
         generationHistory: -1,
         savedSets: -1,
+        customSubtopics: -1,
       };
 
       try {
@@ -338,6 +389,54 @@ export function useSync(): UseSyncReturn {
           },
         );
 
+        // 3.5 Custom Subtopics - per-topic docs under a user collection
+        const customSubtopicsUnsub = onSnapshot(
+          collection(db, `users/${uid}/customSubtopics`),
+          { includeMetadataChanges: true },
+          (snapshot) => {
+            if (
+              lastSnapshotSizesRef.current.customSubtopics !== snapshot.size
+            ) {
+              console.info(
+                `[FirebaseSync] Received snapshot for ${snapshot.size} custom subtopic topics.`,
+              );
+              lastSnapshotSizesRef.current.customSubtopics = snapshot.size;
+            }
+
+            const remote = snapshot.docs.reduce<
+              Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }>
+            >((acc, d) => {
+              const data = d.data() as {
+                subtopics?: CustomSubtopic[];
+                updatedAt?: unknown;
+              };
+              acc[d.id] = {
+                subtopics: Array.isArray(data.subtopics) ? data.subtopics : [],
+                updatedAt:
+                  typeof data.updatedAt === 'number'
+                    ? data.updatedAt
+                    : null,
+              };
+              return acc;
+            }, {});
+
+            const local = useAppStore.getState().customSubtopics;
+            const { merged } = mergeCustomSubtopics(local, remote);
+
+            useAppStore.setState({
+              customSubtopics: merged,
+              customSubtopicsSynced: true,
+            });
+          },
+          (error) => {
+            console.error(
+              '[FirebaseSync] Custom subtopics listener error:',
+              error,
+            );
+            setSyncStatus('error');
+          },
+        );
+
         // 4. Consolidated Settings (replacing main, goals, presets)
         const settingsUnsub = onSnapshot(
           doc(db, `users/${uid}/settings`, 'profile'),
@@ -355,13 +454,19 @@ export function useSync(): UseSyncReturn {
               const localLastModified = getLocalWriteTimestamp('settings');
 
               if (remoteLastModified > localLastModified) {
-                if (data?.apiKey) useAppStore.setState({ apiKey: data.apiKey });
-                if (data?.studyGoals)
-                  useAppStore.setState({ studyGoals: data.studyGoals });
-                if (data?.streakData)
-                  useAppStore.setState({ streakData: data.streakData });
-                if (data?.presets)
-                  useAppStore.setState({ presets: data.presets });
+                const updates: SettingsProfileUpdates = {};
+
+                if ('apiKey' in data) updates.apiKey = data.apiKey ?? '';
+                if ('studyGoals' in data && data.studyGoals)
+                  updates.studyGoals = data.studyGoals;
+                if ('streakData' in data && data.streakData)
+                  updates.streakData = data.streakData;
+                if ('presets' in data && data.presets)
+                  updates.presets = data.presets;
+
+                if (Object.keys(updates).length > 0) {
+                  useAppStore.setState(updates);
+                }
               }
             }
           },
@@ -379,6 +484,7 @@ export function useSync(): UseSyncReturn {
           mchUnsub,
           ghUnsub,
           ssUnsub,
+          customSubtopicsUnsub,
           settingsUnsub,
         ];
 
@@ -401,7 +507,10 @@ export function useSync(): UseSyncReturn {
     const handleOnline = () => {
       setIsOnline(true);
       // Re-trigger sync up when coming back online
-      if (user) syncUpPendingData();
+      if (user) {
+        syncUpPendingData();
+        void useAppStore.getState().syncCustomSubtopics?.();
+      }
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -420,7 +529,7 @@ export function useSync(): UseSyncReturn {
       const previousUid = activeUidRef.current;
       const nextUid = firebaseUser?.uid ?? null;
 
-      if (previousUid !== nextUid) {
+      if (previousUid && previousUid !== nextUid) {
         // Clear user-scoped custom subtopics whenever auth identity changes so
         // a fresh sync can run for the active account.
         useAppStore.setState({
