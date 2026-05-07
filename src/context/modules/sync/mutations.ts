@@ -27,6 +27,57 @@ import type { Preset, StreakData, StudyGoals } from '@/types/study';
  * These bypass the old queue system and rely on Firestore's native offline persistence.
  */
 
+type PendingSettingsUpdate = {
+  apiKey?: string;
+  studyGoals?: StudyGoals;
+  streakData?: StreakData;
+  presets?: Preset[];
+};
+
+let pendingSettingsUpdate: PendingSettingsUpdate = {};
+
+const flushPendingSettingsUpdate = debounce(async () => {
+  const patch = pendingSettingsUpdate;
+  pendingSettingsUpdate = {};
+
+  if (
+    patch.apiKey === undefined &&
+    patch.studyGoals === undefined &&
+    patch.streakData === undefined &&
+    patch.presets === undefined
+  ) {
+    return;
+  }
+
+  const uid = getUid();
+  if (!uid) return;
+
+  const now = Date.now();
+
+  try {
+    await setDoc(
+      doc(db, `users/${uid}/settings`, 'profile'),
+      removeUndefined({
+        ...patch,
+        updatedAt: serverTimestamp(),
+        lastModified: now,
+      }),
+      { merge: true },
+    );
+    localStorage.setItem('sync_settings_lastWrite', now.toString());
+  } catch (error) {
+    console.error('[Sync] Failed to update settings profile:', error);
+  }
+}, 1500);
+
+function queueSettingsUpdate(update: PendingSettingsUpdate) {
+  pendingSettingsUpdate = {
+    ...pendingSettingsUpdate,
+    ...update,
+  };
+  void flushPendingSettingsUpdate();
+}
+
 /**
  * Persist a `QuestionHistoryEntry` to Firestore under the current user.
  * Marks the entry as uploaded and sets `updatedAt` to server time.
@@ -175,86 +226,36 @@ export async function deleteSavedSet(id: string) {
 
 /**
  * Update the user's study goals and streak data under `users/{uid}/settings/profile`.
- * Performs a merge so only provided fields are updated.
- * Debounced to reduce writes during rapid slider movements.
+ * Writes are coalesced with other settings changes so rapid edits only emit one
+ * Firestore write while preserving merge semantics.
  *
  * @param goals - The new study goals to persist.
  * @param streakData - The associated streak data to persist.
  */
-export const updateStudyGoals = debounce(
-  async (goals: StudyGoals, streakData: StreakData) => {
-    const uid = getUid();
-    if (!uid) return;
-    try {
-      await setDoc(
-        doc(db, `users/${uid}/settings`, 'profile'),
-        removeUndefined({
-          studyGoals: goals,
-          streakData: streakData,
-          updatedAt: serverTimestamp(),
-          lastModified: Date.now(),
-        }),
-        { merge: true },
-      );
-      localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
-    } catch (error) {
-      console.error('[Sync] Failed to update study goals:', error);
-    }
-  },
-  1500,
-);
+export function updateStudyGoals(goals: StudyGoals, streakData: StreakData) {
+  queueSettingsUpdate({ studyGoals: goals, streakData });
+}
 
 /**
  * Update the user's presets under `users/{uid}/settings/profile`.
- * Uses merge to avoid overwriting other settings.
- * Debounced to reduce writes.
+ * Uses the shared settings queue so presets changes can batch with other fields.
  *
  * @param presets - Array of `Preset` objects to persist.
  */
-export const updatePresets = debounce(async (presets: Preset[]) => {
-  const uid = getUid();
-  if (!uid) return;
-  try {
-    await setDoc(
-      doc(db, `users/${uid}/settings`, 'profile'),
-      removeUndefined({
-        presets,
-        updatedAt: serverTimestamp(),
-        lastModified: Date.now(),
-      }),
-      { merge: true },
-    );
-    localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
-  } catch (error) {
-    console.error('[Sync] Failed to update presets:', error);
-  }
-}, 1500);
+export function updatePresets(presets: Preset[]) {
+  queueSettingsUpdate({ presets });
+}
 
 /**
  * Update the stored API key for the user under `users/{uid}/settings/profile`.
- * Uses `merge: true` to preserve other settings.
- * Debounced to reduce writes.
+ * Uses the shared settings queue so rapid changes across settings only emit a
+ * single merged Firestore write.
  *
  * @param apiKey - The API key string to persist.
  */
-export const updateApiKey = debounce(async (apiKey: string) => {
-  const uid = getUid();
-  if (!uid) return;
-  try {
-    await setDoc(
-      doc(db, `users/${uid}/settings`, 'profile'),
-      removeUndefined({
-        apiKey,
-        updatedAt: serverTimestamp(),
-        lastModified: Date.now(),
-      }),
-      { merge: true },
-    );
-    localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
-  } catch (error) {
-    console.error('[Sync] Failed to update API key:', error);
-  }
-}, 1500);
+export function updateApiKey(apiKey: string) {
+  queueSettingsUpdate({ apiKey });
+}
 
 /**
  * Migrates old settings documents (main, goals, presets) to the consolidated 'profile' document.

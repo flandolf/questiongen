@@ -80,6 +80,7 @@ fn normalize_optional_text(value: Option<&String>) -> Option<String> {
 fn validate_and_prepare_generation_inputs(
     topics: &[String],
     subtopics: Option<&Vec<String>>,
+    custom_subtopics: Option<&HashMap<String, Vec<String>>>,
     custom_focus_area: Option<&String>,
     prior_question_prompts: Option<&Vec<String>>,
     average_marks: Option<u8>,
@@ -132,9 +133,19 @@ fn validate_and_prepare_generation_inputs(
             .map(|subtopic| subtopic.name.to_ascii_lowercase())
             .collect();
 
+        let custom_allowed_subtopics: HashSet<String> = custom_subtopics
+            .into_iter()
+            .flat_map(|map| topics.iter().filter_map(move |topic| map.get(topic)))
+            .flat_map(|items| normalize_unique_strings(items, true))
+            .map(|subtopic| subtopic.to_ascii_lowercase())
+            .collect();
+
         let unknown_subtopics: Vec<String> = selected_subtopics
             .iter()
-            .filter(|subtopic| !allowed_subtopics.contains(&subtopic.to_ascii_lowercase()))
+            .filter(|subtopic| {
+                let lower = subtopic.to_ascii_lowercase();
+                !allowed_subtopics.contains(&lower) && !custom_allowed_subtopics.contains(&lower)
+            })
             .cloned()
             .collect();
 
@@ -227,6 +238,7 @@ fn estimate_completion_budget(
 pub trait GenerationRequestTrait {
     fn topics(&self) -> &[String];
     fn subtopics(&self) -> Option<&Vec<String>>;
+    fn custom_subtopics(&self) -> Option<&HashMap<String, Vec<String>>>;
     fn custom_focus_area(&self) -> Option<&String>;
     fn prior_question_prompts(&self) -> Option<&Vec<String>>;
     fn average_marks(&self) -> Option<u8>;
@@ -251,6 +263,9 @@ impl GenerationRequestTrait for GenerateQuestionsRequest {
     }
     fn subtopics(&self) -> Option<&Vec<String>> {
         self.subtopics.as_ref()
+    }
+    fn custom_subtopics(&self) -> Option<&HashMap<String, Vec<String>>> {
+        self.custom_subtopics.as_ref()
     }
     fn custom_focus_area(&self) -> Option<&String> {
         self.custom_focus_area.as_ref()
@@ -308,6 +323,9 @@ impl GenerationRequestTrait for GenerateMcQuestionsRequest {
     }
     fn subtopics(&self) -> Option<&Vec<String>> {
         self.subtopics.as_ref()
+    }
+    fn custom_subtopics(&self) -> Option<&HashMap<String, Vec<String>>> {
+        self.custom_subtopics.as_ref()
     }
     fn custom_focus_area(&self) -> Option<&String> {
         self.custom_focus_area.as_ref()
@@ -393,6 +411,7 @@ impl GenerationService {
         let prepared = validate_and_prepare_generation_inputs(
             &topics,
             request.subtopics(),
+            request.custom_subtopics(),
             request.custom_focus_area(),
             request.prior_question_prompts(),
             request.average_marks(),
@@ -1810,6 +1829,7 @@ impl NormalizableQuestion for McQuestion {
 #[cfg(test)]
 mod tests {
     use super::{estimate_completion_budget, validate_and_prepare_generation_inputs};
+    use std::collections::HashMap;
 
     #[test]
     fn prepare_generation_inputs_trims_and_deduplicates() {
@@ -1833,6 +1853,7 @@ mod tests {
         let prepared = validate_and_prepare_generation_inputs(
             &topics,
             Some(&subtopics),
+            None,
             custom_focus_area.as_ref(),
             Some(&prior_prompts),
             Some(10),
@@ -1871,6 +1892,27 @@ mod tests {
 
         assert!(hard > medium);
         assert!(extreme > hard);
+    }
+
+    #[test]
+    fn validate_generation_inputs_accepts_custom_subtopics() {
+        let topics = vec!["Biology".to_string()];
+        let subtopics = vec!["Structural Isomerism in Alkanes and Alkenes".to_string()];
+        let mut custom_subtopics = HashMap::new();
+        custom_subtopics.insert("Biology".to_string(), subtopics.clone());
+
+        let prepared = validate_and_prepare_generation_inputs(
+            &topics,
+            Some(&subtopics),
+            Some(&custom_subtopics),
+            None,
+            None,
+            Some(10),
+            1,
+        )
+        .expect("valid custom subtopics");
+
+        assert_eq!(prepared.subtopics, Some(subtopics));
     }
 
     #[test]

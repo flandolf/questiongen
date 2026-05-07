@@ -4,6 +4,7 @@ import { APP_STATE_STORAGE_KEY, PERSISTED_APP_STATE_VERSION } from '@/types';
 import type { TimerState } from '@/types/timer';
 
 import type {
+  CustomSubtopic,
   Difficulty,
   GeneratedQuestion,
   GenerationRecord,
@@ -21,6 +22,7 @@ import type {
   SavedQuestionSet,
   StreakData,
   StudyGoals,
+  Topic,
   TimeAllocationConfig,
 } from '../types';
 import {
@@ -231,6 +233,11 @@ export function normalizePersistedAppState(raw: unknown): PersistedAppState {
     writtenTimer: normalizeTimerState(data.writtenTimer),
     mcTimer: normalizeTimerState(data.mcTimer),
     timeAllocations: normalizeTimeAllocations(data.timeAllocations),
+    customSubtopics: normalizeCustomSubtopics(data.customSubtopics),
+    customSubtopicsSynced:
+      typeof data.customSubtopicsSynced === 'boolean'
+        ? data.customSubtopicsSynced
+        : false,
   };
 }
 
@@ -512,6 +519,78 @@ function normalizeTimerState(raw: unknown): TimerState | null {
 function normalizeTimeAllocations(raw: unknown): TimeAllocationConfig {
   if (!Array.isArray(raw)) return DEFAULT_TIME_ALLOCATIONS;
   return raw as TimeAllocationConfig;
+}
+
+function normalizeCustomSubtopics(
+  raw: unknown,
+): Record<Topic, CustomSubtopic[]> {
+  const empty: Record<Topic, CustomSubtopic[]> = {
+    Biology: [],
+    Chemistry: [],
+    'General Mathematics': [],
+    'Mathematical Methods': [],
+    'Physical Education': [],
+    'Specialist Mathematics': [],
+  };
+
+  if (!isRecord(raw)) return empty;
+
+  for (const topic of Object.keys(empty) as Topic[]) {
+    const entries = raw[topic];
+    if (!Array.isArray(entries)) continue;
+
+    empty[topic] = entries
+      .map((entry) => normalizeCustomSubtopic(topic, entry))
+      .filter((entry): entry is CustomSubtopic => entry !== null);
+  }
+
+  return empty;
+}
+
+function normalizeCustomSubtopic(
+  topic: Topic,
+  raw: unknown,
+): CustomSubtopic | null {
+  if (!isRecord(raw) || typeof raw.id !== 'string' || typeof raw.name !== 'string') {
+    return null;
+  }
+
+  const createdAt =
+    typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt)
+      ? raw.createdAt
+      : Date.now();
+  const updatedAt =
+    typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt)
+      ? raw.updatedAt
+      : createdAt;
+
+  const techniqueNotes = isRecord(raw.technique_notes)
+    ? raw.technique_notes
+    : null;
+
+  return {
+    id: raw.id,
+    topic,
+    name: raw.name,
+    technique_notes: techniqueNotes
+      ? {
+          core_concepts: asString(techniqueNotes.core_concepts),
+          exam_style_guidelines: asString(
+            techniqueNotes.exam_style_guidelines,
+          ),
+          anti_prompts: Array.isArray(techniqueNotes.anti_prompts)
+            ? techniqueNotes.anti_prompts.filter(
+                (value): value is string => typeof value === 'string',
+              )
+            : undefined,
+          tech_free_rules: asString(techniqueNotes.tech_free_rules),
+          tech_active_rules: asString(techniqueNotes.tech_active_rules),
+        }
+      : undefined,
+    group: typeof raw.group === 'string' ? raw.group : undefined,
+    createdAt,
+    updatedAt,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -58,21 +58,30 @@ export const createCustomSubtopicsSlice: StateCreator<
       const merged: Record<Topic, CustomSubtopic[]> = {
         ...state.customSubtopics,
       };
+      const topicsToPush: Topic[] = [];
 
       for (const topic of topics) {
         const remoteEntry = remoteMap[topic as string];
-        if (!remoteEntry) continue;
-
-        const remoteUpdatedAt = remoteEntry.updatedAt ?? 0;
         const localList = state.customSubtopics[topic] || [];
         const localLatest =
           localList.length > 0
             ? Math.max(...localList.map((s) => s.updatedAt || s.createdAt || 0))
             : 0;
 
+        if (!remoteEntry) {
+          if (localList.length > 0) {
+            topicsToPush.push(topic);
+          }
+          continue;
+        }
+
+        const remoteUpdatedAt = remoteEntry.updatedAt ?? 0;
+
         // If remote is newer, adopt remote; otherwise keep local (local changes win).
         if (remoteUpdatedAt > localLatest) {
           merged[topic] = remoteEntry.subtopics;
+        } else if (localList.length > 0) {
+          topicsToPush.push(topic);
         }
       }
 
@@ -81,6 +90,12 @@ export const createCustomSubtopicsSlice: StateCreator<
         customSubtopicsSynced: true,
         isLoadingCustomSubtopics: false,
       });
+
+      await Promise.all(
+        topicsToPush.map((topic) =>
+          saveCustomSubtopicsToFirebase(topic, merged[topic] || []),
+        ),
+      );
     } catch (error) {
       console.error('Failed to sync custom subtopics:', error);
       set({ isLoadingCustomSubtopics: false });

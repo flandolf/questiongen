@@ -82,4 +82,37 @@ describe('persistence normalization', () => {
     expect(set?.createdAt).toBe('2026-04-20T09:00:00.000Z');
     expect(set?.updatedAt).toBe(updatedAt);
   });
+
+  it('preserves custom subtopics during persistence normalization', () => {
+    const normalized = normalizePersistedAppState({
+      customSubtopicsSynced: true,
+      customSubtopics: {
+        Biology: [
+          {
+            id: 'bio-1',
+            topic: 'Biology',
+            name: 'Cell Signalling',
+            group: 'unit3-cell-communication',
+            technique_notes: {
+              core_concepts: 'Signal transduction basics',
+              anti_prompts: ['No rote recall'],
+            },
+            createdAt: 1713600000000,
+            updatedAt: 1713603600000,
+          },
+        ],
+      },
+    });
+
+    expect(normalized.customSubtopicsSynced).toBe(true);
+    expect(normalized.customSubtopics?.Biology).toHaveLength(1);
+    expect(normalized.customSubtopics?.Biology[0]).toMatchObject({
+      id: 'bio-1',
+      topic: 'Biology',
+      name: 'Cell Signalling',
+      group: 'unit3-cell-communication',
+      createdAt: 1713600000000,
+      updatedAt: 1713603600000,
+    });
+  });
 });
