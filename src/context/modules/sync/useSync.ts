@@ -22,6 +22,7 @@ import {
   normalizeQuestionHistory,
   normalizeSavedSet,
 } from '@/lib/persistence';
+import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { useAppStore } from '@/store';
 import type { AppState } from '@/store/types';
 import type { CustomSubtopic, Preset, StreakData, StudyGoals, Topic } from '@/types';
@@ -137,6 +138,45 @@ const EMPTY_CUSTOM_SUBTOPICS = {
   'Physical Education': [],
   'Specialist Mathematics': [],
 };
+
+const EMPTY_SYNCED_SETTINGS = {
+  apiKey: EMPTY_PERSISTED_APP_STATE.settings.apiKey,
+  studyGoals: EMPTY_PERSISTED_APP_STATE.studyGoals,
+  streakData: EMPTY_PERSISTED_APP_STATE.streakData,
+  presets: EMPTY_PERSISTED_APP_STATE.presets,
+};
+
+function resetUserScopedSyncState() {
+  useAppStore.setState({
+    ...EMPTY_SYNCED_SETTINGS,
+    questionHistory: EMPTY_PERSISTED_APP_STATE.questionHistory,
+    mcHistory: EMPTY_PERSISTED_APP_STATE.mcHistory,
+    savedSets: EMPTY_PERSISTED_APP_STATE.savedSets,
+    generationHistory: EMPTY_PERSISTED_APP_STATE.generationHistory,
+    customSubtopics: EMPTY_CUSTOM_SUBTOPICS,
+    customSubtopicsSynced: false,
+    questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
+    activeQuestionIndex: EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
+    writtenQuestionPresentedAtById:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId,
+    answersByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
+    imagesByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
+    feedbackByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
+    writtenRawModelOutput: EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
+    writtenGenerationTelemetry:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null,
+    activeWrittenSavedSetId: EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId,
+    mcQuestions: EMPTY_PERSISTED_APP_STATE.mcSession.questions,
+    activeMcQuestionIndex: EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
+    mcQuestionPresentedAtById:
+      EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
+    mcAnswersByQuestionId: EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
+    mcRawModelOutput: EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput,
+    mcGenerationTelemetry:
+      EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
+    activeMcSavedSetId: EMPTY_PERSISTED_APP_STATE.mcSession.savedSetId,
+  });
+}
 
 export function useSync(): UseSyncReturn {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -530,12 +570,9 @@ export function useSync(): UseSyncReturn {
       const nextUid = firebaseUser?.uid ?? null;
 
       if (previousUid && previousUid !== nextUid) {
-        // Clear user-scoped custom subtopics whenever auth identity changes so
-        // a fresh sync can run for the active account.
-        useAppStore.setState({
-          customSubtopics: EMPTY_CUSTOM_SUBTOPICS,
-          customSubtopicsSynced: false,
-        });
+        // Clear user-scoped state whenever auth identity changes so the next
+        // account starts from a clean local view before remote snapshots load.
+        resetUserScopedSyncState();
       }
 
       console.info(
