@@ -71,6 +71,8 @@ const flushPendingSettingsUpdate = debounce(async () => {
 }, 1500);
 
 function queueSettingsUpdate(update: PendingSettingsUpdate) {
+  const now = Date.now();
+  localStorage.setItem('sync_settings_lastWrite', now.toString());
   pendingSettingsUpdate = {
     ...pendingSettingsUpdate,
     ...update,

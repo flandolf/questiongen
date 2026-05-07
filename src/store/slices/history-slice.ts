@@ -168,6 +168,7 @@ export const createHistorySlice: StateCreator<
           s.savedSets.find((e) => e.id === savedSetId)?.createdAt ?? now,
         updatedAt: now,
         lastModified: nowMs,
+        isUploaded: false,
         preferences: preferencesSnapshot,
         writtenSession,
       };
@@ -229,6 +230,7 @@ export const createHistorySlice: StateCreator<
       createdAt: s.savedSets.find((e) => e.id === savedSetId)?.createdAt ?? now,
       updatedAt: now,
       lastModified: nowMs,
+      isUploaded: false,
       preferences: preferencesSnapshot,
       mcSession,
     };
