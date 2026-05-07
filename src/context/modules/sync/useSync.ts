@@ -139,6 +139,39 @@ const EMPTY_CUSTOM_SUBTOPICS = {
   'Specialist Mathematics': [],
 };
 
+type CustomSubtopicRemoteEntry = {
+  subtopics: CustomSubtopic[];
+  updatedAt: number | null;
+};
+
+function toMs(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.abs(value) < 1_000_000_000_000 ? value * 1000 : value;
+  }
+  if (typeof value === 'object') {
+    const ts = value as {
+      toDate?: () => Date;
+      seconds?: number;
+      nanoseconds?: number;
+    };
+    if (typeof ts.toDate === 'function') {
+      try {
+        const date = ts.toDate();
+        if (date instanceof Date && !Number.isNaN(date.getTime())) {
+          return date.getTime();
+        }
+      } catch {
+        // fall through
+      }
+    }
+    if (typeof ts.seconds === 'number' && Number.isFinite(ts.seconds)) {
+      return ts.seconds * 1000 + Math.floor((ts.nanoseconds ?? 0) / 1_000_000);
+    }
+  }
+  return null;
+}
+
 const EMPTY_SYNCED_SETTINGS = {
   apiKey: EMPTY_PERSISTED_APP_STATE.settings.apiKey,
   studyGoals: EMPTY_PERSISTED_APP_STATE.studyGoals,
@@ -253,13 +286,10 @@ export function useSync(): UseSyncReturn {
       };
 
       try {
-        // 1. Question History - Limit to 100 most recent
+        // 1. Question History - listen to the full collection so devices can
+        // converge on the same attempt count instead of only the newest page.
         const qhUnsub = onSnapshot(
-          query(
-            collection(db, `users/${uid}/questionHistory`),
-            orderBy('updatedAt', 'desc'),
-            limit(100),
-          ),
+          query(collection(db, `users/${uid}/questionHistory`), orderBy('updatedAt', 'desc')),
           { includeMetadataChanges: true },
           (snapshot) => {
             if (
@@ -444,18 +474,16 @@ export function useSync(): UseSyncReturn {
             }
 
             const remote = snapshot.docs.reduce<
-              Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }>
+              Record<string, CustomSubtopicRemoteEntry>
             >((acc, d) => {
               const data = d.data() as {
                 subtopics?: CustomSubtopic[];
                 updatedAt?: unknown;
+                lastModified?: unknown;
               };
               acc[d.id] = {
                 subtopics: Array.isArray(data.subtopics) ? data.subtopics : [],
-                updatedAt:
-                  typeof data.updatedAt === 'number'
-                    ? data.updatedAt
-                    : null,
+                updatedAt: toMs(data.lastModified) ?? toMs(data.updatedAt),
               };
               return acc;
             }, {});

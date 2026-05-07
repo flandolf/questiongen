@@ -329,10 +329,12 @@ export async function saveCustomSubtopics(
     return;
   }
   try {
+    const now = Date.now();
     await setDoc(
       doc(db, `users/${uid}/customSubtopics`, topic),
       removeUndefined({
         subtopics,
+        lastModified: now,
         updatedAt: serverTimestamp(),
       }),
       { merge: true },
@@ -414,7 +416,7 @@ export async function loadAllCustomSubtopics(): Promise<
     snap.forEach((d) => {
       const data = d.data();
       const subtopics = (data.subtopics as CustomSubtopic[]) || [];
-      const updatedAt = toMs(data.updatedAt);
+      const updatedAt = toMs(data.lastModified) ?? toMs(data.updatedAt);
       result[d.id] = { subtopics, updatedAt };
     });
     return result;

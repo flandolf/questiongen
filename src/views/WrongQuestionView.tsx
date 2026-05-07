@@ -956,36 +956,23 @@ function ReattemptView({
                     <h1 className='text-xl font-bold'>Question {idx + 1}</h1>
                     <MarkdownMath content={entry.question.promptMarkdown} />
                   </div>
-                  {mcSketchpadActive && (
-                    <div className='min-w-0'>
-                      <McAnswerCard
-                        questionId={entry.id}
-                        options={entry.question.options}
-                        correctAnswer={entry.question.correctAnswer}
-                        explanationMarkdown={entry.question.explanationMarkdown}
-                        selectedAnswer={selectedAnswer}
-                        hideCorrectAnswer={false}
-                        onSelectAnswer={handleSelectAnswer}
-                        onApplyOverride={handleApplyMcOverride}
-                        isSketchpadOpen={mcSketchpadActive}
-                        onToggleSketchpad={() =>
-                          setMcSketchpadActive((v) => !v)
-                        }
-                        onImageDrop={(files) => {
-                          void fileToDataUrl(files[0]).then((dataUrl) =>
-                            setImage({
-                              id: crypto.randomUUID(),
-                              timestamp: new Date().toISOString(),
-                              dataUrl,
-                            }),
-                          );
-                        }}
-                        onImageRemove={() => setImage(undefined)}
-                        renderSketchpadInline={false}
-                      />
-                    </div>
-                  )}
                 </div>
+              }
+              leftBelowSlot={
+                mcSketchpadActive ? (
+                  <div className='min-w-0'>
+                    <UnifiedMcqOptionsGrid
+                      options={entry.question.options}
+                      selectedAnswer={selectedAnswer}
+                      correctAnswer={entry.question.correctAnswer}
+                      answered={Boolean(selectedAnswer)}
+                      revealCorrectness={Boolean(selectedAnswer)}
+                      lockSelection={false}
+                      onSelect={handleSelectAnswer}
+                      columns={1}
+                    />
+                  </div>
+                ) : undefined
               }
               rightSlot={
                 mcSketchpadActive ? (
