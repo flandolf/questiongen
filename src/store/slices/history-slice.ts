@@ -360,19 +360,21 @@ export const createHistorySlice: StateCreator<
   },
 
   updateQuestionHistoryEntry: (entry) => {
+    const nextEntry = { ...entry, isUploaded: false };
     set((s) => ({
       questionHistory: s.questionHistory.map((e) =>
-        e.id === entry.id ? entry : e,
+        e.id === entry.id ? nextEntry : e,
       ),
     }));
-    void v3SaveQuestionHistoryEntry(entry);
+    void v3SaveQuestionHistoryEntry(nextEntry);
   },
 
   updateMcHistoryEntry: (entry) => {
+    const nextEntry = { ...entry, isUploaded: false };
     set((s) => ({
-      mcHistory: s.mcHistory.map((e) => (e.id === entry.id ? entry : e)),
+      mcHistory: s.mcHistory.map((e) => (e.id === entry.id ? nextEntry : e)),
     }));
-    void v3SaveMcHistoryEntry(entry);
+    void v3SaveMcHistoryEntry(nextEntry);
   },
 
   clearQuestionHistory: () => {

@@ -12,6 +12,7 @@ import {
   useWrittenSession,
 } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
+import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
 import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
@@ -1278,6 +1279,20 @@ export function GeneratorView() {
                 }}
               >
                 <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+              </div>
+            }
+            leftBelowSlot={
+              <div className='min-w-0'>
+                <UnifiedMcqOptionsGrid
+                  options={activeMcQuestion.options}
+                  selectedAnswer={activeMcAnswer}
+                  correctAnswer={activeMcQuestion.correctAnswer}
+                  answered={Boolean(activeMcAnswer)}
+                  revealCorrectness={Boolean(activeMcAnswer)}
+                  lockSelection={false}
+                  onSelect={handleMcAnswer}
+                  columns={1}
+                />
               </div>
             }
             rightSlot={

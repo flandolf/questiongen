@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 
 interface QuestionSplitLayoutProps {
   leftSlot: ReactNode;
+  leftBelowSlot?: ReactNode;
   rightSlot: ReactNode;
   sketchpadActive?: boolean;
   mode: 'written' | 'mc';
@@ -18,6 +19,7 @@ interface QuestionSplitLayoutProps {
  */
 export function QuestionSplitLayout({
   leftSlot,
+  leftBelowSlot,
   rightSlot,
   sketchpadActive,
   mode,
@@ -156,6 +158,7 @@ export function QuestionSplitLayout({
           }
         >
           {leftSlot}
+          {leftBelowSlot}
         </motion.div>
 
         {sketchpadActive ? (
@@ -189,7 +192,10 @@ export function QuestionSplitLayout({
 
       {/* Small screens: stacked layout (original behaviour) */}
       <div className='grid grid-cols-1 lg:hidden gap-8 stagger-reveal'>
-        {leftSlot}
+        <div className='space-y-5'>
+          {leftSlot}
+          {leftBelowSlot}
+        </div>
         {rightSlot}
       </div>
     </div>
