@@ -106,6 +106,8 @@ async function generateTopicQuestions(
     averageMarksPerQuestion,
     generationStrategy,
     customFocusArea,
+    modelReasoningEnabled,
+    modelReasoningEffort,
   } = store;
 
   try {
@@ -156,9 +158,17 @@ async function generateTopicQuestions(
           strictLatexValidation,
           averageMarksPerQuestion,
           customFocusArea,
+          reasoningEnabled: modelReasoningEnabled,
+          reasoningEffort: modelReasoningEffort,
         },
       });
-      topicQuestions = response.questions;
+      if (questionMode === 'multiple-choice') {
+        topicQuestions = (
+          response as GenerateMcQuestionsResponse
+        ).questions.map((q) => shuffleMcQuestionOptions(q));
+      } else {
+        topicQuestions = response.questions;
+      }
       accumulateTopicTelemetry(topicTelemetry, response);
     } else {
       const subCalls = buildSubtopicCalls(topicSubtopics, count, [topic], {
@@ -206,6 +216,8 @@ async function generateTopicQuestions(
             strictLatexValidation,
             averageMarksPerQuestion,
             customFocusArea,
+            reasoningEnabled: modelReasoningEnabled,
+            reasoningEffort: modelReasoningEffort,
           },
         });
 

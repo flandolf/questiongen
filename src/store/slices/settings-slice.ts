@@ -31,6 +31,14 @@ export interface SettingsSlice {
   tutorModel: string;
   markerStyle: 'strict' | 'relaxed' | 'targeted' | 'custom';
   customMarkerStyle: string;
+  modelReasoningEnabled: boolean;
+  modelReasoningEffort:
+    | 'xhigh'
+    | 'high'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
   presets: AppState['presets'];
 
   // Preferences
@@ -78,6 +86,10 @@ export interface SettingsSlice {
   setTutorModel: (model: string) => void;
   setMarkerStyle: (style: 'strict' | 'relaxed' | 'targeted' | 'custom') => void;
   setCustomMarkerStyle: (style: string) => void;
+  setModelReasoningEnabled: (enabled: boolean) => void;
+  setModelReasoningEffort: (
+    effort: 'xhigh' | 'high' | 'medium' | 'low' | 'minimal' | 'none',
+  ) => void;
 
   setPresets: (presets: AppState['presets']) => void;
   addPreset: (preset: AppState['presets'][0]) => void;
@@ -153,6 +165,8 @@ export const createSettingsSlice: StateCreator<
       | 'targeted'
       | 'custom') ?? 'strict',
   customMarkerStyle: EMPTY_PERSISTED_APP_STATE.settings.customMarkerStyle ?? '',
+  modelReasoningEnabled: false,
+  modelReasoningEffort: 'medium',
   presets: [],
 
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -208,6 +222,10 @@ export const createSettingsSlice: StateCreator<
   setTutorModel: (tutorModel) => set({ tutorModel }),
   setMarkerStyle: (markerStyle) => set({ markerStyle }),
   setCustomMarkerStyle: (customMarkerStyle) => set({ customMarkerStyle }),
+  setModelReasoningEnabled: (modelReasoningEnabled) =>
+    set({ modelReasoningEnabled }),
+  setModelReasoningEffort: (modelReasoningEffort) =>
+    set({ modelReasoningEffort }),
   clearApiKey: () => set({ apiKey: '' }),
 
   setPresets: (presets) => set({ presets }),

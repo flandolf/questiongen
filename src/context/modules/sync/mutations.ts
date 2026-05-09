@@ -412,7 +412,10 @@ export async function loadAllCustomSubtopics(): Promise<
 
   try {
     const snap = await getDocs(collection(db, `users/${uid}/customSubtopics`));
-    const result: Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }> = {};
+    const result: Record<
+      string,
+      { subtopics: CustomSubtopic[]; updatedAt: number | null }
+    > = {};
     snap.forEach((d) => {
       const data = d.data();
       const subtopics = (data.subtopics as CustomSubtopic[]) || [];

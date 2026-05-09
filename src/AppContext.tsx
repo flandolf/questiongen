@@ -254,6 +254,10 @@ export function useAppSettings() {
       setMarkerStyle: s.setMarkerStyle,
       customMarkerStyle: s.customMarkerStyle,
       setCustomMarkerStyle: s.setCustomMarkerStyle,
+      modelReasoningEnabled: s.modelReasoningEnabled,
+      setModelReasoningEnabled: s.setModelReasoningEnabled,
+      modelReasoningEffort: s.modelReasoningEffort,
+      setModelReasoningEffort: s.setModelReasoningEffort,
       clearApiKey: s.clearApiKey,
     })),
   );

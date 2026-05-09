@@ -363,7 +363,7 @@ async fn generate_subtopics(
     request: GenerateSubtopicsRequest,
 ) -> CommandResult<GenerateSubtopicsResponse> {
     use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
-    
+
     use crate::prompts::{subtopic_generation_system, subtopic_generation_user_prompt};
 
     if request.api_key.trim().is_empty() {
