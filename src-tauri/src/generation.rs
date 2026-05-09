@@ -255,6 +255,8 @@ pub trait GenerationRequestTrait {
     fn shuffle_subtopics(&self) -> bool;
     fn tech_mode(&self) -> Option<&str>;
     fn question_count(&self) -> usize;
+    fn reasoning_enabled(&self) -> bool;
+    fn reasoning_effort(&self) -> Option<&str>;
 }
 
 impl GenerationRequestTrait for GenerateQuestionsRequest {
@@ -315,6 +317,12 @@ impl GenerationRequestTrait for GenerateQuestionsRequest {
     fn question_count(&self) -> usize {
         self.question_count
     }
+    fn reasoning_enabled(&self) -> bool {
+        self.reasoning_enabled.unwrap_or(false)
+    }
+    fn reasoning_effort(&self) -> Option<&str> {
+        self.reasoning_effort.as_deref()
+    }
 }
 
 impl GenerationRequestTrait for GenerateMcQuestionsRequest {
@@ -374,6 +382,12 @@ impl GenerationRequestTrait for GenerateMcQuestionsRequest {
     }
     fn question_count(&self) -> usize {
         self.question_count
+    }
+    fn reasoning_enabled(&self) -> bool {
+        self.reasoning_enabled.unwrap_or(false)
+    }
+    fn reasoning_effort(&self) -> Option<&str> {
+        self.reasoning_effort.as_deref()
     }
 }
 
@@ -528,20 +542,24 @@ impl GenerationService {
             serde_json::Value::String(prompt)
         };
 
-        let result = call_openrouter(
-            OpenRouterRequestConfig::new(
-                request.api_key(),
-                request.model(),
-                &sys_prompt,
-                user_content,
-                format.clone(),
-                max_tokens,
-            )
-            .with_plugins(plugins.clone())
-            .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
-            .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
+        let mut config = OpenRouterRequestConfig::new(
+            request.api_key(),
+            request.model(),
+            &sys_prompt,
+            user_content,
+            format.clone(),
+            max_tokens,
         )
-        .await?;
+        .with_plugins(plugins.clone())
+        .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
+        .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new));
+
+        if request.reasoning_enabled() {
+            let effort = request.reasoning_effort().unwrap_or("medium");
+            config = config.with_reasoning_effort(effort);
+        }
+
+        let result = call_openrouter(config).await?;
 
         self.emit_generation_status(serde_json::json!({
             "mode": mode_str, "stage": "parsing",

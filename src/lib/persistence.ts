@@ -22,8 +22,8 @@ import type {
   SavedQuestionSet,
   StreakData,
   StudyGoals,
-  Topic,
   TimeAllocationConfig,
+  Topic,
 } from '../types';
 import {
   DEFAULT_CUSTOM_THEME_SEED_COLOR,
@@ -55,6 +55,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   shuffleQuestions: false,
   markerStyle: 'strict',
   customMarkerStyle: '',
+  modelReasoningEnabled: false,
+  modelReasoningEffort: 'medium',
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
@@ -551,7 +553,11 @@ function normalizeCustomSubtopic(
   topic: Topic,
   raw: unknown,
 ): CustomSubtopic | null {
-  if (!isRecord(raw) || typeof raw.id !== 'string' || typeof raw.name !== 'string') {
+  if (
+    !isRecord(raw) ||
+    typeof raw.id !== 'string' ||
+    typeof raw.name !== 'string'
+  ) {
     return null;
   }
 
@@ -575,9 +581,7 @@ function normalizeCustomSubtopic(
     technique_notes: techniqueNotes
       ? {
           core_concepts: asString(techniqueNotes.core_concepts),
-          exam_style_guidelines: asString(
-            techniqueNotes.exam_style_guidelines,
-          ),
+          exam_style_guidelines: asString(techniqueNotes.exam_style_guidelines),
           anti_prompts: Array.isArray(techniqueNotes.anti_prompts)
             ? techniqueNotes.anti_prompts.filter(
                 (value): value is string => typeof value === 'string',

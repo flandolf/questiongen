@@ -173,6 +173,8 @@ pub struct GenerateQuestionsRequest {
     pub custom_subtopics: Option<HashMap<String, Vec<String>>>,
     pub recent_average_score: Option<f64>,
     pub recent_difficulty: Option<String>,
+    pub reasoning_enabled: Option<bool>,
+    pub reasoning_effort: Option<String>,
 }
 
 /// Returned to the frontend (includes fields we compute locally).
@@ -519,6 +521,8 @@ pub struct GenerateMcQuestionsRequest {
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
     pub seed: Option<u64>,
+    pub reasoning_enabled: Option<bool>,
+    pub reasoning_effort: Option<String>,
 }
 /// Returned to the frontend (includes fields we compute locally).
 #[derive(Debug, Serialize)]

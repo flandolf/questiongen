@@ -29,6 +29,7 @@ pub struct OpenRouterRequestConfig {
     pub app: Option<tauri::AppHandle>,
     pub topic: Option<String>,
     pub abort_signal: Option<AbortSignal>,
+    pub reasoning_effort: Option<String>,
 }
 
 impl OpenRouterRequestConfig {
@@ -52,6 +53,7 @@ impl OpenRouterRequestConfig {
             app: None,
             topic: None,
             abort_signal: None,
+            reasoning_effort: None,
         }
     }
 
@@ -69,6 +71,11 @@ impl OpenRouterRequestConfig {
 
     pub fn with_abort_signal(mut self, abort_signal: AbortSignal) -> Self {
         self.abort_signal = Some(abort_signal);
+        self
+    }
+
+    pub fn with_reasoning_effort(mut self, effort: &str) -> Self {
+        self.reasoning_effort = Some(effort.to_string());
         self
     }
 }
@@ -104,6 +111,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 app: config.app.clone(),
                 topic: config.topic.clone(),
                 abort_signal: config.abort_signal.clone(),
+                reasoning_effort: config.reasoning_effort.clone(),
             };
             if attempt > 0 {
                 if let Some(ref app) = retry_config.app {
@@ -127,6 +135,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 app: config.app.clone(),
                 topic: config.topic.clone(),
                 abort_signal: config.abort_signal.clone(),
+                reasoning_effort: config.reasoning_effort.clone(),
             };
             call_openrouter_non_streaming(retry_config).await
         };
@@ -163,16 +172,36 @@ async fn call_openrouter_non_streaming(
         }
     }
 
-    let body = serde_json::json!({
-        "model": config.model,
-        "messages": [
+    let mut body_map = serde_json::Map::new();
+    body_map.insert(
+        "model".to_string(),
+        serde_json::Value::String(config.model.clone()),
+    );
+    body_map.insert(
+        "messages".to_string(),
+        serde_json::json!([
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": config.user_content  },
-        ],
-        "max_tokens": config.max_tokens,
-        "response_format": config.response_format,
-        "plugins": config.plugins,
-    });
+        ]),
+    );
+    body_map.insert(
+        "max_tokens".to_string(),
+        serde_json::Value::Number(config.max_tokens.into()),
+    );
+    body_map.insert(
+        "response_format".to_string(),
+        config.response_format.clone(),
+    );
+    body_map.insert("plugins".to_string(), config.plugins.clone());
+
+    if let Some(ref effort) = config.reasoning_effort {
+        body_map.insert(
+            "reasoning".to_string(),
+            serde_json::json!({ "effort": effort }),
+        );
+    }
+
+    let body = serde_json::Value::Object(body_map);
 
     let response = http_client()
         .post(OPENROUTER_CHAT_URL)
@@ -251,18 +280,41 @@ async fn call_openrouter_streaming(
     let mut system_prompt = config.system_prompt.clone();
     system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
 
-    let body = serde_json::json!({
-        "model": config.model,
-        "messages": [
+    let mut body_map = serde_json::Map::new();
+    body_map.insert(
+        "model".to_string(),
+        serde_json::Value::String(config.model.clone()),
+    );
+    body_map.insert(
+        "messages".to_string(),
+        serde_json::json!([
             { "role": "system", "content": system_prompt },
             { "role": "user",   "content": config.user_content  },
-        ],
-        "max_tokens": config.max_tokens,
-        "response_format": config.response_format,
-        "plugins": config.plugins,
-        "stream": true,
-        "stream_options": { "include_usage": true },
-    });
+        ]),
+    );
+    body_map.insert(
+        "max_tokens".to_string(),
+        serde_json::Value::Number(config.max_tokens.into()),
+    );
+    body_map.insert(
+        "response_format".to_string(),
+        config.response_format.clone(),
+    );
+    body_map.insert("plugins".to_string(), config.plugins.clone());
+    body_map.insert("stream".to_string(), serde_json::Value::Bool(true));
+    body_map.insert(
+        "stream_options".to_string(),
+        serde_json::json!({ "include_usage": true }),
+    );
+
+    if let Some(ref effort) = config.reasoning_effort {
+        body_map.insert(
+            "reasoning".to_string(),
+            serde_json::json!({ "effort": effort }),
+        );
+    }
+
+    let body = serde_json::Value::Object(body_map);
 
     let response = http_client()
         .post(OPENROUTER_CHAT_URL)

@@ -186,15 +186,14 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
 
     // Restore custom subtopics if present in the snapshot, otherwise use the
     // empty defaults so the UI can render immediately.
-    customSubtopics:
-      s.customSubtopics ?? {
-        Biology: [],
-        Chemistry: [],
-        'General Mathematics': [],
-        'Mathematical Methods': [],
-        'Physical Education': [],
-        'Specialist Mathematics': [],
-      },
+    customSubtopics: s.customSubtopics ?? {
+      Biology: [],
+      Chemistry: [],
+      'General Mathematics': [],
+      'Mathematical Methods': [],
+      'Physical Education': [],
+      'Specialist Mathematics': [],
+    },
     customSubtopicsSynced: s.customSubtopicsSynced ?? false,
   };
 }

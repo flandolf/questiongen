@@ -208,7 +208,9 @@ export function AiGenerateSubtopicsModal({
               {pdfFile ? (
                 <div className='flex items-center gap-2 p-3 rounded-md border bg-background'>
                   <FileText className='w-4 h-4 text-primary shrink-0' />
-                  <span className='text-sm truncate flex-1'>{pdfFile.name}</span>
+                  <span className='text-sm truncate flex-1'>
+                    {pdfFile.name}
+                  </span>
                   <button
                     type='button'
                     onClick={handleRemovePdf}

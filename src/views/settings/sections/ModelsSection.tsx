@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useModelStats } from '@/hooks/useModelStats';
 import { cn } from '@/lib/utils';
 import {
@@ -203,6 +210,8 @@ export function ModelsSection() {
     includeExamContext: settings.includeExamContext,
     markerStyle: settings.markerStyle,
     customMarkerStyle: settings.customMarkerStyle,
+    modelReasoningEnabled: settings.modelReasoningEnabled,
+    modelReasoningEffort: settings.modelReasoningEffort,
   });
 
   const [showCustom, setShowCustom] = useState<Record<string, boolean>>({});
@@ -226,6 +235,8 @@ export function ModelsSection() {
       includeExamContext: settings.includeExamContext,
       markerStyle: settings.markerStyle,
       customMarkerStyle: settings.customMarkerStyle,
+      modelReasoningEnabled: settings.modelReasoningEnabled,
+      modelReasoningEffort: settings.modelReasoningEffort,
     }));
   }, [
     settings.model,
@@ -237,6 +248,8 @@ export function ModelsSection() {
     settings.includeExamContext,
     settings.markerStyle,
     settings.customMarkerStyle,
+    settings.modelReasoningEnabled,
+    settings.modelReasoningEffort,
   ]);
 
   // Sync from local state to store
@@ -382,6 +395,53 @@ export function ModelsSection() {
             onSearch={() => openSearch('generation')}
           />
         </FieldGroup>
+        <ToggleRow
+          id='model-reasoning'
+          checked={localState.modelReasoningEnabled}
+          onChange={(v) => updateSetting('modelReasoningEnabled', v)}
+          label='Enable extended reasoning'
+          description='Allow model to use extended thinking for better quality'
+        />
+        <AnimatePresence>
+          {localState.modelReasoningEnabled && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className='overflow-hidden'
+            >
+              <FieldGroup label='Reasoning effort' htmlFor='reasoning-effort'>
+                <Select
+                  value={localState.modelReasoningEffort}
+                  onValueChange={(v) =>
+                    updateSetting(
+                      'modelReasoningEffort',
+                      v as
+                        | 'xhigh'
+                        | 'high'
+                        | 'medium'
+                        | 'low'
+                        | 'minimal'
+                        | 'none',
+                    )
+                  }
+                >
+                  <SelectTrigger id='reasoning-effort' className='w-40'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='xhigh'>Extra High</SelectItem>
+                    <SelectItem value='high'>High</SelectItem>
+                    <SelectItem value='medium'>Medium</SelectItem>
+                    <SelectItem value='low'>Low</SelectItem>
+                    <SelectItem value='minimal'>Minimal</SelectItem>
+                    <SelectItem value='none'>None</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <AnimatePresence>
           {showCustom['generation'] && (
             <motion.div

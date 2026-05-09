@@ -17,15 +17,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { auth, db } from '@/context/modules/firebase-init';
 import {
+  EMPTY_PERSISTED_APP_STATE,
   normalizeGenerationHistory,
   normalizeMcHistory,
   normalizeQuestionHistory,
   normalizeSavedSet,
 } from '@/lib/persistence';
-import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { useAppStore } from '@/store';
 import type { AppState } from '@/store/types';
-import type { CustomSubtopic, Preset, StreakData, StudyGoals, Topic } from '@/types';
+import type {
+  CustomSubtopic,
+  Preset,
+  StreakData,
+  StudyGoals,
+  Topic,
+} from '@/types';
 
 import {
   migrateSettings,
@@ -68,12 +74,19 @@ function mergeById<T extends { id: string; lastModified?: number }>(
 
 function getCustomSubtopicLatestTimestamp(subtopics: CustomSubtopic[]): number {
   if (subtopics.length === 0) return 0;
-  return Math.max(...subtopics.map((subtopic) => subtopic.updatedAt || subtopic.createdAt || 0));
+  return Math.max(
+    ...subtopics.map(
+      (subtopic) => subtopic.updatedAt || subtopic.createdAt || 0,
+    ),
+  );
 }
 
 function mergeCustomSubtopics(
   local: Record<Topic, CustomSubtopic[]>,
-  remote: Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }>,
+  remote: Record<
+    string,
+    { subtopics: CustomSubtopic[]; updatedAt: number | null }
+  >,
 ): {
   merged: Record<Topic, CustomSubtopic[]>;
   topicsToPush: Topic[];
@@ -189,21 +202,29 @@ function resetUserScopedSyncState() {
     customSubtopics: EMPTY_CUSTOM_SUBTOPICS,
     customSubtopicsSynced: false,
     questions: EMPTY_PERSISTED_APP_STATE.writtenSession.questions,
-    activeQuestionIndex: EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
+    activeQuestionIndex:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.activeQuestionIndex,
     writtenQuestionPresentedAtById:
       EMPTY_PERSISTED_APP_STATE.writtenSession.presentedAtByQuestionId,
-    answersByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
-    imagesByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
-    feedbackByQuestionId: EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
-    writtenRawModelOutput: EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
+    answersByQuestionId:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.answersByQuestionId,
+    imagesByQuestionId:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.imagesByQuestionId,
+    feedbackByQuestionId:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.feedbackByQuestionId,
+    writtenRawModelOutput:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.rawModelOutput,
     writtenGenerationTelemetry:
       EMPTY_PERSISTED_APP_STATE.writtenSession.generationTelemetry ?? null,
-    activeWrittenSavedSetId: EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId,
+    activeWrittenSavedSetId:
+      EMPTY_PERSISTED_APP_STATE.writtenSession.savedSetId,
     mcQuestions: EMPTY_PERSISTED_APP_STATE.mcSession.questions,
-    activeMcQuestionIndex: EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
+    activeMcQuestionIndex:
+      EMPTY_PERSISTED_APP_STATE.mcSession.activeQuestionIndex,
     mcQuestionPresentedAtById:
       EMPTY_PERSISTED_APP_STATE.mcSession.presentedAtByQuestionId,
-    mcAnswersByQuestionId: EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
+    mcAnswersByQuestionId:
+      EMPTY_PERSISTED_APP_STATE.mcSession.answersByQuestionId,
     mcRawModelOutput: EMPTY_PERSISTED_APP_STATE.mcSession.rawModelOutput,
     mcGenerationTelemetry:
       EMPTY_PERSISTED_APP_STATE.mcSession.generationTelemetry ?? null,
@@ -289,7 +310,10 @@ export function useSync(): UseSyncReturn {
         // 1. Question History - listen to the full collection so devices can
         // converge on the same attempt count instead of only the newest page.
         const qhUnsub = onSnapshot(
-          query(collection(db, `users/${uid}/questionHistory`), orderBy('updatedAt', 'desc')),
+          query(
+            collection(db, `users/${uid}/questionHistory`),
+            orderBy('updatedAt', 'desc'),
+          ),
           { includeMetadataChanges: true },
           (snapshot) => {
             if (

@@ -56,6 +56,16 @@ export type PersistedSettings = {
   markerStyle?: 'strict' | 'relaxed' | 'targeted' | 'custom';
   /** Custom marker style instructions (used when markerStyle is 'custom') */
   customMarkerStyle?: string;
+  /** Enable extended reasoning for generation model */
+  modelReasoningEnabled?: boolean;
+  /** Reasoning effort level when enabled */
+  modelReasoningEffort?:
+    | 'xhigh'
+    | 'high'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
 };
 
 export type PersistedGeneratorPreferences = {

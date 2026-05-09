@@ -56,6 +56,14 @@ export interface AppState {
   tutorModel: string;
   markerStyle: 'strict' | 'relaxed' | 'targeted' | 'custom';
   customMarkerStyle: string;
+  modelReasoningEnabled: boolean;
+  modelReasoningEffort:
+    | 'xhigh'
+    | 'high'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -188,6 +196,10 @@ export interface AppActions {
   setTutorModel: (model: string) => void;
   setMarkerStyle: (style: 'strict' | 'relaxed' | 'targeted' | 'custom') => void;
   setCustomMarkerStyle: (style: string) => void;
+  setModelReasoningEnabled: (enabled: boolean) => void;
+  setModelReasoningEffort: (
+    effort: 'xhigh' | 'high' | 'medium' | 'low' | 'minimal' | 'none',
+  ) => void;
 
   // Preferences
   setSelectedTopics: (topics: Topic[] | ((prev: Topic[]) => Topic[])) => void;
