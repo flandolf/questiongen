@@ -50,7 +50,7 @@
 
   --radius: var(--global-radius, 0.5rem);
 
-  --font-sans: var(--interface-font, 'Inter Variable'), sans-serif;
+  --font-sans: var(--interface-font, 'Spline Sans Variable'), sans-serif;
   --font-serif:
     'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', p052, serif;
   --font-mono: var(--mono-font, 'JetBrains Mono Variable'), monospace;

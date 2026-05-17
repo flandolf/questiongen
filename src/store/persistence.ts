@@ -21,6 +21,8 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       useSeparateMarkingModel: s.useSeparateMarkingModel,
       imageMarkingModel: s.imageMarkingModel,
       useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
+      providers: s.providers,
+      activeProviderId: s.activeProviderId,
       debugMode: s.debugMode,
       questionTextSize: s.questionTextSize,
       responseTextSize: s.responseTextSize,
@@ -101,6 +103,8 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
   const defaultSettings = EMPTY_PERSISTED_APP_STATE.settings;
 
   return {
+    providers: settings.providers ?? defaultSettings.providers,
+    activeProviderId: settings.activeProviderId ?? defaultSettings.activeProviderId,
     apiKey: settings.apiKey || defaultSettings.apiKey,
     model: settings.model?.trim() || defaultSettings.model,
     markingModel: settings.markingModel?.trim() || defaultSettings.markingModel,
@@ -126,9 +130,18 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
       defaultSettings.localBackupIntervalMinutes,
     theme: normalizeThemeName(settings.theme ?? defaultSettings.theme),
     customThemeSeedColor: settings.customThemeSeedColor,
-    interfaceFont:
-      settings.interfaceFont?.trim() || defaultSettings.interfaceFont,
-    headingFont: settings.headingFont?.trim() || defaultSettings.headingFont,
+    interfaceFont: (() => {
+      const stored = settings.interfaceFont?.trim();
+      if (!stored) return defaultSettings.interfaceFont;
+      const validFonts = ['Spline Sans Variable', 'JetBrains Mono Variable'];
+      return validFonts.includes(stored) ? stored : defaultSettings.interfaceFont;
+    })(),
+    headingFont: (() => {
+      const stored = settings.headingFont?.trim();
+      if (!stored) return defaultSettings.headingFont;
+      const validFonts = ['Spline Sans Variable', 'JetBrains Mono Variable'];
+      return validFonts.includes(stored) ? stored : defaultSettings.headingFont;
+    })(),
     tutorPersona: settings.tutorPersona ?? defaultSettings.tutorPersona,
     tutorModel:
       settings.tutorModel?.trim() ||

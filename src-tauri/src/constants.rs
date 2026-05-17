@@ -1,4 +1,10 @@
-pub const OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
+pub const DEFAULT_OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
+
+/// Build the chat completions URL from a base URL.
+pub fn chat_completions_url(base_url: &str) -> String {
+    let base = base_url.trim_end_matches('/');
+    format!("{base}/chat/completions")
+}
 
 // ─── Topic name constants (used in marking logic) ─────────────────────────────
 pub const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
@@ -59,47 +65,27 @@ pub const APP_STATE_FILE_NAME: &str = "app-state.json";
 
 // ─── Global style rules (truly constant, not curriculum-dependent) ────────────
 
-pub const GLOBAL_HYGIENE_RULES: &str = "
-HYGIENE:
-- Output VALID JSON ONLY.
-- NO preamble, NO commentary, NO markdown fences (e.g. no ```json).
-- ASCII ONLY: No unicode, smart-quotes, or fancy characters (™, ®, ℓ, Ω).
-- PROFESSIONALISM: Standard punctuation only. No excessive exclamation marks (!).";
+pub const GLOBAL_HYGIENE_RULES: &str = "\
+HYGIENE: Valid JSON only. No preamble, commentary, markdown fences, unicode, smart-quotes, or fancy characters. Standard punctuation.";
 
 /// Injected into every system prompt.
 pub const LATEX_RULES: &str = r#"
-LATEX:
-- Use inline $...$ or display $$...$$. NO \(...\) or \[...\].
-- Use LaTeX for ALL math symbols, Greek letters, and Chemistry species ($\text{H}_2\text{O}$).
-- Do not place LaTeX commands outside math delimiters.
-- In arrays/tabulars/cases, end a row with \\ before any rule command. Never write \\ \hline or \\ \cline; use \\ \hline / \\ \cline instead.
-- NO empty fractions (\frac{}{}) or incomplete commands.
-- Use LaTeX only when mathematically necessary."#;
+LATEX: Use inline $...$ or display $$...$$. No \(...\) or \[...\]. All math symbols/chemical species in LaTeX. Array rows end with \\ before \hline. No empty fractions or incomplete commands."#;
 
 pub const MERMAID_RULES: &str = r#"
-DIAGRAMS (MERMAID):
-- Use Mermaid diagrams for processes, flows, cycles, or complex charts where they enhance clarity.
-- Format: ```mermaid\n<diagram content>\n```
-- For bar or line charts, prefer 'xychart-beta' syntax where appropriate.
-- Ensure all text inside diagrams is ASCII and concise."#;
+DIAGRAMS: Use Mermaid (```mermaid\n<diagram>\n```) for processes/flows/charts where they improve clarity. Prefer xychart-beta for bar/line charts. ASCII text only in diagrams."#;
 
-pub const WRITTEN_STYLE_RULES: &str = "
+pub const WRITTEN_STYLE_RULES: &str = "\
 VCAA WRITTEN STYLE:
-1. STRUCTURE: Match marks. 1-2 marks = single stem. 3+ marks = (a), (b) labels with [X marks].
-2. FORMATTING: Each part label must be on its own line with its mark count at the end. Required format (labels flush-left, no indentation):
-(a) Question text here. [X marks]
-(b) Next part here. [Y marks]
-No part label may share a line with the preceding text or another part label.
-3. SCAFFOLDING: For items ≥4 marks, earlier parts MUST produce results reused in later parts.
-4. COGNITION: Demand must increase: recall -> method -> synthesis/justification.
-5. ANTI-PATTERNS: No 'A particle moves...' openings. No decorative stimuli. No duplicate skills in one batch.";
+1. STRUCTURE: 1-2 marks = single stem. 3+ marks = (a), (b) labels with [X marks].
+2. FORMAT: Each part label on its own line: (a) Question text. [X marks]  (b) Next part. [Y marks]
+3. SCAFFOLDING: ≥4 marks: earlier parts produce results reused later.
+4. COGNITION: Escalate recall → method → synthesis/justification.
+5. ANTI: No 'A particle moves...' openings. No decorative stimuli. No duplicate skills.";
 
 /// Injected into MC question-generation prompts for distractor quality.
-pub const MC_STYLE_RULES: &str = "
-VCAA MC STYLE:
-1. OPTIONS: 4 options (A-D), parallel style, standalone text. NO labels (A, B, C, D) inside the text field.
-2. DISTRACTORS: Must target specific misconceptions. No 'all/none of the above'.
-3. EXPLANATION: Justify correct option and name misconceptions for each wrong option. Keep measured and professional.";
+pub const MC_STYLE_RULES: &str = "\
+VCAA MC STYLE: 4 options (A-D), parallel style. NO labels inside text. Distractors target specific misconceptions. No 'all/none of the above'. Explain correct and each wrong option with misconception rationale.";
 
 /// Chemistry-specific LaTeX guidance.
 pub const CHEMISTRY_LATEX_GUIDANCE: &str =

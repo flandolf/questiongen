@@ -1,6 +1,12 @@
-use crate::openrouter::{is_anthropic_model, json_schema_format, json_schema_format_anthropic};
+use crate::openrouter::{
+    is_anthropic_model, json_object_format, json_schema_format, json_schema_format_anthropic,
+    supports_json_schema_format,
+};
 
 pub fn written_format(model: &str) -> serde_json::Value {
+    if !supports_json_schema_format(model) {
+        return json_object_format();
+    }
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -48,6 +54,9 @@ pub fn written_format(model: &str) -> serde_json::Value {
 }
 
 pub fn mc_format(model: &str) -> serde_json::Value {
+    if !supports_json_schema_format(model) {
+        return json_object_format();
+    }
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -118,6 +127,9 @@ pub fn mc_format(model: &str) -> serde_json::Value {
 }
 
 pub fn marking_format(model: &str) -> serde_json::Value {
+    if !supports_json_schema_format(model) {
+        return json_object_format();
+    }
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -204,6 +216,9 @@ pub fn marking_format(model: &str) -> serde_json::Value {
 }
 
 pub fn text_response_format(model: &str) -> serde_json::Value {
+    if !supports_json_schema_format(model) {
+        return json_object_format();
+    }
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -219,6 +234,9 @@ pub fn text_response_format(model: &str) -> serde_json::Value {
 }
 
 pub fn cleanup_mappings_format(model: &str) -> serde_json::Value {
+    if !supports_json_schema_format(model) {
+        return json_object_format();
+    }
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -247,6 +265,9 @@ pub fn cleanup_mappings_format(model: &str) -> serde_json::Value {
 }
 
 pub fn pdf_discovery_format(model: &str) -> serde_json::Value {
+    if !supports_json_schema_format(model) {
+        return json_object_format();
+    }
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,

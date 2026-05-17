@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useAppSettings } from '@/AppContext';
+import { useAppStore } from '@/store';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -561,6 +562,7 @@ async function performTutorChat(params: {
   image?: StudentAnswerImage;
   sketchpadDataUrl?: string;
   apiKey: string;
+  baseUrl?: string;
   isDiagnostic: boolean;
   currentRequestParts?: TutorApiContentPart[];
   appendUserMessage?: boolean;
@@ -575,6 +577,7 @@ async function performTutorChat(params: {
     image,
     sketchpadDataUrl,
     apiKey,
+    baseUrl,
     isDiagnostic,
     currentRequestParts,
     appendUserMessage = true,
@@ -661,6 +664,7 @@ async function performTutorChat(params: {
       messages: apiMessages,
       model: activeModel,
       apiKey: apiKey,
+      baseUrl,
       diagnostic: isDiagnostic,
     },
   });
@@ -1122,6 +1126,9 @@ export function TutorPanel({
   const effectiveSessionKey = sketchSessionKey || questionId;
 
   const { apiKey, tutorModel, tutorPersona } = useAppSettings();
+  const baseUrl = useAppStore(
+    (s) => s.providers[s.activeProviderId]?.config.baseUrl,
+  );
   const [inputValue, setInputValue] = useState('');
   const [includeSketch, setIncludeSketch] = useState(false);
   const [sketchStatus, setSketchStatus] = useState<
@@ -1354,6 +1361,7 @@ export function TutorPanel({
         image,
         sketchpadDataUrl,
         apiKey,
+        baseUrl,
         isDiagnostic,
         currentRequestParts,
         appendUserMessage,

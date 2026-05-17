@@ -32,7 +32,7 @@
   --sidebar-border: oklch(0.9 0.02 260);
   --sidebar-ring: oklch(0.4 0.15 260);
   --radius: var(--global-radius, 0.5rem);
-  --font-sans: var(--interface-font, 'Inter Variable'), sans-serif;
+  --font-sans: var(--interface-font, 'Spline Sans Variable'), sans-serif;
   --font-serif: var(--heading-font, Georgia), serif;
   --font-mono: var(--mono-font, 'JetBrains Mono Variable'), monospace;
   --shadow-2xs: 0px 1px 2px 0px oklch(0.1 0.01 260 / 0.02);

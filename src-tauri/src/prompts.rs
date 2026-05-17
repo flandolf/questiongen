@@ -23,6 +23,44 @@ pub fn strict_json_output_note() -> &'static str {
      {\"questions\":[{\"id\":\"Q1\",\"topic\":\"Physics\",\"subtopic\":\"Vectors\",\"promptMarkdown\":\"A force of 10N...\",\"options\":[{\"label\":\"A\",\"text\":\"5N\"},{\"label\":\"B\",\"text\":\"10N\"},{\"label\":\"C\",\"text\":\"15N\"},{\"label\":\"D\",\"text\":\"20N\"}],\"correctAnswer\":\"B\",\"explanationMarkdown\":\"Using F=ma...\"}]}"
 }
 
+/// Extended schema guidance injected into the system prompt when the provider
+/// only supports `json_object` (no structured output schema). Describes every
+/// required field so the model can produce valid output without a schema.
+pub fn written_schema_guidance_text() -> &'static str {
+    "REQUIRED JSON FIELDS (written):\n\
+     Top-level object with a \"questions\" array. Each element:\n\
+     - \"id\" (string): unique identifier for the question (e.g. \"Q1\")\n\
+     - \"topic\" (string): exact subject name (e.g. \"Chemistry\", \"Mathematical Methods\")\n\
+     - \"subtopic\" (string or null): specific focus area label\n\
+     - \"promptMarkdown\" (string): the full question stem, only the question (no solution)\n\
+     - \"maxMarks\" (integer): marks for the question, between 1 and 30"
+}
+
+pub fn mc_schema_guidance_text() -> &'static str {
+    "REQUIRED JSON FIELDS (MC):\n\
+     Top-level object with a \"questions\" array. Each element:\n\
+     - \"id\" (string): unique identifier (e.g. \"Q1\")\n\
+     - \"topic\" (string): exact subject name\n\
+     - \"subtopic\" (string or null): specific focus area label\n\
+     - \"promptMarkdown\" (string): the question stem only (no options in stem)\n\
+     - \"options\" (array of objects): exactly 4 items, each with \"label\" (\"A\"-\"D\") and \"text\" (string)\n\
+     - \"correctAnswer\" (string): one of \"A\", \"B\", \"C\", \"D\"\n\
+     - \"explanationMarkdown\" (string): explain why correct answer is right and why each distractor is wrong"
+}
+
+pub fn marking_schema_guidance_text() -> &'static str {
+    "REQUIRED JSON FIELDS (marking):\n\
+     - \"verdict\" (string): one of \"Correct\", \"Incorrect\", \"Partial\"\n\
+     - \"achievedMarks\" (integer): marks awarded\n\
+     - \"maxMarks\" (integer): maximum marks\n\
+     - \"vcaaMarkingScheme\" (array): each item has \"criterion\" (string), \"achievedMarks\" (integer), \"maxMarks\" (integer), \"rationale\" (string)\n\
+     - \"comparisonToSolutionMarkdown\" (string): how the answer compares to the solution\n\
+     - \"feedbackMarkdown\" (string): use ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers\n\
+     - \"workedSolutionMarkdown\" (string): every step a student needs for full marks\n\
+     - \"exemplarResponseMarkdown\" (string): an ideal student answer\n\
+     - \"mcOptionExplanations\" (array): for MC, each with \"option\" (string), \"isCorrect\" (boolean), \"explanation\" (string)"
+}
+
 pub fn written_system() -> String {
     format!(
         "IDENTITY: Expert VCE written-response exam writer.\n\n\

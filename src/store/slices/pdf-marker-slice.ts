@@ -110,6 +110,7 @@ export const createPdfMarkerSlice: StateCreator<
             pageMapping: s.pdfMarkerPageMapping,
             model: s.markingModel,
             apiKey: s.apiKey,
+            baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
             markerStyle: s.markerStyle,
             customMarkerStyle: s.customMarkerStyle,
           },
@@ -210,6 +211,7 @@ export const createPdfMarkerSlice: StateCreator<
             pageMapping,
             model: s.markingModel,
             apiKey: s.apiKey,
+            baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
             markerStyle: s.markerStyle,
             customMarkerStyle: s.customMarkerStyle,
           },
@@ -271,6 +273,7 @@ export const createPdfMarkerSlice: StateCreator<
             pdfBase64: s.pdfMarkerPdfBase64,
             model: s.markingModel,
             apiKey: s.apiKey,
+            baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
           },
         },
       );

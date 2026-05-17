@@ -3,10 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { toCanonicalSubtopicName, type TopicSubtopicGroup } from '@/types';
-
-const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
 export function ResizableAccordionContent({
   children,

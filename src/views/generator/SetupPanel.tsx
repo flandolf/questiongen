@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/tooltip';
 import { auth } from '@/context/modules/firebase-init';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
+import { SPRING } from '@/lib/motion';
 import { normalizeDifficulty } from '@/lib/persistence';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
@@ -54,7 +55,7 @@ import {
   type Topic,
 } from '@/types';
 
-import { PRESET_MODELS } from '../settings/constants';
+import { getModelsForProvider } from '../settings/constants';
 import { AdvancedOptionsGroup } from './AdvancedOptions';
 import {
   BatchTimeline,
@@ -62,8 +63,6 @@ import {
   LastGenerationStats,
 } from './GenerationTimeline';
 import { PresetSection } from './PresetSection';
-
-const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
 export type { BatchTopicProgress } from '@/types';
 
@@ -196,17 +195,22 @@ function Section({
   label,
   children,
   className,
+  dense,
 }: {
   label?: string;
   children: React.ReactNode;
   className?: string;
+  dense?: boolean;
 }) {
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
+    <div className={cn('flex flex-col', dense ? 'gap-3' : 'gap-5', className)}>
       {label && (
-        <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
-          {label}
-        </p>
+        <div className='flex items-center gap-3'>
+          <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60'>
+            {label}
+          </p>
+          <div className='flex-1 border-t border-border/20' />
+        </div>
       )}
       {children}
     </div>
@@ -292,8 +296,10 @@ function SetupPanelImpl({
   const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
   const showBatchTimeline = batchProgress.length > 1;
 
+  const activeProviderId = useAppStore((s) => s.activeProviderId);
   const displayModels = useMemo(() => {
-    const known = PRESET_MODELS.filter((m) => m.id !== 'custom');
+    const presets = getModelsForProvider(activeProviderId);
+    const known = presets.filter((m) => m.id !== 'custom');
     if (model && model !== 'custom' && !known.some((m) => m.id === model)) {
       return [
         ...known,
@@ -301,7 +307,7 @@ function SetupPanelImpl({
       ];
     }
     return known;
-  }, [model]);
+  }, [model, activeProviderId]);
 
   const flatSelectedSubtopics = useMemo(
     () =>
@@ -431,7 +437,7 @@ function SetupPanelImpl({
       <div className='selection:bg-foreground/10 flex flex-col h-screen'>
         <div className='relative px-6 py-8 flex flex-col lg:flex-row gap-12 flex-1 overflow-y-auto'>
           {/* ── LEFT COLUMN ── */}
-          <div className='w-full lg:w-104 xl:w-md flex flex-col gap-8 shrink-0'>
+          <div className='w-full lg:w-104 xl:w-md flex flex-col gap-6 shrink-0'>
             {/* Header */}
             <PageHeader
               title='Generator'
@@ -576,8 +582,8 @@ function SetupPanelImpl({
             </Section>
 
             {/* Difficulty */}
-            <Section label='Difficulty'>
-              <div className='rounded-xl border border-border/70 bg-card p-5 flex flex-col gap-4'>
+            <Section label='Difficulty' className='mt-2'>
+              <div className='rounded-xl bg-muted/15 p-5 flex flex-col gap-4'>
                 {/* Header row */}
                 <div className='flex items-center justify-between'>
                   <div className='flex items-center gap-2'>
@@ -649,7 +655,7 @@ function SetupPanelImpl({
 
             {/* Question Count */}
             <Section label='Questions'>
-              <div className='rounded-xl border border-border/70 bg-card px-5 py-5 flex flex-col gap-4'>
+              <div className='rounded-xl bg-muted/15 px-5 py-5 flex flex-col gap-4'>
                 {/* Header with count and context */}
                 <div className='flex items-start justify-between'>
                   <div className='flex items-start gap-3'>
@@ -719,7 +725,7 @@ function SetupPanelImpl({
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className='flex items-start gap-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4'
+                className='flex items-start gap-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 mt-2'
               >
                 <div className='p-1.5 bg-amber-500/10 rounded-lg mt-0.5 shrink-0'>
                   <AlertTriangle className='w-4 h-4 text-amber-600 dark:text-amber-400' />
@@ -746,13 +752,16 @@ function SetupPanelImpl({
           </div>
 
           {/* ── RIGHT COLUMN ── */}
-          <div className='w-full lg:flex-1 flex flex-col gap-8'>
+          <div className='w-full lg:flex-1 flex flex-col gap-6'>
             {/* Presets */}
-            <div className='flex flex-col gap-3'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
-                Presets
-              </p>
-              <div className='rounded-xl border border-border/70 bg-card p-4'>
+            <div className='flex flex-col gap-4'>
+              <div className='flex items-center gap-3'>
+                <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60'>
+                  Presets
+                </p>
+                <div className='flex-1 border-t border-border/20' />
+              </div>
+              <div className='rounded-xl border border-border/40 bg-card p-5'>
                 <PresetSection
                   selectedTopics={selectedTopics}
                   difficulty={difficulty}
@@ -767,8 +776,8 @@ function SetupPanelImpl({
             </div>
 
             {/* Advanced Options */}
-            <div className='flex flex-col gap-3'>
-              <p className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50'>
+            <div className='flex flex-col gap-3 mt-2'>
+              <p className='text-[11px] font-bold uppercase tracking-wider text-muted-foreground/50'>
                 Advanced Options
               </p>
               <AdvancedOptionsGroup
@@ -834,9 +843,9 @@ function SetupPanelImpl({
               )}
             </AnimatePresence>
 
-            <div className='flex items-center justify-between gap-6'>
+            <div className='flex items-center justify-between gap-10'>
               {/* Cost & token estimates */}
-              <div className='flex items-center gap-6'>
+              <div className='flex items-center gap-4'>
                 <div className='flex flex-col'>
                   <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40'>
                     Est. Cost
@@ -866,7 +875,7 @@ function SetupPanelImpl({
 
               {/* Actions */}
               <div className='flex items-center gap-3'>
-                <div className='hidden sm:flex items-center gap-2 mr-2'>
+                <div className='hidden sm:flex items-center gap-2'>
                   <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 whitespace-nowrap'>
                     Model
                   </span>

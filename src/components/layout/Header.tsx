@@ -15,6 +15,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
+import { SPRING } from '@/lib/motion';
 import { cn, getTodayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
 
@@ -24,8 +25,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../ui/tooltip';
-
-const SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };
 
 function GoalProgressBar({
   label,

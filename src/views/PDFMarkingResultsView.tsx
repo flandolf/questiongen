@@ -23,11 +23,10 @@ import {
 } from '@/components/layout/primitives';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
+import { SPRING } from '@/lib/motion';
 import { scoreColorBgClass } from '@/lib/score-utils';
 import { useAppStore } from '@/store';
 import type { GeneratedQuestion, MarkAnswerResponse } from '@/types';
-
-const SPRING = { type: 'spring' as const, stiffness: 300, damping: 30 };
 
 export function PDFMarkingResultsView() {
   const navigate = useNavigate();

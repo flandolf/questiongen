@@ -24,6 +24,7 @@ export function ImageModelSelectRow({
   value,
   disabled,
   apiKey,
+  models: modelsProp,
   onSelect,
   onSearch,
   placeholder = 'Select a vision model',
@@ -32,10 +33,12 @@ export function ImageModelSelectRow({
   value: string;
   disabled?: boolean;
   apiKey: string;
+  models?: { id: string; name: string }[];
   onSelect: (v: string) => void;
   onSearch?: () => void;
   placeholder?: string;
 }) {
+  const models = modelsProp ?? PRESET_IMAGE_MODELS;
   const [validation, setValidation] = useState<ImageValidationState>({
     status: 'idle',
   });
@@ -74,7 +77,7 @@ export function ImageModelSelectRow({
     void validateModel(value);
   }, [value, validateModel]);
 
-  const isKnown = PRESET_IMAGE_MODELS.some((m) => m.id === value);
+  const isKnown = models.some((m) => m.id === value);
   const extraEntry =
     !isKnown && value && value !== 'custom'
       ? [
@@ -109,7 +112,7 @@ export function ImageModelSelectRow({
             {extraEntry.length > 0 && (
               <div className='my-1 border-t border-border' />
             )}
-            {PRESET_IMAGE_MODELS.map((m) => (
+            {models.map((m) => (
               <SelectItem key={m.id} value={m.id}>
                 {m.id === 'custom' ? (
                   m.name

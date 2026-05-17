@@ -16,6 +16,7 @@ import type {
   PersistedAppState,
   Preset,
   PresetPreferences,
+  ProviderState,
   QuestionHistoryEntry,
   QuestionMode,
   SavedQuestionSet,
@@ -31,6 +32,10 @@ import type { TimerState } from '@/types/timer';
 export interface AppState {
   // ── Hydration ──────────────────────────────────────────────────────────────
   isHydrated: boolean;
+
+  // ── Provider state ─────────────────────────────────────────────────────────
+  providers: Record<string, ProviderState>;
+  activeProviderId: string;
 
   // ── Settings ───────────────────────────────────────────────────────────────
   apiKey: string;
@@ -171,6 +176,11 @@ export interface AppActions {
   addPreset: (preset: Preset) => void;
   updatePreset: (preset: Preset) => void;
   deletePreset: (id: string) => void;
+  // Providers
+  setActiveProvider: (providerId: string) => void;
+  setProviderApiKey: (providerId: string, key: string) => void;
+  addCustomProvider: (name: string, baseUrl: string) => string;
+  removeCustomProvider: (providerId: string) => void;
   // Settings
   setApiKey: (key: string) => void;
   setShowApiKey: (show: boolean) => void;
@@ -354,6 +364,8 @@ export interface AppActions {
   addMcHistoryEntry: (entry: McHistoryEntry) => void;
   updateQuestionHistoryEntry: (entry: QuestionHistoryEntry) => void;
   updateMcHistoryEntry: (entry: McHistoryEntry) => void;
+  updateQuestionHistoryEntries: (entries: QuestionHistoryEntry[]) => void;
+  updateMcHistoryEntries: (entries: McHistoryEntry[]) => void;
   deleteGenerationHistoryEntry: (id: string) => void;
   clearQuestionHistory: () => void;
   clearMcHistory: () => void;

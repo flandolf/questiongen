@@ -17,6 +17,7 @@ import type {
   PersistedSettings,
   PersistedWrittenSession,
   Preset,
+  ProviderState,
   QuestionHistoryEntry,
   QuestionMode,
   SavedQuestionSet,
@@ -29,6 +30,10 @@ import {
   DEFAULT_CUSTOM_THEME_SEED_COLOR,
   normalizeHexColor,
 } from './color-helpers';
+import {
+  BUILTIN_PROVIDERS,
+  createDefaultProviderState,
+} from '../types/provider';
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: '',
@@ -268,9 +273,68 @@ export function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
     }));
 }
 
+function migrateProviders(raw: Record<string, unknown>): {
+  providers: Record<string, unknown>;
+  activeProviderId: string;
+} {
+  const providers = raw.providers;
+  if (isRecord(providers)) {
+    // Already have provider data — ensure built-in providers exist
+    const merged = { ...(providers as Record<string, unknown>) };
+    for (const [id, config] of Object.entries(BUILTIN_PROVIDERS)) {
+      if (!merged[id]) {
+        merged[id] = createDefaultProviderState(config);
+      }
+    }
+    return {
+      providers: merged,
+      activeProviderId:
+        typeof raw.activeProviderId === 'string'
+          ? raw.activeProviderId
+          : 'openrouter',
+    };
+  }
+
+  // Migration from old flat format: seed the openrouter provider
+  const key = asString(raw.apiKey);
+  const model = normalizeNonEmptyString(raw.model, 'openai/gpt-5.4-mini');
+  const orProvider = createDefaultProviderState(BUILTIN_PROVIDERS.openrouter);
+  orProvider.apiKey = key;
+  orProvider.modelSelections.model = model;
+  orProvider.modelSelections.markingModel = normalizeNonEmptyString(
+    raw.markingModel,
+    model,
+  );
+  orProvider.modelSelections.useSeparateMarkingModel =
+    raw.useSeparateMarkingModel === true;
+  orProvider.modelSelections.imageMarkingModel = normalizeNonEmptyString(
+    raw.imageMarkingModel,
+    model,
+  );
+  orProvider.modelSelections.useSeparateImageMarkingModel =
+    raw.useSeparateImageMarkingModel === true;
+  orProvider.modelSelections.tutorModel = normalizeNonEmptyString(
+    raw.tutorModel,
+    model,
+  );
+
+  const deepseekProvider = createDefaultProviderState(
+    BUILTIN_PROVIDERS.deepseek,
+  );
+
+  return {
+    providers: {
+      openrouter: orProvider,
+      deepseek: deepseekProvider,
+    },
+    activeProviderId: 'openrouter',
+  };
+}
+
 function normalizeSettings(raw: unknown): PersistedSettings {
   const data = isRecord(raw) ? raw : {};
   const model = normalizeNonEmptyString(data.model, DEFAULT_SETTINGS.model);
+  const migrated = migrateProviders(data);
   return {
     ...DEFAULT_SETTINGS,
     ...data,
@@ -326,6 +390,8 @@ function normalizeSettings(raw: unknown): PersistedSettings {
         : DEFAULT_SETTINGS.shuffleQuestions,
     markerStyle: normalizeMarkerStyle(data.markerStyle),
     customMarkerStyle: asString(data.customMarkerStyle),
+    providers: migrated.providers as Record<string, ProviderState>,
+    activeProviderId: migrated.activeProviderId,
   };
 }
 

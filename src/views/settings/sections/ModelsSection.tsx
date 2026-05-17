@@ -13,9 +13,11 @@ import {
 } from '@/components/ui/select';
 import { useModelStats } from '@/hooks/useModelStats';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
 import {
+  getImageModelsForProvider,
+  getModelsForProvider,
   MARKER_STYLE_OPTIONS,
-  PRESET_MODELS,
 } from '@/views/settings/constants';
 import { fmt } from '@/views/settings/formatters';
 import { ImageModelSelectRow } from '@/views/settings/ImageModelSelectRow';
@@ -198,7 +200,17 @@ function LiveStatsSection({
 
 export function ModelsSection() {
   const settings = useAppSettings();
+  const activeProviderId = useAppStore((s) => s.activeProviderId);
   const stats = useModelStats(settings.apiKey);
+
+  const modelPresets = useMemo(
+    () => getModelsForProvider(activeProviderId),
+    [activeProviderId],
+  );
+  const imageModelPresets = useMemo(
+    () => getImageModelsForProvider(activeProviderId),
+    [activeProviderId],
+  );
 
   const [localState, setLocalState] = useState({
     model: settings.model,
@@ -385,7 +397,7 @@ export function ModelsSection() {
           <ModelSelectRow
             id='model-select'
             value={localState.model}
-            models={PRESET_MODELS}
+            models={modelPresets}
             disabled={!settings.apiKey}
             onSelect={(v) =>
               v === 'custom'
@@ -500,7 +512,7 @@ export function ModelsSection() {
                   <ModelSelectRow
                     id='marking-model-select'
                     value={localState.markingModel}
-                    models={PRESET_MODELS}
+                    models={modelPresets}
                     disabled={!settings.apiKey}
                     onSelect={(v) =>
                       v === 'custom'
@@ -575,6 +587,7 @@ export function ModelsSection() {
                     value={localState.imageMarkingModel}
                     disabled={!settings.apiKey}
                     apiKey={settings.apiKey}
+                    models={imageModelPresets}
                     onSelect={(v) =>
                       v === 'custom'
                         ? toggleCustom('imageMarking', true)
@@ -629,7 +642,7 @@ export function ModelsSection() {
           <ModelSelectRow
             id='tutor-model-select'
             value={localState.tutorModel}
-            models={PRESET_MODELS}
+            models={modelPresets}
             disabled={!settings.apiKey}
             onSelect={(v) =>
               v === 'custom'
@@ -758,16 +771,20 @@ export function ModelsSection() {
         </FieldGroup>
       </ConfigSection>
 
-      <div className='py-4'>
-        <Divider key='divider-live' />
-      </div>
+      {activeProviderId === 'openrouter' && (
+        <>
+          <div className='py-4'>
+            <Divider key='divider-live' />
+          </div>
 
-      <LiveStatsSection
-        key='live-stats-section'
-        stats={stats}
-        apiKey={settings.apiKey}
-        models={currentModelConfig}
-      />
+          <LiveStatsSection
+            key='live-stats-section'
+            stats={stats}
+            apiKey={settings.apiKey}
+            models={currentModelConfig}
+          />
+        </>
+      )}
     </AnimatedSection>
   );
 }

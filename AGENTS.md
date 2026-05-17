@@ -32,6 +32,7 @@
   logic).
 - **Styling**: Tailwind 4 (CSS-first). Global styles and theme imports in
   `src/themes/index.css`.
+- **Fonts**: Spline Sans Variable (interface), JetBrains Mono Variable (technical).
 
 ## Quirks & Constraints
 

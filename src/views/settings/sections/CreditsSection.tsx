@@ -12,7 +12,6 @@ import { fmt } from '@/views/settings/formatters';
 import type { CreditsInfo } from '@/views/settings/types';
 
 import {
-  useAppSettings,
   useMultipleChoiceSession,
   useWrittenSession,
 } from '../../../AppContext';
@@ -25,10 +24,11 @@ import {
 } from '../SettingsUI';
 
 export function CreditsSection() {
-  const { apiKey } = useAppSettings();
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
   const generationHistory = useAppStore((s) => s.generationHistory);
+  const openrouterApiKey =
+    useAppStore((s) => s.providers['openrouter']?.apiKey) ?? '';
 
   const [credits, setCredits] = useState<CreditsInfo | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
@@ -52,8 +52,8 @@ export function CreditsSection() {
   }, []);
 
   useEffect(() => {
-    if (apiKey) void fetchCredits(apiKey);
-  }, [apiKey, fetchCredits]);
+    if (openrouterApiKey) void fetchCredits(openrouterApiKey);
+  }, [openrouterApiKey, fetchCredits]);
 
   return (
     <AnimatedSection className='space-y-6'>
@@ -75,8 +75,8 @@ export function CreditsSection() {
         <Button
           size='default'
           className='gap-2 shrink-0'
-          disabled={creditsLoading || !apiKey}
-          onClick={() => void fetchCredits(apiKey)}
+          disabled={creditsLoading || !openrouterApiKey}
+          onClick={() => void fetchCredits(openrouterApiKey)}
         >
           <RefreshCw
             className={cn('h-3.5 w-3.5', creditsLoading && 'animate-spin')}
@@ -91,9 +91,9 @@ export function CreditsSection() {
         <EmptyState
           key='empty-state'
           message={
-            apiKey
+            openrouterApiKey
               ? 'Click refresh to load credit info.'
-              : 'Save your API key to load credit info.'
+              : 'Save your OpenRouter API key to load credit info.'
           }
         />
       )}

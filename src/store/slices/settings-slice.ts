@@ -6,8 +6,18 @@ import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { cleanPresetSubtopics } from '@/lib/preset-utils';
 import { normalizeThemeName, resolve } from '@/store/helpers';
 import type { AppActions, AppState } from '@/store/types';
+import type { ProviderState } from '@/types';
+import {
+  BUILTIN_PROVIDERS,
+  createDefaultProviderState,
+  DEFAULT_PROVIDER_ID,
+} from '@/types/provider';
 
 export interface SettingsSlice {
+  // Provider state
+  providers: Record<string, ProviderState>;
+  activeProviderId: string;
+
   apiKey: string;
   showApiKey: boolean;
   model: string;
@@ -60,6 +70,12 @@ export interface SettingsSlice {
   shuffleSubtopics: boolean;
   shuffleQuestions: boolean;
   generationStrategy: AppState['generationStrategy'];
+
+  // Provider actions
+  setActiveProvider: (providerId: string) => void;
+  setProviderApiKey: (providerId: string, key: string) => void;
+  addCustomProvider: (name: string, baseUrl: string) => string;
+  removeCustomProvider: (providerId: string) => void;
 
   // Actions
   setApiKey: (key: string) => void;
@@ -118,12 +134,33 @@ export interface SettingsSlice {
   resetPreferences: () => void;
 }
 
+function buildInitialProviders(): Record<string, ProviderState> {
+  const persisted = EMPTY_PERSISTED_APP_STATE.settings;
+  if (persisted.providers && Object.keys(persisted.providers).length > 0) {
+    return { ...persisted.providers };
+  }
+  // Fallback: create from built-in definitions
+  const providers: Record<string, ProviderState> = {};
+  for (const [id, config] of Object.entries(BUILTIN_PROVIDERS)) {
+    providers[id] = createDefaultProviderState(config);
+  }
+  return providers;
+}
+
+function getInitialActiveProviderId(): string {
+  return (
+    EMPTY_PERSISTED_APP_STATE.settings.activeProviderId ?? DEFAULT_PROVIDER_ID
+  );
+}
+
 export const createSettingsSlice: StateCreator<
   AppState & AppActions,
   [],
   [],
   SettingsSlice
-> = (set) => ({
+> = (set, get) => ({
+  providers: buildInitialProviders(),
+  activeProviderId: getInitialActiveProviderId(),
   apiKey: EMPTY_PERSISTED_APP_STATE.settings.apiKey,
   showApiKey: false,
   model: EMPTY_PERSISTED_APP_STATE.settings.model,
@@ -152,8 +189,8 @@ export const createSettingsSlice: StateCreator<
   customThemeSeedColor: EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor
     ? normalizeHexColor(EMPTY_PERSISTED_APP_STATE.settings.customThemeSeedColor)
     : '#3b82f6',
-  interfaceFont: 'Inter Variable',
-  headingFont: 'Manrope Variable',
+  interfaceFont: 'Spline Sans Variable',
+  headingFont: 'Spline Sans Variable',
   tutorPersona: EMPTY_PERSISTED_APP_STATE.settings.tutorPersona ?? '',
   tutorModel:
     EMPTY_PERSISTED_APP_STATE.settings.tutorModel ??
@@ -189,19 +226,158 @@ export const createSettingsSlice: StateCreator<
   shuffleQuestions: false,
   generationStrategy: 'single-pass',
 
+  // Provider actions
+  setActiveProvider: (providerId) => {
+    const state = get();
+    const provider = state.providers[providerId];
+    if (!provider) return;
+    const ms = provider.modelSelections;
+    set({
+      activeProviderId: providerId,
+      apiKey: provider.apiKey,
+      model: ms.model,
+      markingModel: ms.markingModel,
+      useSeparateMarkingModel: ms.useSeparateMarkingModel,
+      imageMarkingModel: ms.imageMarkingModel,
+      useSeparateImageMarkingModel: ms.useSeparateImageMarkingModel,
+      tutorModel: ms.tutorModel,
+    });
+  },
+  setProviderApiKey: (providerId, key) => {
+    set((s) => ({
+      providers: {
+        ...s.providers,
+        [providerId]: { ...s.providers[providerId], apiKey: key },
+      },
+    }));
+  },
+  addCustomProvider: (name, baseUrl) => {
+    const id = `custom-${crypto.randomUUID()}`;
+    set((s) => ({
+      providers: {
+        ...s.providers,
+        [id]: createDefaultProviderState({
+          id,
+          name,
+          baseUrl: baseUrl.replace(/\/$/, ''),
+        }),
+      },
+    }));
+    return id;
+  },
+  removeCustomProvider: (providerId) => {
+    if (providerId === DEFAULT_PROVIDER_ID || BUILTIN_PROVIDERS[providerId]) {
+      return; // cannot remove built-in providers
+    }
+    set((s) => {
+      const next = { ...s.providers };
+      delete next[providerId];
+      const newActiveId =
+        s.activeProviderId === providerId
+          ? DEFAULT_PROVIDER_ID
+          : s.activeProviderId;
+      const activeProvider = next[newActiveId];
+      if (!activeProvider) return { providers: next, activeProviderId: DEFAULT_PROVIDER_ID };
+      return {
+        providers: next,
+        activeProviderId: newActiveId,
+        apiKey: activeProvider.apiKey,
+        model: activeProvider.modelSelections.model,
+        markingModel: activeProvider.modelSelections.markingModel,
+        useSeparateMarkingModel: activeProvider.modelSelections.useSeparateMarkingModel,
+        imageMarkingModel: activeProvider.modelSelections.imageMarkingModel,
+        useSeparateImageMarkingModel: activeProvider.modelSelections.useSeparateImageMarkingModel,
+        tutorModel: activeProvider.modelSelections.tutorModel,
+      };
+    });
+  },
+
   // Actions
   setApiKey: (key) => {
-    set({ apiKey: key });
+    const state = get();
+    set({
+      apiKey: key,
+      providers: {
+        ...state.providers,
+        [state.activeProviderId]: {
+          ...state.providers[state.activeProviderId],
+          apiKey: key,
+        },
+      },
+    });
     void updateApiKey(key);
   },
   setShowApiKey: (show) => set({ showApiKey: show }),
-  setModel: (model) => set({ model }),
-  setMarkingModel: (markingModel) => set({ markingModel }),
+  setModel: (model) =>
+    set((s) => ({
+      model,
+      providers: {
+        ...s.providers,
+        [s.activeProviderId]: {
+          ...s.providers[s.activeProviderId],
+          modelSelections: {
+            ...s.providers[s.activeProviderId].modelSelections,
+            model,
+          },
+        },
+      },
+    })),
+  setMarkingModel: (markingModel) =>
+    set((s) => ({
+      markingModel,
+      providers: {
+        ...s.providers,
+        [s.activeProviderId]: {
+          ...s.providers[s.activeProviderId],
+          modelSelections: {
+            ...s.providers[s.activeProviderId].modelSelections,
+            markingModel,
+          },
+        },
+      },
+    })),
   setUseSeparateMarkingModel: (useSeparateMarkingModel) =>
-    set({ useSeparateMarkingModel }),
-  setImageMarkingModel: (imageMarkingModel) => set({ imageMarkingModel }),
+    set((s) => ({
+      useSeparateMarkingModel,
+      providers: {
+        ...s.providers,
+        [s.activeProviderId]: {
+          ...s.providers[s.activeProviderId],
+          modelSelections: {
+            ...s.providers[s.activeProviderId].modelSelections,
+            useSeparateMarkingModel,
+          },
+        },
+      },
+    })),
+  setImageMarkingModel: (imageMarkingModel) =>
+    set((s) => ({
+      imageMarkingModel,
+      providers: {
+        ...s.providers,
+        [s.activeProviderId]: {
+          ...s.providers[s.activeProviderId],
+          modelSelections: {
+            ...s.providers[s.activeProviderId].modelSelections,
+            imageMarkingModel,
+          },
+        },
+      },
+    })),
   setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) =>
-    set({ useSeparateImageMarkingModel }),
+    set((s) => ({
+      useSeparateImageMarkingModel,
+      providers: {
+        ...s.providers,
+        [s.activeProviderId]: {
+          ...s.providers[s.activeProviderId],
+          modelSelections: {
+            ...s.providers[s.activeProviderId].modelSelections,
+            useSeparateImageMarkingModel,
+          },
+        },
+      },
+    })),
   setDebugMode: (debugMode) => set({ debugMode }),
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   setResponseTextSize: (responseTextSize) => set({ responseTextSize }),
@@ -219,14 +395,37 @@ export const createSettingsSlice: StateCreator<
   setInterfaceFont: (interfaceFont) => set({ interfaceFont }),
   setHeadingFont: (headingFont) => set({ headingFont }),
   setTutorPersona: (tutorPersona) => set({ tutorPersona }),
-  setTutorModel: (tutorModel) => set({ tutorModel }),
+  setTutorModel: (tutorModel) =>
+    set((s) => ({
+      tutorModel,
+      providers: {
+        ...s.providers,
+        [s.activeProviderId]: {
+          ...s.providers[s.activeProviderId],
+          modelSelections: {
+            ...s.providers[s.activeProviderId].modelSelections,
+            tutorModel,
+          },
+        },
+      },
+    })),
   setMarkerStyle: (markerStyle) => set({ markerStyle }),
   setCustomMarkerStyle: (customMarkerStyle) => set({ customMarkerStyle }),
   setModelReasoningEnabled: (modelReasoningEnabled) =>
     set({ modelReasoningEnabled }),
   setModelReasoningEffort: (modelReasoningEffort) =>
     set({ modelReasoningEffort }),
-  clearApiKey: () => set({ apiKey: '' }),
+  clearApiKey: () =>
+    set((s) => ({
+      apiKey: '',
+      providers: {
+        ...s.providers,
+        [s.activeProviderId]: {
+          ...s.providers[s.activeProviderId],
+          apiKey: '',
+        },
+      },
+    })),
 
   setPresets: (presets) => set({ presets }),
   addPreset: (preset) =>

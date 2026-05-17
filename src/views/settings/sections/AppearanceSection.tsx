@@ -21,18 +21,8 @@ import {
 } from '../SettingsUI';
 
 const SANS_FONTS = [
-  'Manrope Variable',
-  'Inter Variable',
-  'Roboto',
-  'Open Sans',
-  'Montserrat',
-  'Lato',
-  'Poppins',
-  'Raleway',
-  'Ubuntu',
-  'Nunito',
-  'Fira Sans',
-  'Work Sans',
+  'Spline Sans Variable',
+  'JetBrains Mono Variable',
 ];
 
 export function AppearanceSection() {

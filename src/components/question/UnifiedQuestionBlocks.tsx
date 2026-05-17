@@ -33,23 +33,23 @@ export function UnifiedQuestionPromptCard({
   className?: string;
 }) {
   return (
-    <div className={cn('space-y-4', className)}>
-      <div className='flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground/70'>
-        <div className='flex items-center gap-2 uppercase tracking-[0.22em] font-medium'>
+    <div className={cn('flex flex-col gap-3', className)}>
+      <div className='flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground/70 px-5 pt-5 sm:px-6 sm:pt-6'>
+        <div className='flex items-center gap-2 uppercase tracking-[0.15em] font-semibold text-muted-foreground/50'>
           <Info className='w-3.5 h-3.5' />
           <span>Question</span>
         </div>
         {topic && <span className='text-foreground/80'>{topic}</span>}
-        {subtopic && <span>/ {subtopic}</span>}
+        {subtopic && <span className='text-foreground/60'>/ {subtopic}</span>}
         {difficulty && (
           <>
-            <span className='text-border'>|</span>
+            <span className='text-border/50 select-none'>|</span>
             <span className='capitalize'>{difficulty}</span>
           </>
         )}
         {typeof maxMarks === 'number' && maxMarks > 0 && (
           <>
-            <span className='text-border'>|</span>
+            <span className='text-border/50 select-none'>|</span>
             <span>{maxMarks} marks</span>
           </>
         )}
@@ -72,10 +72,9 @@ export function UnifiedQuestionPromptCard({
         </div>
       )}
 
-      <div className='relative overflow-hidden px-5 pb-5 sm:px-6 sm:pb-6'>
-        <div className='absolute inset-y-0 right-0 w-28 pointer-events-none' />
+      <div className='relative px-5 pb-5 sm:px-6 sm:pb-6'>
         <div
-          className='relative leading-[1.75] text-foreground'
+          className='leading-[1.75] text-foreground'
           style={{ fontSize: 'var(--question-text-size)' }}
         >
           <MarkdownMath content={promptMarkdown} />

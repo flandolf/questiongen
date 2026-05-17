@@ -204,8 +204,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
       onChange={onAnswerChange}
       disabled={isMarking}
       topSlot={
-        <div className='rounded-xl border border-border/60 bg-muted/20 p-1'>
-          <div className='grid grid-cols-3 gap-1'>
+        <div className='grid grid-cols-3 gap-1 pb-2 border-b border-border/15'>
             <Button
               type='button'
               variant={activeTab === 'response' ? 'default' : 'ghost'}
@@ -237,7 +236,6 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
               Sketchpad
             </Button>
           </div>
-        </div>
       }
       inputSlot={
         activeTab === 'response' ? (

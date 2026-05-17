@@ -17,8 +17,8 @@ student's time and education with respect.
 Refined, structured, and technical.
 
 - Theme: Supports light and dark mode, but defaults should feel grounded.
-- Typography: Clear hierarchy, using sans-serif (Manrope/Inter) for interface
-  and clean serif or monospace where appropriate for math/technical content.
+- Typography: Clear hierarchy, using Spline Sans Variable for interface UI and
+  JetBrains Mono Variable for technical/mathematical content.
 - Visuals: Minimal but high-quality. No unnecessary gamification, but clear
   progress indicators.
 

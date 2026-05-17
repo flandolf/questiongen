@@ -1,3 +1,4 @@
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { invoke } from '@tauri-apps/api/core';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -25,7 +26,7 @@ import {
   Trash2,
   Wand2,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { useAppContext } from '@/AppContext';
 import { Autocomplete } from '@/components/ui/autocomplete';
@@ -104,7 +105,6 @@ type ScanResult = {
 type MatchResult = {
   match: string;
   score: number;
-  rationale: string;
   isTie: boolean;
 };
 
@@ -192,38 +192,6 @@ function similarity(a: string, b: string): number {
   return result;
 }
 
-function getMatchRationale(a: string, b: string, score: number): string {
-  const la = a.toLowerCase().trim();
-  const lb = b.toLowerCase().trim();
-
-  if (score === 1) return 'Exact match';
-  if (lb.includes(la)) return `Contains "${la}"`;
-  if (la.includes(lb)) return `Contained in "${la}"`;
-
-  const lenA = la.length;
-  const lenB = lb.length;
-  if (lenA === 0 || lenB === 0) return 'Empty';
-
-  const prevRow: number[] = new Array(lenB + 1).fill(0).map((_, j) => j);
-  const currRow: number[] = new Array<number>(lenB + 1);
-
-  for (let i = 1; i <= lenA; i++) {
-    currRow[0] = i;
-    for (let j = 1; j <= lenB; j++) {
-      const cost = la[i - 1] === lb[j - 1] ? 0 : 1;
-      currRow[j] = Math.min(
-        prevRow[j] + 1,
-        currRow[j - 1] + 1,
-        prevRow[j - 1] + cost,
-      );
-    }
-    prevRow.splice(0, prevRow.length, ...currRow);
-  }
-
-  const distance = prevRow[lenB];
-  return `~${distance} edits`;
-}
-
 function findBestMatch(item: string, options: string[]): MatchResult | null {
   let bestScore = -1;
   let bestMatch: string | null = null;
@@ -253,7 +221,6 @@ function findBestMatch(item: string, options: string[]): MatchResult | null {
   return {
     match: bestMatch,
     score: bestScore,
-    rationale: getMatchRationale(item, bestMatch, bestScore),
     isTie,
   };
 }
@@ -334,7 +301,7 @@ function ManualFixPanel({
     return sortedUnknownItems.filter(
       (item) =>
         item.toLowerCase().includes(q) ||
-        bestMatches[item]?.match.toLowerCase().includes(q),
+        (bestMatches[item]?.match ?? '').toLowerCase().includes(q),
     );
   }, [search, sortedUnknownItems, bestMatches]);
 
@@ -353,7 +320,7 @@ function ManualFixPanel({
     return mapping;
   }, [unknownItems, selections, customInputs]);
 
-  const handleSelect = (unknown: string, value: string) => {
+  const handleSelect = useCallback((unknown: string, value: string) => {
     setSelections((prev) => ({ ...prev, [unknown]: value }));
     if (value !== '__custom__') {
       setCustomInputs((prev) => {
@@ -362,12 +329,12 @@ function ManualFixPanel({
         return next;
       });
     }
-  };
+  }, []);
 
-  const handleCustomInput = (unknown: string, text: string) => {
+  const handleCustomInput = useCallback((unknown: string, text: string) => {
     setCustomInputs((prev) => ({ ...prev, [unknown]: text }));
     setSelections((prev) => ({ ...prev, [unknown]: '__custom__' }));
-  };
+  }, []);
 
   const handleApply = () => {
     const mapping = buildMapping();
@@ -454,8 +421,50 @@ function ManualFixPanel({
     return groups;
   }, [subtopicGroups, canonicalOptions]);
 
+  // Pre-compute per-item autocomplete groups so they are stable across
+  // selections.  Without this, every Autocomplete re-renders on any
+  // selection change, and with 300+ canonical subtopics that freezes the UI.
+  const itemAutocompleteGroupsMap = useMemo(() => {
+    const map = new Map<string, typeof autocompleteGroups>();
+    for (const item of unknownItems) {
+      const best = bestMatches[item];
+      const groups = autocompleteGroups.map((group) => ({
+        ...group,
+        options: group.options.map((opt) => ({
+          ...opt,
+          matchScore: best && opt.value === best.match ? best.score : undefined,
+        })),
+      }));
+      map.set(item, groups);
+    }
+    return map;
+  }, [unknownItems, bestMatches, autocompleteGroups]);
+
   const isAndroid =
     typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+  const hasFilteredItems = filteredUnknownItems.length > 0;
+
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    enabled: hasFilteredItems,
+    count: filteredUnknownItems.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: (index) => {
+      const item = filteredUnknownItems[index];
+      if (!item) return 92;
+      const sel = selections[item] ?? '';
+      const isCustom = sel === '__custom__';
+      const best = bestMatches[item];
+
+      if (isCustom) return 136;
+      if (best) return 112;
+      return 92;
+    },
+    overscan: 8,
+  });
+
+  const virtualRows = hasFilteredItems ? rowVirtualizer.getVirtualItems() : [];
 
   if (resultCount !== null) {
     return (
@@ -688,7 +697,10 @@ function ManualFixPanel({
       </AnimatePresence>
 
       {/* Grid List */}
-      <div className='space-y-2 max-h-125 overflow-y-auto pr-2 custom-scrollbar'>
+      <div
+        ref={listRef}
+        className='max-h-125 overflow-y-auto pr-2 custom-scrollbar'
+      >
         {filteredUnknownItems.length === 0 ? (
           <div className='py-12 flex flex-col items-center justify-center text-center space-y-2 opacity-50'>
             <Filter className='h-8 w-8 text-muted-foreground' />
@@ -699,117 +711,125 @@ function ManualFixPanel({
             </p>
           </div>
         ) : (
-          filteredUnknownItems.map((item, idx) => {
-            const sel = selections[item] ?? '';
-            const isCustom = sel === '__custom__';
-            const best = bestMatches[item];
-            const isBulkChecked = bulkSelected.has(item);
+          <div
+            style={{
+              height: rowVirtualizer.getTotalSize(),
+              position: 'relative',
+            }}
+          >
+            {virtualRows.map((virtualRow) => {
+              const item = filteredUnknownItems[virtualRow.index];
+              const sel = selections[item] ?? '';
+              const isCustom = sel === '__custom__';
+              const best = bestMatches[item];
+              const isBulkChecked = bulkSelected.has(item);
 
-            // Inject match scores into the options for this specific item
-            const itemAutocompleteGroups = autocompleteGroups.map((group) => ({
-              ...group,
-              options: group.options.map((opt) => ({
-                ...opt,
-                matchScore:
-                  best && opt.value === best.match ? best.score : undefined,
-              })),
-            }));
+              const itemAutocompleteGroups =
+                itemAutocompleteGroupsMap.get(item)!;
 
-            return (
-              <motion.div
-                layout
-                initial={{ opacity: 0, x: -10, z: 0 }}
-                animate={{ opacity: 1, x: 0, z: 0 }}
-                transition={{ delay: idx * 0.02 }}
-                key={item}
-                className={cn(
-                  'group flex flex-col p-3 rounded-lg border transition-all duration-200',
-                  isBulkChecked
-                    ? 'bg-blue-500/5 border-blue-500/30'
-                    : 'bg-background border-border hover:border-muted-foreground/30 hover:shadow-sm',
-                )}
-                style={
-                  isAndroid ? { willChange: 'opacity, transform' } : undefined
-                }
-              >
-                <div className='flex items-center gap-3'>
-                  {bulkMode && (
-                    <button
-                      type='button'
-                      onClick={() => toggleBulkItem(item)}
-                      className={cn(
-                        'shrink-0 h-5 w-5 rounded border flex items-center justify-center transition-colors',
-                        isBulkChecked
-                          ? 'bg-primary border-primary text-primary-foreground'
-                          : 'border-border bg-muted/50',
+              return (
+                <div
+                  key={item}
+                  ref={rowVirtualizer.measureElement}
+                  data-index={virtualRow.index}
+                  className='absolute left-0 top-0 w-full pt-2'
+                  style={{
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <div
+                    className={cn(
+                      'group flex flex-col p-3 rounded-lg border transition-all duration-200',
+                      isBulkChecked
+                        ? 'bg-blue-500/5 border-blue-500/30'
+                        : 'bg-background border-border hover:border-muted-foreground/30 hover:shadow-sm',
+                    )}
+                    style={
+                      isAndroid
+                        ? { willChange: 'opacity, transform' }
+                        : undefined
+                    }
+                  >
+                    <div className='flex items-center gap-3'>
+                      {bulkMode && (
+                        <button
+                          type='button'
+                          onClick={() => toggleBulkItem(item)}
+                          className={cn(
+                            'shrink-0 h-5 w-5 rounded border flex items-center justify-center transition-colors',
+                            isBulkChecked
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'border-border bg-muted/50',
+                          )}
+                        >
+                          {isBulkChecked && <Check className='h-3 w-3' />}
+                        </button>
                       )}
-                    >
-                      {isBulkChecked && <Check className='h-3 w-3' />}
-                    </button>
-                  )}
 
-                  <div className='flex-[0.8] min-w-0 flex flex-col gap-1'>
-                    <div className='flex items-center gap-2'>
-                      <DataLabel variant='unknown'>{item}</DataLabel>
-                      {best && (
-                        <div className='flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity'>
-                          <span className='text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 rounded'>
-                            Suggestion
-                          </span>
+                      <div className='flex-[0.8] min-w-0 flex flex-col gap-1'>
+                        <div className='flex items-center gap-2'>
+                          <DataLabel variant='unknown'>{item}</DataLabel>
+                          {best && (
+                            <div className='flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <span className='text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 rounded'>
+                                Suggestion
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    {best && (
-                      <div className='flex items-center gap-1 text-[10px] text-muted-foreground'>
-                        <ThumbsUp className='h-2.5 w-2.5' />
-                        <span>
-                          Recommended:{' '}
-                          <span className='font-semibold text-foreground'>
-                            {best.match}
-                          </span>{' '}
-                          ({Math.round(best.score * 100)}% match)
-                        </span>
+                        {best && (
+                          <div className='flex items-center gap-1 text-[10px] text-muted-foreground'>
+                            <ThumbsUp className='h-2.5 w-2.5' />
+                            <span>
+                              Recommended:{' '}
+                              <span className='font-semibold text-foreground'>
+                                {best.match}
+                              </span>{' '}
+                              ({Math.round(best.score * 100)}% match)
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  <div className='shrink-0 px-2'>
-                    <ArrowRight className='h-4 w-4 text-muted-foreground opacity-30' />
-                  </div>
+                      <div className='shrink-0 px-2'>
+                        <ArrowRight className='h-4 w-4 text-muted-foreground opacity-30' />
+                      </div>
 
-                  <div className='flex-[1.2] min-w-0 space-y-1.5'>
-                    <Autocomplete
-                      value={isCustom ? '__custom__' : sel}
-                      onChange={(v) => handleSelect(item, v)}
-                      groups={itemAutocompleteGroups}
-                      placeholder='Map to canonical…'
-                      className='bg-muted/30 group-hover:bg-background transition-colors'
-                      showMatchScore={true}
-                    />
+                      <div className='flex-[1.2] min-w-0 space-y-1.5'>
+                        <Autocomplete
+                          value={isCustom ? '__custom__' : sel}
+                          onChange={(v) => handleSelect(item, v)}
+                          groups={itemAutocompleteGroups}
+                          placeholder='Map to canonical…'
+                          className='bg-muted/30 group-hover:bg-background transition-colors'
+                          showMatchScore={true}
+                        />
 
-                    {isCustom && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                      >
-                        <div className='relative'>
-                          <PencilLine className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground' />
-                          <Input
-                            value={customInputs[item] ?? ''}
-                            onChange={(e) =>
-                              handleCustomInput(item, e.target.value)
-                            }
-                            placeholder='Type custom canonical value…'
-                            className='h-8 pl-8 text-xs font-mono bg-background border-dashed border-muted-foreground/30 focus-visible:border-primary'
-                          />
-                        </div>
-                      </motion.div>
-                    )}
+                        {isCustom && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                          >
+                            <div className='relative'>
+                              <PencilLine className='absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground' />
+                              <Input
+                                value={customInputs[item] ?? ''}
+                                onChange={(e) =>
+                                  handleCustomInput(item, e.target.value)
+                                }
+                                placeholder='Type custom canonical value…'
+                                className='h-8 pl-8 text-xs font-mono bg-background border-dashed border-muted-foreground/30 focus-visible:border-primary'
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -867,8 +887,7 @@ function HealthDashboard({
     <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
       <motion.div
         key='health-score-card'
-        layout
-        className='lg:col-span-2 p-6 rounded-2xl border border-border bg-linear-to-br from-background to-muted/20 relative overflow-hidden group shadow-sm'
+        className='lg:col-span-2 p-6 rounded-2xl border border-border bg-gradient-to-br from-background to-muted/20 relative overflow-hidden group shadow-sm'
         style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
       >
         <div className='absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity'>
@@ -967,7 +986,6 @@ function HealthDashboard({
 
       <motion.div
         key='audit-summary-card'
-        layout
         className='p-6 rounded-2xl border border-border bg-card flex flex-col justify-between h-full shadow-sm'
         style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
       >
@@ -1136,9 +1154,9 @@ export function CleanupSection() {
   const {
     apiKey,
     questionHistory,
-    updateQuestionHistoryEntry,
+    updateQuestionHistoryEntries,
     mcHistory,
-    updateMcHistoryEntry,
+    updateMcHistoryEntries,
   } = useAppContext();
 
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
@@ -1210,75 +1228,87 @@ export function CleanupSection() {
 
   const applyTopicMapping = useCallback(
     (topicMapping: Record<string, string>): number => {
-      let count = 0;
+      const updatedWritten: Parameters<typeof updateQuestionHistoryEntries>[0] =
+        [];
       for (const entry of questionHistory) {
         const mappedTopic = entry.question.topic
           ? topicMapping[entry.question.topic]
           : undefined;
         if (!mappedTopic) continue;
-        count++;
-        updateQuestionHistoryEntry({
+        updatedWritten.push({
           ...entry,
           question: { ...entry.question, topic: mappedTopic },
           lastModified: Date.now(),
         });
       }
+      const updatedMc: Parameters<typeof updateMcHistoryEntries>[0] = [];
       for (const entry of mcHistory) {
         const mappedTopic = entry.question.topic
           ? topicMapping[entry.question.topic]
           : undefined;
         if (!mappedTopic) continue;
-        count++;
-        updateMcHistoryEntry({
+        updatedMc.push({
           ...entry,
           question: { ...entry.question, topic: mappedTopic },
           lastModified: Date.now(),
         });
       }
-      return count;
+      if (updatedWritten.length > 0) {
+        updateQuestionHistoryEntries(updatedWritten);
+      }
+      if (updatedMc.length > 0) {
+        updateMcHistoryEntries(updatedMc);
+      }
+      return updatedWritten.length + updatedMc.length;
     },
     [
       questionHistory,
       mcHistory,
-      updateQuestionHistoryEntry,
-      updateMcHistoryEntry,
+      updateQuestionHistoryEntries,
+      updateMcHistoryEntries,
     ],
   );
 
   const applySubtopicMapping = useCallback(
     (subtopicMapping: Record<string, string>): number => {
-      let count = 0;
+      const updatedWritten: Parameters<typeof updateQuestionHistoryEntries>[0] =
+        [];
       for (const entry of questionHistory) {
         const mappedSubtopic = entry.question.subtopic
           ? subtopicMapping[entry.question.subtopic]
           : undefined;
         if (!mappedSubtopic) continue;
-        count++;
-        updateQuestionHistoryEntry({
+        updatedWritten.push({
           ...entry,
           question: { ...entry.question, subtopic: mappedSubtopic },
           lastModified: Date.now(),
         });
       }
+      const updatedMc: Parameters<typeof updateMcHistoryEntries>[0] = [];
       for (const entry of mcHistory) {
         const mappedSubtopic = entry.question.subtopic
           ? subtopicMapping[entry.question.subtopic]
           : undefined;
         if (!mappedSubtopic) continue;
-        count++;
-        updateMcHistoryEntry({
+        updatedMc.push({
           ...entry,
           question: { ...entry.question, subtopic: mappedSubtopic },
           lastModified: Date.now(),
         });
       }
-      return count;
+      if (updatedWritten.length > 0) {
+        updateQuestionHistoryEntries(updatedWritten);
+      }
+      if (updatedMc.length > 0) {
+        updateMcHistoryEntries(updatedMc);
+      }
+      return updatedWritten.length + updatedMc.length;
     },
     [
       questionHistory,
       mcHistory,
-      updateQuestionHistoryEntry,
-      updateMcHistoryEntry,
+      updateQuestionHistoryEntries,
+      updateMcHistoryEntries,
     ],
   );
 

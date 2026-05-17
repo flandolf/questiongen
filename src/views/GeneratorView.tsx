@@ -1217,7 +1217,7 @@ export function GeneratorView() {
         getDifficultyBadgeClasses={getDifficultyBadgeClasses}
       />
 
-      <div className='flex-1 min-h-0 overflow-auto relative p-6'>
+      <div className='flex-1 min-h-0 overflow-auto relative px-6 pt-4 pb-10'>
         {questionMode === 'written' && activeFeedback ? (
           <WrittenFeedbackPanel
             questionId={activeQuestion.id}
@@ -1242,13 +1242,15 @@ export function GeneratorView() {
             mode='written'
             sketchpadActive={writtenSketchpadActive}
             leftSlot={
-              <div
-                className='prose dark:prose-invert max-w-none'
-                style={{
-                  fontSize: 'var(--question-text-size)',
-                }}
-              >
-                <MarkdownMath content={activeQuestion.promptMarkdown} />
+              <div className='border-t border-border/15 pt-4'>
+                <div
+                  className='prose dark:prose-invert max-w-none'
+                  style={{
+                    fontSize: 'var(--question-text-size)',
+                  }}
+                >
+                  <MarkdownMath content={activeQuestion.promptMarkdown} />
+                </div>
               </div>
             }
             rightSlot={
@@ -1272,13 +1274,15 @@ export function GeneratorView() {
             mode='mc'
             sketchpadActive={mcSketchpadActive}
             leftSlot={
-              <div
-                className='prose dark:prose-invert max-w-none'
-                style={{
-                  fontSize: 'var(--question-text-size)',
-                }}
-              >
-                <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+              <div className='border-t border-border/15 pt-4'>
+                <div
+                  className='prose dark:prose-invert max-w-none'
+                  style={{
+                    fontSize: 'var(--question-text-size)',
+                  }}
+                >
+                  <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                </div>
               </div>
             }
             leftBelowSlot={
@@ -1320,34 +1324,34 @@ export function GeneratorView() {
             mode='mc'
             sketchpadActive={mcSketchpadActive}
             leftSlot={
-              <div
-                className='prose dark:prose-invert max-w-none'
-                style={{
-                  fontSize: 'var(--question-text-size)',
-                }}
-              >
-                <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+              <div className='border-t border-border/15 pt-4'>
+                <div
+                  className='prose dark:prose-invert max-w-none'
+                  style={{
+                    fontSize: 'var(--question-text-size)',
+                  }}
+                >
+                  <MarkdownMath content={activeMcQuestion.promptMarkdown} />
+                </div>
               </div>
             }
             rightSlot={
-              <div className='space-y-6 h-full flex flex-col'>
-                <McAnswerCard
-                  questionId={activeMcQuestion.id}
-                  options={activeMcQuestion.options}
-                  selectedAnswer={activeMcAnswer}
-                  correctAnswer={activeMcQuestion.correctAnswer}
-                  onSelectAnswer={handleMcAnswer}
-                  explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                  isSketchpadOpen={mcSketchpadActive}
-                  onToggleSketchpad={() =>
-                    setMcSketchpadActive(!mcSketchpadActive)
-                  }
-                  sketchSessionKey={activeMcSketchSessionKey}
-                  onApplyOverride={overrideMcMark}
-                  onImageDrop={() => {}}
-                  onImageRemove={() => {}}
-                />
-              </div>
+              <McAnswerCard
+                questionId={activeMcQuestion.id}
+                options={activeMcQuestion.options}
+                selectedAnswer={activeMcAnswer}
+                correctAnswer={activeMcQuestion.correctAnswer}
+                onSelectAnswer={handleMcAnswer}
+                explanationMarkdown={activeMcQuestion.explanationMarkdown}
+                isSketchpadOpen={mcSketchpadActive}
+                onToggleSketchpad={() =>
+                  setMcSketchpadActive(!mcSketchpadActive)
+                }
+                sketchSessionKey={activeMcSketchSessionKey}
+                onApplyOverride={overrideMcMark}
+                onImageDrop={() => {}}
+                onImageRemove={() => {}}
+              />
             }
           />
         )}
