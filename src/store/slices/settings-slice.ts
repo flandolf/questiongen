@@ -277,16 +277,19 @@ export const createSettingsSlice: StateCreator<
           ? DEFAULT_PROVIDER_ID
           : s.activeProviderId;
       const activeProvider = next[newActiveId];
-      if (!activeProvider) return { providers: next, activeProviderId: DEFAULT_PROVIDER_ID };
+      if (!activeProvider)
+        return { providers: next, activeProviderId: DEFAULT_PROVIDER_ID };
       return {
         providers: next,
         activeProviderId: newActiveId,
         apiKey: activeProvider.apiKey,
         model: activeProvider.modelSelections.model,
         markingModel: activeProvider.modelSelections.markingModel,
-        useSeparateMarkingModel: activeProvider.modelSelections.useSeparateMarkingModel,
+        useSeparateMarkingModel:
+          activeProvider.modelSelections.useSeparateMarkingModel,
         imageMarkingModel: activeProvider.modelSelections.imageMarkingModel,
-        useSeparateImageMarkingModel: activeProvider.modelSelections.useSeparateImageMarkingModel,
+        useSeparateImageMarkingModel:
+          activeProvider.modelSelections.useSeparateImageMarkingModel,
         tutorModel: activeProvider.modelSelections.tutorModel,
       };
     });

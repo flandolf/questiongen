@@ -104,7 +104,8 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
 
   return {
     providers: settings.providers ?? defaultSettings.providers,
-    activeProviderId: settings.activeProviderId ?? defaultSettings.activeProviderId,
+    activeProviderId:
+      settings.activeProviderId ?? defaultSettings.activeProviderId,
     apiKey: settings.apiKey || defaultSettings.apiKey,
     model: settings.model?.trim() || defaultSettings.model,
     markingModel: settings.markingModel?.trim() || defaultSettings.markingModel,
@@ -134,7 +135,9 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
       const stored = settings.interfaceFont?.trim();
       if (!stored) return defaultSettings.interfaceFont;
       const validFonts = ['Spline Sans Variable', 'JetBrains Mono Variable'];
-      return validFonts.includes(stored) ? stored : defaultSettings.interfaceFont;
+      return validFonts.includes(stored)
+        ? stored
+        : defaultSettings.interfaceFont;
     })(),
     headingFont: (() => {
       const stored = settings.headingFont?.trim();

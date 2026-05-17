@@ -138,12 +138,7 @@ export const McAnswerCard = memo(function McAnswerCard({
         />
       )}
 
-      <div
-        className={cn(
-          'flex flex-col gap-4',
-          !isSketchpadOpen && 'flex-1',
-        )}
-      >
+      <div className={cn('flex flex-col gap-4', !isSketchpadOpen && 'flex-1')}>
         <UnifiedMcqOptionsGrid
           options={options}
           selectedAnswer={selectedAnswer}

@@ -60,5 +60,5 @@ export const DEEPSEEK_PRESET_MODELS = [
 ];
 
 export const DEEPSEEK_PRESET_IMAGE_MODELS = [
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' }
+  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
 ];

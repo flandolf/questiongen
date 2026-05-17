@@ -2,26 +2,19 @@ import { CheckCircle2, Eye, EyeOff, Key, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useAppSettings } from '@/AppContext';
-import { useAppStore } from '@/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAppStore } from '@/store';
+import { BUILTIN_PROVIDERS } from '@/types/provider';
 import {
   AnimatedSection,
   FieldGroup,
   SectionHeader,
 } from '@/views/settings/SettingsUI';
-import {
-  BUILTIN_PROVIDERS,
-} from '@/types/provider';
 
 export function ApiSection() {
-  const {
-    apiKey,
-    setApiKey,
-    clearApiKey,
-    showApiKey,
-    setShowApiKey,
-  } = useAppSettings();
+  const { apiKey, setApiKey, clearApiKey, showApiKey, setShowApiKey } =
+    useAppSettings();
   const providers = useAppStore((s) => s.providers);
   const activeProviderId = useAppStore((s) => s.activeProviderId);
   const setActiveProvider = useAppStore((s) => s.setActiveProvider);
