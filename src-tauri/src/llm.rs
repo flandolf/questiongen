@@ -1,20 +1,8 @@
 use crate::constants::{self, chat_completions_url};
+use crate::http_client::post_json;
 use crate::models::{AbortSignal, AppError, CommandResult, OpenRouterResponse};
 use futures_util::StreamExt;
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
 use tauri::Emitter;
-
-/// Shared HTTP client — reuses TLS context and connection pool across all requests.
-pub fn http_client() -> &'static reqwest::Client {
-    use std::sync::OnceLock;
-    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new())
-    })
-}
 
 /// Configuration for LLM API requests (OpenRouter, DeepSeek, OpenAI-compatible).
 pub struct OpenRouterRequestConfig {
@@ -230,24 +218,22 @@ async fn call_openrouter_non_streaming(
 
     let body = serde_json::Value::Object(body_map);
 
-    let response = http_client()
-        .post(chat_completions_url(&config.base_url))
-        .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
-        .header(CONTENT_TYPE, "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
+    let response = post_json(
+        &chat_completions_url(&config.base_url),
+        &config.api_key,
+        &body,
+    )
+    .await?;
 
     let status = response.status();
-    if !status.is_success() {
-        let body = response
+    if !response.is_success() {
+        let err_body = response
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
         return Err(AppError::new(
             "OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {body}"),
+            format!("OpenRouter request failed ({status}): {err_body}"),
         )
         .with_status(status.as_u16()));
     }
@@ -359,29 +345,27 @@ async fn call_openrouter_streaming(
 
     let body = serde_json::Value::Object(body_map);
 
-    let response = http_client()
-        .post(chat_completions_url(&config.base_url))
-        .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
-        .header(CONTENT_TYPE, "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
+    let response = post_json(
+        &chat_completions_url(&config.base_url),
+        &config.api_key,
+        &body,
+    )
+    .await?;
 
     let status = response.status();
-    if !status.is_success() {
-        let body = response
+    if !response.is_success() {
+        let err_body = response
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
         return Err(AppError::new(
             "OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {body}"),
+            format!("OpenRouter request failed ({status}): {err_body}"),
         )
         .with_status(status.as_u16()));
     }
 
-    let mut stream = response.bytes_stream();
+    let mut stream = response.byte_stream();
     let mut assembled = String::new();
     let mut usage: Option<SseUsage> = None;
     let mut buf = String::new();
@@ -559,28 +543,26 @@ pub async fn call_openrouter_chat_streaming(
 
     let body = body_json;
 
-    let response = http_client()
-        .post(chat_completions_url(&config.base_url))
-        .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
-        .header(CONTENT_TYPE, "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
+    let response = post_json(
+        &chat_completions_url(&config.base_url),
+        &config.api_key,
+        &body,
+    )
+    .await?;
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response
+        let err_body = response
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
         return Err(AppError::new(
             "OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {body}"),
+            format!("OpenRouter request failed ({status}): {err_body}"),
         ));
     }
 
-    let mut stream = response.bytes_stream();
+    let mut stream = response.byte_stream();
     let mut assembled = String::new();
     let mut usage: Option<SseUsage> = None;
     let mut buf = String::new();

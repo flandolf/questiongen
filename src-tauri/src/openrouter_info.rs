@@ -1,7 +1,6 @@
 use crate::models::{AppError, CommandResult};
-use crate::llm::http_client;
+use crate::http_client::get_json;
 use once_cell::sync::Lazy;
-use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -214,18 +213,12 @@ fn catalogue_lookup(api_key: &str, model_id: &str) -> Option<(bool, bool)> {
 /// Fetch `GET /api/v1/models`, build model_id → supports_images/files maps, store
 /// them in the catalogue cache, and return the support values for `model_id`.
 async fn fetch_catalogue_and_lookup(
-    client: &reqwest::Client,
     api_key: &str,
     model_id: &str,
 ) -> (bool, bool) {
     let url = format!("{OPENROUTER_BASE}/models");
 
-    let resp = match client
-        .get(&url)
-        .header(AUTHORIZATION, format!("Bearer {api_key}"))
-        .send()
-        .await
-    {
+    let resp = match get_json(&url, api_key).await {
         Ok(r) if r.status().is_success() => r,
         Ok(r) => {
             eprintln!(
@@ -313,7 +306,6 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
 
     let (author, slug) = split_model_id(model_id.trim())?;
     let endpoints_url = format!("{OPENROUTER_BASE}/models/{author}/{slug}/endpoints");
-    let client = http_client();
 
     // ── Resolve image/file support ─────────────────────────────────────────────
     // Try the catalogue cache first (no I/O). On a miss, run both fetches in
@@ -322,21 +314,14 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         match catalogue_lookup(api_key.trim(), model_id.trim()) {
             Some((cached_images, cached_files)) => {
                 // Catalogue cache hit — only need the endpoints call.
-                let ep = client
-                    .get(&endpoints_url)
-                    .header(AUTHORIZATION, format!("Bearer {api_key}"))
-                    .send()
-                    .await;
+                let ep = get_json(&endpoints_url, api_key.trim()).await;
                 (ep, (cached_images, cached_files))
             }
             None => {
                 // Catalogue cache miss — fetch both in parallel.
                 let (ep, (img, files)) = tokio::join!(
-                    client
-                        .get(&endpoints_url)
-                        .header(AUTHORIZATION, format!("Bearer {api_key}"))
-                        .send(),
-                    fetch_catalogue_and_lookup(client, api_key.trim(), model_id.trim()),
+                    get_json(&endpoints_url, api_key.trim()),
+                    fetch_catalogue_and_lookup(api_key.trim(), model_id.trim()),
                 );
                 (ep, (img, files))
             }
@@ -433,12 +418,11 @@ pub async fn get_credits(api_key: String) -> CommandResult<CreditsInfo> {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
 
-    let response = http_client()
-        .get(format!("{OPENROUTER_BASE}/credits"))
-        .header(AUTHORIZATION, format!("Bearer {api_key}"))
-        .send()
-        .await
-        .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
+    let response = get_json(
+        &format!("{OPENROUTER_BASE}/credits"),
+        api_key.trim(),
+    )
+    .await?;
 
     if !response.status().is_success() {
         let status = response.status();
