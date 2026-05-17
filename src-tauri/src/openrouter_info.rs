@@ -83,6 +83,7 @@ struct Endpoint {
     throughput_last_30m: Option<ThroughputStats>,
     latency_last_30m: Option<LatencyStats>,
     uptime_last_30m: Option<f64>,
+    provider_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -286,12 +287,19 @@ async fn fetch_catalogue_and_lookup(
 /// catalogue fetch run in parallel via `tokio::join!` so there is no
 /// sequential latency penalty.
 #[tauri::command]
-pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult<ModelStats> {
+pub async fn get_model_stats(api_key: String, mut model_id: String) -> CommandResult<ModelStats> {
     if api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
     if model_id.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "Model ID required."));
+    }
+
+    // Map direct DeepSeek IDs to OpenRouter IDs for stats fetching
+    if model_id == "deepseek-v4-flash" {
+        model_id = "deepseek/deepseek-v4-flash".to_string();
+    } else if model_id == "deepseek-v4-pro" {
+        model_id = "deepseek/deepseek-v4-pro".to_string();
     }
 
     // ── Stats cache hit ───────────────────────────────────────────────────────
@@ -356,6 +364,18 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
     let mut best_latency: Option<f64> = None;
     let mut best_uptime: Option<f64> = None;
 
+    // If it's a DeepSeek model, we prefer the direct DeepSeek provider pricing
+    let is_deepseek_model = model_id.starts_with("deepseek/");
+    let mut direct_deepseek_endpoint = None;
+
+    if is_deepseek_model {
+        direct_deepseek_endpoint = data.endpoints.iter().find(|ep| {
+            ep.provider_name
+                .as_ref()
+                .is_some_and(|n| n.eq_ignore_ascii_case("DeepSeek"))
+        });
+    }
+
     for ep in &data.endpoints {
         if let Some(tps) = ep.throughput_last_30m.as_ref().and_then(|t| t.p50) {
             best_tps = Some(best_tps.map_or(tps, |prev: f64| prev.max(tps)));
@@ -363,8 +383,22 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
 
         let prompt_price = parse_price(ep.pricing.as_ref().and_then(|p| p.prompt.as_ref()));
         let completion_price = parse_price(ep.pricing.as_ref().and_then(|p| p.completion.as_ref()));
+
         if let Some(pp) = prompt_price {
-            if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
+            if is_deepseek_model {
+                // For DeepSeek models, we either use the direct endpoint pricing (if this is it)
+                // or keep looking. Once we've set it from the direct endpoint, we don't overwrite.
+                if let Some(direct_ep) = direct_deepseek_endpoint {
+                    if std::ptr::eq(ep, direct_ep) {
+                        best_prompt_price = Some(pp);
+                        best_completion_price = completion_price;
+                    }
+                } else if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
+                    // Fallback to lowest price if no direct DeepSeek endpoint found
+                    best_prompt_price = Some(pp);
+                    best_completion_price = completion_price;
+                }
+            } else if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
                 best_prompt_price = Some(pp);
                 best_completion_price = completion_price;
             }
