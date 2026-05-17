@@ -1,6 +1,5 @@
 use crate::models::{AppError, CommandResult};
-use crate::llm::http_client;
-use reqwest::header::AUTHORIZATION;
+use crate::http_client::get_json;
 use serde::{Deserialize, Serialize};
 
 const DEEPSEEK_BASE: &str = "https://api.deepseek.com";
@@ -75,12 +74,11 @@ pub async fn get_deepseek_balance(api_key: String) -> CommandResult<DeepSeekBala
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
 
-    let response = http_client()
-        .get(format!("{DEEPSEEK_BASE}/user/balance"))
-        .header(AUTHORIZATION, format!("Bearer {}", api_key.trim()))
-        .send()
-        .await
-        .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
+    let response = get_json(
+        &format!("{DEEPSEEK_BASE}/user/balance"),
+        api_key.trim(),
+    )
+    .await?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -117,12 +115,11 @@ pub async fn list_deepseek_models(api_key: String) -> CommandResult<DeepSeekMode
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
 
-    let response = http_client()
-        .get(format!("{DEEPSEEK_BASE}/models"))
-        .header(AUTHORIZATION, format!("Bearer {}", api_key.trim()))
-        .send()
-        .await
-        .map_err(|e| AppError::new("NETWORK_ERROR", format!("Request failed: {e}")))?;
+    let response = get_json(
+        &format!("{DEEPSEEK_BASE}/models"),
+        api_key.trim(),
+    )
+    .await?;
 
     if !response.status().is_success() {
         let status = response.status();

@@ -62,6 +62,12 @@ impl AppError {
     }
 }
 
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.code, self.message)
+    }
+}
+
 impl From<genanki_rs::Error> for AppError {
     fn from(e: genanki_rs::Error) -> Self {
         Self::new("ANKI_ERROR", format!("Anki error: {:?}", e))
