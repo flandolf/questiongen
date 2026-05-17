@@ -17,6 +17,27 @@ export interface CreditsInfo {
   remaining: number;
 }
 
+export interface DeepSeekBalanceInfo {
+  isAvailable: boolean;
+  balanceInfos: {
+    currency: string;
+    totalBalance: string;
+    grantedBalance: string;
+    toppedUpBalance: string;
+  }[];
+}
+
+export interface DeepSeekModelEntry {
+  id: string;
+  object: string;
+  ownedBy: string;
+}
+
+export interface DeepSeekModelList {
+  object: string;
+  data: DeepSeekModelEntry[];
+}
+
 export interface ModelSearchResult {
   id: string;
   name: string;

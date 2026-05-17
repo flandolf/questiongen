@@ -11,7 +11,7 @@ use crate::models::{
     MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, McQuestion,
 };
 use crate::normalization;
-use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
+use crate::llm::{call_openrouter, OpenRouterRequestConfig};
 use crate::openrouter_info::{compute_generation_cost, get_cached_model_stats, get_model_stats};
 use crate::parsing::protect_latex_in_raw_json;
 use crate::pdf;
@@ -516,7 +516,7 @@ impl GenerationService {
             schemas::written_format(request.model())
         };
         // When json_object is used (no structured output), inject schema guidance
-        if !crate::openrouter::supports_json_schema_format(request.model()) {
+        if !crate::llm::supports_json_schema_format(request.model()) {
             let guidance = if is_mc {
                 prompts::mc_schema_guidance_text()
             } else {
@@ -580,7 +580,9 @@ impl GenerationService {
 
         if request.reasoning_enabled() {
             let effort = request.reasoning_effort().unwrap_or("medium");
-            config = config.with_reasoning_effort(effort);
+            if effort != "none" {
+                config = config.with_reasoning_effort(effort);
+            }
         }
         if let Some(url) = request.base_url() {
             config = config.with_base_url(url);
@@ -1389,7 +1391,7 @@ impl GenerationService {
             marker_style,
             custom_marker_style,
         );
-        if !crate::openrouter::supports_json_schema_format(model) {
+        if !crate::llm::supports_json_schema_format(model) {
             marking_system_prompt.push_str("\n\n");
             marking_system_prompt.push_str(prompts::marking_schema_guidance_text());
         }
@@ -1654,7 +1656,7 @@ impl GenerationService {
             None
         };
 
-        let config = crate::openrouter::OpenRouterChatConfig {
+        let config = crate::llm::OpenRouterChatConfig {
             base_url: request.base_url.unwrap_or_else(|| {
                 constants::DEFAULT_OPENROUTER_CHAT_URL
                     .trim_end_matches("/chat/completions")
@@ -1669,7 +1671,7 @@ impl GenerationService {
             abort_signal: self.abort_signal.clone(),
         };
 
-        let result = crate::openrouter::call_openrouter_chat_streaming(config).await?;
+        let result = crate::llm::call_openrouter_chat_streaming(config).await?;
 
         let stats_result = get_model_stats(api_key, model).await;
         let estimated_cost_usd = stats_result.ok().and_then(|stats| {

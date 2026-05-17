@@ -3,6 +3,7 @@ pub use anki::export_deck_to_file;
 mod catalog;
 mod cleanup;
 mod constants;
+mod deepseek_info;
 mod difficulty;
 mod envelope;
 mod generation;
@@ -10,7 +11,7 @@ mod json_input;
 mod latex;
 mod models;
 mod normalization;
-mod openrouter;
+mod llm;
 mod openrouter_info;
 mod parsing;
 mod pdf;
@@ -29,6 +30,7 @@ use std::process::Command;
 static APP_HANDLE: OnceCell<tauri::AppHandle> = OnceCell::new();
 
 use models::*;
+use deepseek_info::{get_deepseek_balance, list_deepseek_models};
 use openrouter_info::{get_credits, get_model_stats};
 use persistence::{
     export_data_file, export_data_file_to_directory, list_json_files_in_directory,
@@ -334,7 +336,7 @@ async fn generate_subtopics(
     _app: tauri::AppHandle,
     request: GenerateSubtopicsRequest,
 ) -> CommandResult<GenerateSubtopicsResponse> {
-    use crate::openrouter::{call_openrouter, OpenRouterRequestConfig};
+    use crate::llm::{call_openrouter, OpenRouterRequestConfig};
 
     use crate::prompts::{subtopic_generation_system, subtopic_generation_user_prompt};
 
@@ -501,6 +503,8 @@ pub fn run() {
             generate_mc_questions,
             get_model_stats,
             get_credits,
+            get_deepseek_balance,
+            list_deepseek_models,
             cleanup_topics,
             export_question_to_anki,
             abort_generation,

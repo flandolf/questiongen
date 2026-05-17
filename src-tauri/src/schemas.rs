@@ -1,4 +1,4 @@
-use crate::openrouter::{
+use crate::llm::{
     is_anthropic_model, json_object_format, json_schema_format, json_schema_format_anthropic,
     supports_json_schema_format,
 };
