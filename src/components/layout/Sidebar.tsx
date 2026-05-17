@@ -20,12 +20,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { EASE, SPRING } from '@/lib/motion';
 import { cn, getTodayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
-
-// ─── Shared transition presets ───────────────────────────────────────────────
-const SPRING = { type: 'spring' as const, stiffness: 280, damping: 26 };
-const EASE = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as const };
 
 // ─── GoalProgressBar (unchanged logic, smoother bar) ─────────────────────────
 function GoalProgressBar({

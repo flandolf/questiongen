@@ -232,7 +232,14 @@ fn estimate_completion_budget(
         * custom_focus_multiplier
         * similarity_multiplier;
 
-    (estimated as u32 + pdf_overhead + 2000).clamp(3000, 64_000)
+    let overhead = 2000;
+    let max_budget = match question_count {
+        1 => 16_000,
+        2 => 24_000,
+        3 => 32_000,
+        _ => 64_000,
+    };
+    (estimated as u32 + pdf_overhead + overhead).clamp(2500, max_budget)
 }
 
 pub trait GenerationRequestTrait {
@@ -245,6 +252,7 @@ pub trait GenerationRequestTrait {
     fn difficulty(&self) -> &str;
     fn model(&self) -> &str;
     fn api_key(&self) -> &str;
+    fn base_url(&self) -> Option<&str>;
     fn include_exam_context(&self) -> bool;
     fn strict_latex_validation(&self) -> bool;
     fn diversity_strictness(&self) -> Option<&str>;
@@ -286,6 +294,9 @@ impl GenerationRequestTrait for GenerateQuestionsRequest {
     }
     fn api_key(&self) -> &str {
         &self.api_key
+    }
+    fn base_url(&self) -> Option<&str> {
+        self.base_url.as_deref()
     }
     fn include_exam_context(&self) -> bool {
         self.include_exam_context.unwrap_or(false)
@@ -352,6 +363,9 @@ impl GenerationRequestTrait for GenerateMcQuestionsRequest {
     }
     fn api_key(&self) -> &str {
         &self.api_key
+    }
+    fn base_url(&self) -> Option<&str> {
+        self.base_url.as_deref()
     }
     fn include_exam_context(&self) -> bool {
         self.include_exam_context.unwrap_or(false)
@@ -491,7 +505,7 @@ impl GenerationService {
             "attempt": 1
         }));
 
-        let sys_prompt = if is_mc {
+        let mut sys_prompt = if is_mc {
             prompts::mc_system()
         } else {
             prompts::written_system()
@@ -501,6 +515,16 @@ impl GenerationService {
         } else {
             schemas::written_format(request.model())
         };
+        // When json_object is used (no structured output), inject schema guidance
+        if !crate::openrouter::supports_json_schema_format(request.model()) {
+            let guidance = if is_mc {
+                prompts::mc_schema_guidance_text()
+            } else {
+                prompts::written_schema_guidance_text()
+            };
+            sys_prompt.push_str("\n\n");
+            sys_prompt.push_str(guidance);
+        }
         let max_tokens = self.calculate_optimal_max_tokens(
             request.question_count(),
             average_marks_val,
@@ -557,6 +581,9 @@ impl GenerationService {
         if request.reasoning_enabled() {
             let effort = request.reasoning_effort().unwrap_or("medium");
             config = config.with_reasoning_effort(effort);
+        }
+        if let Some(url) = request.base_url() {
+            config = config.with_base_url(url);
         }
 
         let result = call_openrouter(config).await?;
@@ -686,20 +713,21 @@ impl GenerationService {
                     serde_json::Value::String(p)
                 };
 
-                let retry_result = call_openrouter(
-                    OpenRouterRequestConfig::new(
-                        request.api_key(),
-                        request.model(),
-                        &sys_prompt,
-                        new_user_content,
-                        format.clone(),
-                        max_tokens,
-                    )
-                    .with_plugins(plugins.clone())
-                    .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
-                    .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
+                let mut retry_config = OpenRouterRequestConfig::new(
+                    request.api_key(),
+                    request.model(),
+                    &sys_prompt,
+                    new_user_content,
+                    format.clone(),
+                    max_tokens,
                 )
-                .await;
+                .with_plugins(plugins.clone())
+                .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
+                .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new));
+                if let Some(url) = request.base_url() {
+                    retry_config = retry_config.with_base_url(url);
+                }
+                let retry_result = call_openrouter(retry_config).await;
                 if let Ok(r) = retry_result {
                     if let Ok(mut new_payload) =
                         self.parse_payload::<QuestionsPayload<Q>>(&r.content)
@@ -990,15 +1018,63 @@ impl GenerationService {
     #[allow(clippy::too_many_arguments)]
     fn retry_deficit(
         &self,
-        _summary: &quality::QualitySummary,
-        _metrics: &[quality::QuestionQualityMetrics],
-        _distinctness_threshold: f32,
-        _per_question_distinctness_threshold: f32,
-        _enforce_distinctness: bool,
-        _difficulty: &str,
+        summary: &quality::QualitySummary,
+        metrics: &[quality::QuestionQualityMetrics],
+        distinctness_threshold: f32,
+        per_question_distinctness_threshold: f32,
+        enforce_distinctness: bool,
+        difficulty: &str,
         _is_mc: bool,
     ) -> f32 {
-        0.0
+        let mut deficit: f32 = 0.0;
+        let batch_size = metrics.len() as f32;
+
+        // Distinctness: how unique questions are from each other
+        let avg_distinctness = summary.distinctness_avg.unwrap_or(1.0);
+        if enforce_distinctness && avg_distinctness < distinctness_threshold {
+            deficit += (distinctness_threshold - avg_distinctness) * 3.0;
+        }
+
+        // Per-question distinctness floor
+        if enforce_distinctness {
+            let low_distinct_count = metrics
+                .iter()
+                .filter(|m| m.distinctness < per_question_distinctness_threshold)
+                .count() as f32;
+            if low_distinct_count > 0.0 {
+                deficit += (low_distinct_count / batch_size) * 1.5;
+            }
+        }
+
+        // Verb diversity: variety of command verbs across batch
+        let verb_diversity = summary.command_verb_diversity.unwrap_or(1.0);
+        let verb_threshold = if batch_size <= 2.0 { 0.5 } else { 0.4 };
+        if verb_diversity < verb_threshold {
+            deficit += (verb_threshold - verb_diversity) * 2.0;
+        }
+
+        // Scaffold variety: penalize when all questions are single-part
+        let single_part_ratio = metrics
+            .iter()
+            .filter(|m| m.scaffold_pattern == "single-part")
+            .count() as f32
+            / batch_size;
+        if single_part_ratio > 0.7 && batch_size >= 2.0 {
+            deficit += (single_part_ratio - 0.7) * 2.5;
+        }
+
+        // Depth: expect deeper questions at higher difficulties
+        let avg_depth = summary.multi_step_depth_avg.unwrap_or(1.0);
+        let depth_target = match difficulty.to_ascii_lowercase().as_str() {
+            "hard" => 2.0,
+            "extreme" => 3.0,
+            _ => 1.5,
+        };
+        if avg_depth < depth_target {
+            deficit += (depth_target - avg_depth) * 0.8;
+        }
+
+        (deficit * 100.0).round() / 100.0
     }
 
     pub fn resolve_tech_mode(&self, mode: Option<&str>) -> &'static str {
@@ -1128,6 +1204,7 @@ impl GenerationService {
         self.perform_marking(
             &request.api_key,
             &request.model,
+            request.base_url.as_deref(),
             &request.question,
             &request.student_answer,
             images,
@@ -1145,6 +1222,7 @@ impl GenerationService {
         &self,
         api_key: &str,
         model: &str,
+        base_url: Option<&str>,
         question: &crate::models::GeneratedQuestion,
         student_answer: &str,
         image_data_urls: Vec<String>,
@@ -1304,26 +1382,33 @@ impl GenerationService {
             serde_json::json!([{ "id": "response-healing" }])
         };
 
-        let result = call_openrouter(
-            OpenRouterRequestConfig::new(
-                api_key,
-                model,
-                &prompts::marking_system(
-                    max_marks,
-                    chem_note,
-                    pe_note,
-                    marker_style,
-                    custom_marker_style,
-                ),
-                user_content,
-                schemas::marking_format(model),
-                max_tokens,
-            )
-            .with_plugins(plugins)
-            .with_abort_signal(abort_signal)
-            .with_stream(self.app.clone(), Some(question.id.clone())),
+        let mut marking_system_prompt = prompts::marking_system(
+            max_marks,
+            chem_note,
+            pe_note,
+            marker_style,
+            custom_marker_style,
+        );
+        if !crate::openrouter::supports_json_schema_format(model) {
+            marking_system_prompt.push_str("\n\n");
+            marking_system_prompt.push_str(prompts::marking_schema_guidance_text());
+        }
+
+        let mut marking_config = OpenRouterRequestConfig::new(
+            api_key,
+            model,
+            &marking_system_prompt,
+            user_content,
+            schemas::marking_format(model),
+            max_tokens,
         )
-        .await?;
+        .with_plugins(plugins)
+        .with_abort_signal(abort_signal)
+        .with_stream(self.app.clone(), Some(question.id.clone()));
+        if let Some(url) = base_url {
+            marking_config = marking_config.with_base_url(url);
+        }
+        let result = call_openrouter(marking_config).await?;
 
         self.rust_log(
             "debug",
@@ -1419,19 +1504,20 @@ impl GenerationService {
         let supports_files = stats_result.as_ref().ok().is_some_and(|s| s.supports_files);
         let plugins = pdf::plugins_for_model(Some(supports_files));
 
-        let result = call_openrouter(
-            OpenRouterRequestConfig::new(
-                &request.api_key,
-                &request.model,
-                prompts::pdf_discovery_system(),
-                user_content,
-                schemas::pdf_discovery_format(&request.model),
-                16_000,
-            )
-            .with_plugins(plugins)
-            .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new)),
+        let mut pdf_config = OpenRouterRequestConfig::new(
+            &request.api_key,
+            &request.model,
+            prompts::pdf_discovery_system(),
+            user_content,
+            schemas::pdf_discovery_format(&request.model),
+            16_000,
         )
-        .await?;
+        .with_plugins(plugins)
+        .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new));
+        if let Some(url) = request.base_url.as_deref() {
+            pdf_config = pdf_config.with_base_url(url);
+        }
+        let result = call_openrouter(pdf_config).await?;
 
         let response: crate::models::DiscoverPdfQuestionsResponse =
             self.parse_payload(&result.content)?;
@@ -1523,6 +1609,7 @@ impl GenerationService {
                 .perform_marking(
                     &request.api_key,
                     &request.model,
+                    request.base_url.as_deref(),
                     question,
                     "",
                     Vec::new(),
@@ -1568,6 +1655,11 @@ impl GenerationService {
         };
 
         let config = crate::openrouter::OpenRouterChatConfig {
+            base_url: request
+                .base_url
+                .unwrap_or_else(|| constants::DEFAULT_OPENROUTER_CHAT_URL
+                    .trim_end_matches("/chat/completions")
+                    .to_string()),
             api_key: request.api_key,
             model: request.model,
             messages: request.messages,
@@ -1674,7 +1766,11 @@ impl GenerationService {
 
         let free_text_format = schemas::text_response_format(&request.model);
 
-        let result = call_openrouter(OpenRouterRequestConfig::new(&request.api_key, &request.model, "You are a helpful visual reasoning assistant.", serde_json::json!([ { "type": "text", "text": prompt }, { "type": "image_url", "image_url": { "url": data_url } } ]), free_text_format, 4_500)).await?;
+        let mut img_config = OpenRouterRequestConfig::new(&request.api_key, &request.model, "You are a helpful visual reasoning assistant.", serde_json::json!([ { "type": "text", "text": prompt }, { "type": "image_url", "image_url": { "url": data_url } } ]), free_text_format, 4_500);
+        if let Some(url) = request.base_url.as_deref() {
+            img_config = img_config.with_base_url(url);
+        }
+        let result = call_openrouter(img_config).await?;
 
         let output_text = serde_json::from_str::<serde_json::Value>(&result.content)
             .ok()

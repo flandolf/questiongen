@@ -14,6 +14,7 @@ import type {
   QuestionHistoryEntry,
 } from './history';
 import type { MarkAnswerResponse } from './marking';
+import type { ProviderState } from './provider';
 import type {
   GeneratedQuestion,
   McQuestion,
@@ -31,6 +32,10 @@ export type PersistedSettings = {
   useSeparateMarkingModel: boolean;
   imageMarkingModel: string;
   useSeparateImageMarkingModel: boolean;
+  /** Provider configurations keyed by provider ID. */
+  providers?: Record<string, ProviderState>;
+  /** ID of the currently active provider. */
+  activeProviderId?: string;
   debugMode: boolean;
   questionTextSize?: number;
   responseTextSize?: number;

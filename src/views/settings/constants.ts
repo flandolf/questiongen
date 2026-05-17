@@ -31,6 +31,28 @@ export const PRESET_IMAGE_MODELS = [
   { id: 'custom', name: 'Custom…' },
 ];
 
+/** Model presets for the DeepSeek API (plain model IDs without provider prefix). */
+export const DEEPSEEK_PRESET_MODELS = [
+  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
+];
+
+export const DEEPSEEK_PRESET_IMAGE_MODELS = [
+  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  { id: 'custom', name: 'Custom…' },
+];
+
+/** Get model presets for a given provider ID. */
+export function getModelsForProvider(providerId: string) {
+  if (providerId === 'deepseek') return DEEPSEEK_PRESET_MODELS;
+  return PRESET_MODELS;
+}
+
+export function getImageModelsForProvider(providerId: string) {
+  if (providerId === 'deepseek') return DEEPSEEK_PRESET_IMAGE_MODELS;
+  return PRESET_IMAGE_MODELS;
+}
+
 export const TUTOR_PERSONA_PRESETS = [
   {
     id: 'socratic',

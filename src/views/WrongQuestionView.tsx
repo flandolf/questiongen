@@ -452,6 +452,7 @@ type QuestionState = WrittenQuestionState | McQuestionState;
 interface ReattemptViewProps {
   questions: WrongEntry[];
   apiKey: string;
+  baseUrl?: string;
   model: string;
   onExit: (results: ReattemptResult[]) => void;
   onDelete: (entry: WrongEntry) => void;
@@ -461,6 +462,7 @@ interface ReattemptViewProps {
 function ReattemptView({
   questions,
   apiKey,
+  baseUrl,
   model,
   onExit,
   onDelete,
@@ -697,6 +699,7 @@ function ReattemptView({
           studentAnswerImageDataUrl: image?.dataUrl,
           model,
           apiKey,
+          baseUrl,
         },
       });
       const resp = normalizeMarkResponse(raw, writtenEntry.question.maxMarks);
@@ -1067,6 +1070,9 @@ export default function WrongQuestionView() {
   );
   const updateMcHistoryEntry = useAppStore((s) => s.updateMcHistoryEntry);
   const apiKey = useAppStore((s) => s.apiKey);
+  const baseUrl = useAppStore(
+    (s) => s.providers[s.activeProviderId]?.config.baseUrl,
+  );
   const model = useAppStore((s) => s.model);
   const markingModel = useAppStore((s) => s.markingModel);
   const useSeparateMarkingModel = useAppStore((s) => s.useSeparateMarkingModel);
@@ -1216,6 +1222,7 @@ export default function WrongQuestionView() {
         <ReattemptView
           questions={reattemptQueue}
           apiKey={apiKey}
+          baseUrl={baseUrl}
           model={effectiveModel}
           onDelete={handleDelete}
           onMarkCorrect={handleMarkCorrect}

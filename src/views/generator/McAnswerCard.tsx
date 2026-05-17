@@ -126,29 +126,22 @@ export const McAnswerCard = memo(function McAnswerCard({
   const showResult = answered && !hideCorrectAnswer;
 
   return (
-    <div className='space-y-4 flex flex-col h-full'>
-      <div
-        className={cn(
-          'space-y-4 flex flex-col h-full',
-          !isSketchpadOpen && renderSketchpadInline && 'hidden',
-        )}
-      >
-        {renderSketchpadInline && (
-          <McSketchpadPanel
-            questionId={questionId}
-            sketchSessionKey={sketchSessionKey}
-            image={image}
-            onImageDrop={onImageDrop}
-            onImageRemove={onImageRemove}
-            onToggleSketchpad={onToggleSketchpad}
-          />
-        )}
-      </div>
+    <div className='flex flex-col gap-4 h-full'>
+      {renderSketchpadInline && isSketchpadOpen && (
+        <McSketchpadPanel
+          questionId={questionId}
+          sketchSessionKey={sketchSessionKey}
+          image={image}
+          onImageDrop={onImageDrop}
+          onImageRemove={onImageRemove}
+          onToggleSketchpad={onToggleSketchpad}
+        />
+      )}
 
       <div
         className={cn(
-          'space-y-4 flex flex-col h-full',
-          isSketchpadOpen && renderSketchpadInline && 'hidden',
+          'flex flex-col gap-4',
+          !isSketchpadOpen && 'flex-1',
         )}
       >
         <UnifiedMcqOptionsGrid

@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -142,26 +141,23 @@ export function QuestionSplitLayout({
       <div
         ref={containerRef}
         className={cn(
-          'hidden lg:flex w-full lg:gap-8 stagger-reveal',
-          sketchpadActive ? '' : '',
+          'hidden lg:flex w-full stagger-reveal',
+          sketchpadActive ? 'gap-0' : 'gap-8',
         )}
         style={{ alignItems: 'stretch' }}
       >
-        <motion.div
+        <div
           className='min-w-0 space-y-5'
-          // animate width changes for snappier feel; disable transition while dragging
-          animate={{ width: `${leftPct}%` }}
-          transition={
-            isDragging
-              ? { duration: 0 }
-              : { type: 'spring', stiffness: 1200, damping: 70 }
-          }
+          style={{
+            width: `${leftPct}%`,
+            transition: isDragging ? 'none' : 'width 200ms ease-out',
+          }}
         >
           {leftSlot}
           {leftBelowSlot}
-        </motion.div>
+        </div>
 
-        {sketchpadActive ? (
+        {sketchpadActive && (
           <div
             role='separator'
             aria-orientation='vertical'
@@ -172,19 +168,11 @@ export function QuestionSplitLayout({
             tabIndex={0}
             onKeyDown={handleKeyDown}
             onPointerDown={handlePointerDown}
-            className='flex items-center justify-center px-1'
+            className='flex items-center justify-center px-1 shrink-0'
             style={{ cursor: 'col-resize', touchAction: 'none' }}
           >
-            <motion.div
-              className='h-10 w-1 rounded-full bg-border/40 hover:bg-border transition-colors'
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 600, damping: 40 }}
-            />
+            <div className='h-10 w-1 rounded-full bg-border/40 hover:bg-border hover:scale-110 active:scale-95 transition-all duration-150' />
           </div>
-        ) : (
-          // When sketchpad is not active, render a small spacer
-          <div className='w-0.5' />
         )}
 
         <div className='min-w-0 flex-1 space-y-5'>{rightSlot}</div>

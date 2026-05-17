@@ -224,6 +224,7 @@ async fn cleanup_topics(request: CleanupTopicsRequest) -> CommandResult<CleanupT
         &canonical_topics,
         &request.api_key,
         &request.model,
+        request.base_url.as_deref(),
     )
     .await?;
     Ok(CleanupTopicsResponse { topic_mapping })
@@ -255,6 +256,7 @@ async fn cleanup_subtopics(
         &canonical_subtopics,
         &request.api_key,
         &request.model,
+        request.base_url.as_deref(),
     )
     .await?;
     Ok(CleanupSubtopicsResponse { subtopic_mapping })
@@ -406,7 +408,7 @@ async fn generate_subtopics(
         }
     }
 
-    let config = OpenRouterRequestConfig::new(
+    let mut config = OpenRouterRequestConfig::new(
         &request.api_key,
         &request.model,
         subtopic_generation_system(),
@@ -414,6 +416,9 @@ async fn generate_subtopics(
         response_format,
         4000,
     );
+    if let Some(url) = request.base_url.as_deref() {
+        config = config.with_base_url(url);
+    }
 
     let result = call_openrouter(config).await?;
 

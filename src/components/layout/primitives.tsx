@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 
+import { SPRING } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-
-const SPRING = { type: 'spring' as const, stiffness: 300, damping: 20 };
 
 interface PageHeaderProps {
   title: string;

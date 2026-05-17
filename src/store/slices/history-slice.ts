@@ -53,6 +53,8 @@ export interface HistorySlice {
   addMcHistoryEntry: AppActions['addMcHistoryEntry'];
   updateQuestionHistoryEntry: AppActions['updateQuestionHistoryEntry'];
   updateMcHistoryEntry: AppActions['updateMcHistoryEntry'];
+  updateQuestionHistoryEntries: AppActions['updateQuestionHistoryEntries'];
+  updateMcHistoryEntries: AppActions['updateMcHistoryEntries'];
   clearQuestionHistory: AppActions['clearQuestionHistory'];
   clearMcHistory: AppActions['clearMcHistory'];
 
@@ -375,6 +377,36 @@ export const createHistorySlice: StateCreator<
       mcHistory: s.mcHistory.map((e) => (e.id === entry.id ? nextEntry : e)),
     }));
     void v3SaveMcHistoryEntry(nextEntry);
+  },
+
+  updateQuestionHistoryEntries: (entries) => {
+    if (entries.length === 0) return;
+    const entryMap = new Map(
+      entries.map((e) => [e.id, { ...e, isUploaded: false }] as const),
+    );
+    set((s) => ({
+      questionHistory: s.questionHistory.map((e) =>
+        entryMap.has(e.id) ? entryMap.get(e.id)! : e,
+      ),
+    }));
+    for (const entry of entries) {
+      void v3SaveQuestionHistoryEntry({ ...entry, isUploaded: false });
+    }
+  },
+
+  updateMcHistoryEntries: (entries) => {
+    if (entries.length === 0) return;
+    const entryMap = new Map(
+      entries.map((e) => [e.id, { ...e, isUploaded: false }] as const),
+    );
+    set((s) => ({
+      mcHistory: s.mcHistory.map((e) =>
+        entryMap.has(e.id) ? entryMap.get(e.id)! : e,
+      ),
+    }));
+    for (const entry of entries) {
+      void v3SaveMcHistoryEntry({ ...entry, isUploaded: false });
+    }
   },
 
   clearQuestionHistory: () => {

@@ -15,6 +15,7 @@ export const themes = [
   { name: 'midnight', label: 'Midnight' },
   { name: 'sunset', label: 'Sunset' },
   { name: 'slate', label: 'Slate' },
+  { name: 'nord', label: 'Nord' },
   { name: 'custom', label: 'Custom' },
 ] as const satisfies readonly DesignTheme[];
 

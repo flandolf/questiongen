@@ -9,8 +9,10 @@ import {
   GraduationCap,
   HardDriveDownload,
   Key,
+  Layers,
   Palette,
   ScrollText,
+  Trash2,
   TrendingUp,
   Wand2,
 } from 'lucide-react';
@@ -77,7 +79,7 @@ const SIDEBAR_CATEGORIES: {
       {
         id: 'subtopics',
         label: 'Custom Subtopics',
-        icon: <Wand2 className='h-4 w-4' />,
+        icon: <Layers className='h-4 w-4' />,
       },
     ],
   },
@@ -103,7 +105,7 @@ const SIDEBAR_CATEGORIES: {
       {
         id: 'cleanup',
         label: 'Data Cleanup',
-        icon: <Wand2 className='h-4 w-4' />,
+        icon: <Trash2 className='h-4 w-4' />,
       },
       { id: 'debug', label: 'Debug', icon: <Bug className='h-4 w-4' /> },
       { id: 'logs', label: 'Logs', icon: <ScrollText className='h-4 w-4' /> },

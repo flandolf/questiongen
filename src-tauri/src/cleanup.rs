@@ -110,6 +110,7 @@ impl CleanupService {
         canonical: &[String],
         api_key: &str,
         model: &str,
+        base_url: Option<&str>,
     ) -> CommandResult<HashMap<String, String>> {
         let (mut mapping, remaining) = Self::auto_map_exact(unknowns, canonical);
         if remaining.is_empty() {
@@ -123,15 +124,18 @@ impl CleanupService {
 
         for chunk in remaining.chunks(CLEANUP_BATCH_SIZE) {
             let user_prompt = format!("Map each 'Unknown' item to closest 'Canonical'.\n\nCanonical:\n- {}\n\nUnknown:\n- {}", canonical.join("\n- "), sanitize_for_api(&chunk.join("\n- ")));
-            let result = call_openrouter(OpenRouterRequestConfig::new(
+            let mut config = OpenRouterRequestConfig::new(
                 api_key,
                 model,
                 system_prompt,
                 serde_json::Value::String(user_prompt),
                 schema.clone(),
                 2048,
-            ))
-            .await?;
+            );
+            if let Some(url) = base_url {
+                config = config.with_base_url(url);
+            }
+            let result = call_openrouter(config).await?;
             let raw_mappings = Self::parse_cleanup_mappings(&result.content)?;
             mapping = Self::validate_and_filter_mappings(raw_mappings, canonical, &mapping);
         }

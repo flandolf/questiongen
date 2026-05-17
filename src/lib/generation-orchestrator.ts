@@ -108,7 +108,12 @@ async function generateTopicQuestions(
     customFocusArea,
     modelReasoningEnabled,
     modelReasoningEffort,
+    providers,
+    activeProviderId,
   } = store;
+
+  const activeProvider = providers[activeProviderId];
+  const baseUrl = activeProvider?.config.baseUrl;
 
   try {
     const topicSubtopics = getSubtopicsForTopic(topic, store);
@@ -144,6 +149,7 @@ async function generateTopicQuestions(
           questionCount: count,
           model,
           apiKey,
+          baseUrl,
           techMode,
           includeExamContext,
           subtopics: shuffled,
@@ -202,6 +208,7 @@ async function generateTopicQuestions(
             questionCount: call.count,
             model,
             apiKey,
+            baseUrl,
             techMode,
             includeExamContext,
             subtopics: call.subtopics,

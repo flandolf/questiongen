@@ -46,7 +46,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --font-sans: var(--interface-font, 'Manrope Variable'), sans-serif;
+  --font-sans: var(--interface-font, 'Spline Sans Variable'), sans-serif;
   --font-mono: var(--mono-font, 'JetBrains Mono Variable'), monospace;
   --font-serif: var(--heading-font, Georgia), serif;
 

@@ -163,6 +163,8 @@ export function useAppContext() {
       addMcHistoryEntry: s.addMcHistoryEntry,
       updateQuestionHistoryEntry: s.updateQuestionHistoryEntry,
       updateMcHistoryEntry: s.updateMcHistoryEntry,
+      updateQuestionHistoryEntries: s.updateQuestionHistoryEntries,
+      updateMcHistoryEntries: s.updateMcHistoryEntries,
       clearQuestionHistory: s.clearQuestionHistory,
       clearMcHistory: s.clearMcHistory,
       isGenerating: s.isGenerating,

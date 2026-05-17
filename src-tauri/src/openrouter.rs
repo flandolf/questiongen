@@ -1,4 +1,4 @@
-use crate::constants::OPENROUTER_CHAT_URL;
+use crate::constants::{self, chat_completions_url};
 use crate::models::{AbortSignal, AppError, CommandResult, OpenRouterResponse};
 use futures_util::StreamExt;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -16,8 +16,9 @@ pub fn http_client() -> &'static reqwest::Client {
     })
 }
 
-/// Configuration for OpenRouter requests.
+/// Configuration for LLM API requests (OpenRouter, DeepSeek, OpenAI-compatible).
 pub struct OpenRouterRequestConfig {
+    pub base_url: String,
     pub api_key: String,
     pub model: String,
     pub system_prompt: String,
@@ -42,6 +43,9 @@ impl OpenRouterRequestConfig {
         max_tokens: u32,
     ) -> Self {
         Self {
+            base_url: constants::DEFAULT_OPENROUTER_CHAT_URL
+                .trim_end_matches("/chat/completions")
+                .to_string(),
             api_key: api_key.to_string(),
             model: model.to_string(),
             system_prompt: system_prompt.to_string(),
@@ -55,6 +59,11 @@ impl OpenRouterRequestConfig {
             abort_signal: None,
             reasoning_effort: None,
         }
+    }
+
+    pub fn with_base_url(mut self, base_url: &str) -> Self {
+        self.base_url = base_url.to_string();
+        self
     }
 
     pub fn with_plugins(mut self, plugins: serde_json::Value) -> Self {
@@ -100,6 +109,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
 
         let result = if config.stream {
             let retry_config = OpenRouterRequestConfig {
+                base_url: config.base_url.clone(),
                 api_key: config.api_key.clone(),
                 model: config.model.clone(),
                 system_prompt: config.system_prompt.clone(),
@@ -124,6 +134,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
             call_openrouter_streaming(retry_config).await
         } else {
             let retry_config = OpenRouterRequestConfig {
+                base_url: config.base_url.clone(),
                 api_key: config.api_key.clone(),
                 model: config.model.clone(),
                 system_prompt: config.system_prompt.clone(),
@@ -204,7 +215,7 @@ async fn call_openrouter_non_streaming(
     let body = serde_json::Value::Object(body_map);
 
     let response = http_client()
-        .post(OPENROUTER_CHAT_URL)
+        .post(chat_completions_url(&config.base_url))
         .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
         .header(CONTENT_TYPE, "application/json")
         .json(&body)
@@ -317,7 +328,7 @@ async fn call_openrouter_streaming(
     let body = serde_json::Value::Object(body_map);
 
     let response = http_client()
-        .post(OPENROUTER_CHAT_URL)
+        .post(chat_completions_url(&config.base_url))
         .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
         .header(CONTENT_TYPE, "application/json")
         .json(&body)
@@ -487,6 +498,7 @@ async fn call_openrouter_streaming(
 }
 
 pub struct OpenRouterChatConfig {
+    pub base_url: String,
     pub api_key: String,
     pub model: String,
     pub messages: Vec<crate::models::TutorMessage>,
@@ -516,7 +528,7 @@ pub async fn call_openrouter_chat_streaming(
     let body = body_json;
 
     let response = http_client()
-        .post(OPENROUTER_CHAT_URL)
+        .post(chat_completions_url(&config.base_url))
         .header(AUTHORIZATION, format!("Bearer {}", config.api_key))
         .header(CONTENT_TYPE, "application/json")
         .json(&body)
@@ -681,6 +693,28 @@ pub fn is_anthropic_model(model: &str) -> bool {
             .split('/')
             .nth(1)
             .is_some_and(|id| id.starts_with("claude"))
+}
+
+pub fn is_deepseek_model(model: &str) -> bool {
+    let model = model.trim().to_ascii_lowercase();
+    model.starts_with("deepseek-") || model.starts_with("deepseek/")
+}
+
+/// Returns true if the model supports structured output with `json_schema` type.
+/// OpenRouter models (with `provider/name` format) support it. DeepSeek direct
+/// models and custom-provider models (no `/` prefix) only support `json_object`.
+pub fn supports_json_schema_format(model: &str) -> bool {
+    if is_deepseek_model(model) {
+        return false;
+    }
+    // OpenRouter models use provider/model-name format (contain '/')
+    // Plain model IDs without '/' likely come from non-OpenRouter providers
+    // that only support basic json_object.
+    model.trim().contains('/')
+}
+
+pub fn json_object_format() -> serde_json::Value {
+    serde_json::json!({"type": "json_object"})
 }
 
 fn strip_integer_constraints(value: &mut serde_json::Value) {

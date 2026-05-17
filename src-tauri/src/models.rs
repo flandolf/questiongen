@@ -158,6 +158,7 @@ pub struct GenerateQuestionsRequest {
     pub question_count: usize,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub include_exam_context: Option<bool>,
     pub tech_mode: Option<String>,
     pub subtopics: Option<Vec<String>>,
@@ -223,6 +224,7 @@ pub struct MarkAnswerRequest {
     pub student_answer_image_data_urls: Option<Vec<String>>,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
 }
@@ -305,6 +307,7 @@ pub struct AnalyzeImageRequest {
     pub image_path: String,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub prompt: Option<String>,
 }
 
@@ -329,6 +332,7 @@ pub struct TutorChatRequest {
     pub messages: Vec<TutorMessage>,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     /// If true, triggers diagnostic mode (lower temperature for precise analysis).
     pub diagnostic: Option<bool>,
 }
@@ -351,6 +355,7 @@ pub struct TutorChatResponse {
 pub struct CleanupTopicsRequest {
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub unknown_topics: Vec<String>,
     pub canonical_topics: Vec<String>,
 }
@@ -368,6 +373,7 @@ pub struct CleanupTopicsResponse {
 pub struct CleanupSubtopicsRequest {
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub unknown_subtopics: Vec<String>,
     pub canonical_subtopics: Vec<String>,
 }
@@ -412,6 +418,7 @@ pub struct MarkPdfRequest {
     pub page_mapping: Vec<MarkPdfPageMapping>,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
 }
@@ -429,6 +436,7 @@ pub struct DiscoverPdfQuestionsRequest {
     pub pdf_base64: String,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -502,6 +510,7 @@ pub struct GenerateMcQuestionsRequest {
     pub question_count: usize,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub include_exam_context: Option<bool>,
     pub tech_mode: Option<String>,
     pub subtopics: Option<Vec<String>>,
@@ -555,6 +564,7 @@ pub struct GenerateSubtopicsRequest {
     pub topic: String,
     pub model: String,
     pub api_key: String,
+    pub base_url: Option<String>,
     pub existing_subtopics: Option<Vec<String>>,
     pub focus_area: Option<String>,
     pub pdf_content: Option<String>,

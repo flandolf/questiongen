@@ -25,6 +25,9 @@ export function AiGenerateSubtopicsModal({
   onClose,
 }: AiGenerateSubtopicsModalProps) {
   const apiKey = useAppStore((s) => s.apiKey);
+  const baseUrl = useAppStore(
+    (s) => s.providers[s.activeProviderId]?.config.baseUrl,
+  );
   const [model, setModel] = useState(
     PRESET_MODELS[0]?.id || 'anthropic/claude-3.5-sonnet',
   );
@@ -72,6 +75,7 @@ export function AiGenerateSubtopicsModal({
               topic,
               model,
               apiKey,
+              baseUrl,
               existingSubtopics: existingSubtopicNames,
               focusArea,
               pdfContent: pdfBase64,
