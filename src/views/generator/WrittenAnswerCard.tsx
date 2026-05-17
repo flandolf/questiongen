@@ -205,37 +205,37 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
       disabled={isMarking}
       topSlot={
         <div className='grid grid-cols-3 gap-1 pb-2 border-b border-border/15'>
-            <Button
-              type='button'
-              variant={activeTab === 'response' ? 'default' : 'ghost'}
-              size='sm'
-              className='gap-1.5'
-              onClick={() => setActiveTab('response')}
-            >
-              <Type className='h-3.5 w-3.5' />
-              Response
-            </Button>
-            <Button
-              type='button'
-              variant={activeTab === 'upload' ? 'default' : 'ghost'}
-              size='sm'
-              className='gap-1.5'
-              onClick={() => setActiveTab('upload')}
-            >
-              <ImageIcon className='h-3.5 w-3.5' />
-              Upload image
-            </Button>
-            <Button
-              type='button'
-              variant={activeTab === 'sketchpad' ? 'default' : 'ghost'}
-              size='sm'
-              className='gap-1.5'
-              onClick={() => setActiveTab('sketchpad')}
-            >
-              <PencilRuler className='h-3.5 w-3.5' />
-              Sketchpad
-            </Button>
-          </div>
+          <Button
+            type='button'
+            variant={activeTab === 'response' ? 'default' : 'ghost'}
+            size='sm'
+            className='gap-1.5'
+            onClick={() => setActiveTab('response')}
+          >
+            <Type className='h-3.5 w-3.5' />
+            Response
+          </Button>
+          <Button
+            type='button'
+            variant={activeTab === 'upload' ? 'default' : 'ghost'}
+            size='sm'
+            className='gap-1.5'
+            onClick={() => setActiveTab('upload')}
+          >
+            <ImageIcon className='h-3.5 w-3.5' />
+            Upload image
+          </Button>
+          <Button
+            type='button'
+            variant={activeTab === 'sketchpad' ? 'default' : 'ghost'}
+            size='sm'
+            className='gap-1.5'
+            onClick={() => setActiveTab('sketchpad')}
+          >
+            <PencilRuler className='h-3.5 w-3.5' />
+            Sketchpad
+          </Button>
+        </div>
       }
       inputSlot={
         activeTab === 'response' ? (

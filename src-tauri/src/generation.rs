@@ -1655,11 +1655,11 @@ impl GenerationService {
         };
 
         let config = crate::openrouter::OpenRouterChatConfig {
-            base_url: request
-                .base_url
-                .unwrap_or_else(|| constants::DEFAULT_OPENROUTER_CHAT_URL
+            base_url: request.base_url.unwrap_or_else(|| {
+                constants::DEFAULT_OPENROUTER_CHAT_URL
                     .trim_end_matches("/chat/completions")
-                    .to_string()),
+                    .to_string()
+            }),
             api_key: request.api_key,
             model: request.model,
             messages: request.messages,
@@ -1766,7 +1766,14 @@ impl GenerationService {
 
         let free_text_format = schemas::text_response_format(&request.model);
 
-        let mut img_config = OpenRouterRequestConfig::new(&request.api_key, &request.model, "You are a helpful visual reasoning assistant.", serde_json::json!([ { "type": "text", "text": prompt }, { "type": "image_url", "image_url": { "url": data_url } } ]), free_text_format, 4_500);
+        let mut img_config = OpenRouterRequestConfig::new(
+            &request.api_key,
+            &request.model,
+            "You are a helpful visual reasoning assistant.",
+            serde_json::json!([ { "type": "text", "text": prompt }, { "type": "image_url", "image_url": { "url": data_url } } ]),
+            free_text_format,
+            4_500,
+        );
         if let Some(url) = request.base_url.as_deref() {
             img_config = img_config.with_base_url(url);
         }

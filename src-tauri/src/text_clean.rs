@@ -81,7 +81,10 @@ mod tests {
 
     #[test]
     fn trailing_whitespace_stripped_from_lines() {
-        assert_eq!(strip_trailing_whitespace("hello   \nworld\t\n!  "), "hello\nworld\n!");
+        assert_eq!(
+            strip_trailing_whitespace("hello   \nworld\t\n!  "),
+            "hello\nworld\n!"
+        );
     }
 
     #[test]

@@ -27,13 +27,13 @@ import type {
   Topic,
 } from '../types';
 import {
-  DEFAULT_CUSTOM_THEME_SEED_COLOR,
-  normalizeHexColor,
-} from './color-helpers';
-import {
   BUILTIN_PROVIDERS,
   createDefaultProviderState,
 } from '../types/provider';
+import {
+  DEFAULT_CUSTOM_THEME_SEED_COLOR,
+  normalizeHexColor,
+} from './color-helpers';
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: '',
@@ -280,7 +280,7 @@ function migrateProviders(raw: Record<string, unknown>): {
   const providers = raw.providers;
   if (isRecord(providers)) {
     // Already have provider data — ensure built-in providers exist
-    const merged = { ...(providers as Record<string, unknown>) };
+    const merged = { ...providers };
     for (const [id, config] of Object.entries(BUILTIN_PROVIDERS)) {
       if (!merged[id]) {
         merged[id] = createDefaultProviderState(config);

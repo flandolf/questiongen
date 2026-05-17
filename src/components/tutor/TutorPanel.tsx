@@ -28,7 +28,6 @@ import { toast } from 'sonner';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useAppSettings } from '@/AppContext';
-import { useAppStore } from '@/store';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -47,6 +46,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
 import { getLatestSketch } from '@/store/sketchpad-sync';
 import { useTutorStore } from '@/store/tutor';
 import type { StudentAnswerImage } from '@/types';

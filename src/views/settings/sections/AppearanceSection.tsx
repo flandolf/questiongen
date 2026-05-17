@@ -20,10 +20,7 @@ import {
   SectionHeader,
 } from '../SettingsUI';
 
-const SANS_FONTS = [
-  'Spline Sans Variable',
-  'JetBrains Mono Variable',
-];
+const SANS_FONTS = ['Spline Sans Variable', 'JetBrains Mono Variable'];
 
 export function AppearanceSection() {
   const {

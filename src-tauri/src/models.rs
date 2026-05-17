@@ -366,24 +366,7 @@ pub struct CleanupTopicsResponse {
     pub topic_mapping: HashMap<String, String>,
 }
 
-// ─── Cleanup subtopics only ──────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CleanupSubtopicsRequest {
-    pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    pub unknown_subtopics: Vec<String>,
-    pub canonical_subtopics: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CleanupSubtopicsResponse {
-    pub subtopic_mapping: HashMap<String, String>,
-}
-
+// (cleanup_subtopics command removed)
 // ─── Export to Anki ──────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]

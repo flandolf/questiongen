@@ -230,37 +230,7 @@ async fn cleanup_topics(request: CleanupTopicsRequest) -> CommandResult<CleanupT
     Ok(CleanupTopicsResponse { topic_mapping })
 }
 
-#[tauri::command]
-async fn cleanup_subtopics(
-    request: CleanupSubtopicsRequest,
-) -> CommandResult<CleanupSubtopicsResponse> {
-    if request.api_key.trim().is_empty() || request.model.trim().is_empty() {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "API key and model required.",
-        ));
-    }
-    if request.unknown_subtopics.is_empty() {
-        return Ok(CleanupSubtopicsResponse {
-            subtopic_mapping: HashMap::new(),
-        });
-    }
-    let canonical_subtopics: Vec<String> = request
-        .canonical_subtopics
-        .iter()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
-    let subtopic_mapping = cleanup::CleanupService::batch_cleanup(
-        &request.unknown_subtopics,
-        &canonical_subtopics,
-        &request.api_key,
-        &request.model,
-        request.base_url.as_deref(),
-    )
-    .await?;
-    Ok(CleanupSubtopicsResponse { subtopic_mapping })
-}
+// cleanup_subtopics removed — subject normalization is now performed on frontend
 
 #[tauri::command]
 async fn export_question_to_anki(
@@ -532,7 +502,6 @@ pub fn run() {
             get_model_stats,
             get_credits,
             cleanup_topics,
-            cleanup_subtopics,
             export_question_to_anki,
             abort_generation,
             mark_pdf,
