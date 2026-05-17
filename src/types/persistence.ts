@@ -67,6 +67,7 @@ export type PersistedSettings = {
   modelReasoningEffort?:
     | 'xhigh'
     | 'high'
+    | 'max'
     | 'medium'
     | 'low'
     | 'minimal'

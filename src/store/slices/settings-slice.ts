@@ -45,6 +45,7 @@ export interface SettingsSlice {
   modelReasoningEffort:
     | 'xhigh'
     | 'high'
+    | 'max'
     | 'medium'
     | 'low'
     | 'minimal'
@@ -104,7 +105,7 @@ export interface SettingsSlice {
   setCustomMarkerStyle: (style: string) => void;
   setModelReasoningEnabled: (enabled: boolean) => void;
   setModelReasoningEffort: (
-    effort: 'xhigh' | 'high' | 'medium' | 'low' | 'minimal' | 'none',
+    effort: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none',
   ) => void;
 
   setPresets: (presets: AppState['presets']) => void;

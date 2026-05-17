@@ -65,6 +65,7 @@ export interface AppState {
   modelReasoningEffort:
     | 'xhigh'
     | 'high'
+    | 'max'
     | 'medium'
     | 'low'
     | 'minimal'
@@ -208,7 +209,7 @@ export interface AppActions {
   setCustomMarkerStyle: (style: string) => void;
   setModelReasoningEnabled: (enabled: boolean) => void;
   setModelReasoningEffort: (
-    effort: 'xhigh' | 'high' | 'medium' | 'low' | 'minimal' | 'none',
+    effort: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none',
   ) => void;
 
   // Preferences

@@ -1,5 +1,5 @@
 use crate::models::{AppError, CommandResult};
-use crate::openrouter::http_client;
+use crate::llm::http_client;
 use once_cell::sync::Lazy;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
