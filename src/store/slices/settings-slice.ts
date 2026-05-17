@@ -438,7 +438,7 @@ export const createSettingsSlice: StateCreator<
         ...preset.preferences,
         selectedSubtopics: cleanPresetSubtopics(
           preset.preferences.selectedSubtopics,
-          s.selectedTopics,
+          preset.preferences.selectedTopics,
           s.customSubtopics,
         ),
       };
@@ -453,7 +453,7 @@ export const createSettingsSlice: StateCreator<
         ...preset.preferences,
         selectedSubtopics: cleanPresetSubtopics(
           preset.preferences.selectedSubtopics,
-          s.selectedTopics,
+          preset.preferences.selectedTopics,
           s.customSubtopics,
         ),
       };
@@ -538,7 +538,7 @@ export const createSettingsSlice: StateCreator<
       if (prefs.selectedSubtopics !== undefined) {
         const cleaned = cleanPresetSubtopics(
           prefs.selectedSubtopics,
-          state.selectedTopics,
+          prefs.selectedTopics ?? state.selectedTopics,
           state.customSubtopics,
         );
         next.selectedSubtopics = cleaned ?? {};
