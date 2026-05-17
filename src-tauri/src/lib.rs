@@ -470,15 +470,38 @@ pub fn run() {
             let _ = APP_HANDLE.set(app.handle().clone());
             #[cfg(target_os = "android")]
             {
-                let ctx = ndk_context::android_context();
-                let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }
-                    .expect("failed to obtain JavaVM");
-                let mut env = vm
-                    .attach_current_thread()
-                    .expect("failed to attach current thread");
-                let context = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
-                rustls_platform_verifier::android::init_with_env(&mut env, context)
-                    .expect("failed to initialize rustls-platform-verifier");
+                let result = std::panic::catch_unwind(|| {
+                    let ctx = ndk_context::android_context();
+                    if !ctx.vm().is_null() && !ctx.context().is_null() {
+                        Some(unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) })
+                    } else {
+                        eprintln!("ndk_context returned null pointers (non-fatal)");
+                        None
+                    }
+                });
+
+                if let Ok(Some(Ok(vm))) = result {
+                    match vm.attach_current_thread() {
+                        Ok(mut env) => {
+                            let ctx = ndk_context::android_context();
+                            let context = unsafe {
+                                jni::objects::JObject::from_raw(ctx.context().cast())
+                            };
+                            if let Err(e) = rustls_platform_verifier::android::init_with_env(
+                                &mut env, context,
+                            ) {
+                                eprintln!(
+                                    "rustls-platform-verifier init failed (non-fatal): {e}"
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("failed to attach JNI thread for rustls-platform-verifier (non-fatal): {e}");
+                        }
+                    }
+                } else if let Err(panic) = &result {
+                    eprintln!("ndk_context::android_context() panicked (non-fatal): {panic:?}");
+                }
             }
             Ok(())
         })

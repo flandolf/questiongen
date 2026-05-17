@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, CheckCircle2, DollarSign, RefreshCw, Server } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAppSettings } from '@/AppContext';
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useDeepSeekBalance, useDeepSeekModels } from '@/hooks/useDeepSeekInfo';
+import { useDeepSeekModels } from '@/hooks/useDeepSeekInfo';
 import { useModelStats } from '@/hooks/useModelStats';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
@@ -199,144 +199,36 @@ function LiveStatsSection({
   );
 }
 
-function DeepSeekInfoSection({
-  apiKey,
-}: {
-  apiKey: string | undefined;
-}) {
-  const balance = useDeepSeekBalance(apiKey);
-  const models = useDeepSeekModels(apiKey);
 
-  useEffect(() => {
-    if (apiKey) {
-      void balance.fetch();
-      void models.fetch();
-    }
-  }, [apiKey, balance, models]);
-
-  if (!apiKey) {
-    return <EmptyState message='Save your API key to load DeepSeek info.' />;
-  }
-
-  return (
-    <section className='space-y-4 pt-2'>
-      <div className='flex items-start justify-between px-1'>
-        <h2 className='text-xs font-bold uppercase tracking-widest text-foreground/70'>
-          Account
-        </h2>
-        <div className='flex gap-1.5'>
-          <Button
-            variant='outline'
-            size='xs'
-            className='h-7 text-[10px] font-bold uppercase tracking-wider px-2'
-            disabled={balance.loading}
-            onClick={() => { void balance.fetch(); }}
-          >
-            <RefreshCw
-              className={cn('h-3 w-3 mr-1', balance.loading && 'animate-spin')}
-            />
-            Balance
-          </Button>
-          <Button
-            variant='outline'
-            size='xs'
-            className='h-7 text-[10px] font-bold uppercase tracking-wider px-2'
-            disabled={models.loading}
-            onClick={() => { void models.fetch(); }}
-          >
-            <RefreshCw
-              className={cn('h-3 w-3 mr-1', models.loading && 'animate-spin')}
-            />
-            Models
-          </Button>
-        </div>
-      </div>
-
-      {balance.error && <ErrorBanner message={balance.error} />}
-
-      {balance.balance && (
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 px-1'>
-          {balance.balance.balanceInfos.map((info) => (
-            <div
-              key={info.currency}
-              className='rounded-lg border border-border/40 bg-muted/20 p-3 space-y-2'
-            >
-              <div className='flex items-center justify-between'>
-                <span className='text-xs font-semibold uppercase tracking-wider text-foreground/60'>
-                  {info.currency}
-                </span>
-                {balance.balance?.isAvailable ? (
-                  <span className='flex items-center gap-1 text-[10px] font-bold text-emerald-500 uppercase tracking-wider'>
-                    <CheckCircle2 className='h-3 w-3' />
-                    Active
-                  </span>
-                ) : (
-                  <span className='flex items-center gap-1 text-[10px] font-bold text-amber-500 uppercase tracking-wider'>
-                    <AlertCircle className='h-3 w-3' />
-                    Low Balance
-                  </span>
-                )}
-              </div>
-              <div className='flex items-center gap-2'>
-                <DollarSign className='h-4 w-4 text-muted-foreground' />
-                <span className='text-lg font-bold'>
-                  {info.totalBalance}
-                </span>
-              </div>
-              <div className='text-[11px] text-muted-foreground space-y-0.5'>
-                <div className='flex justify-between'>
-                  <span>Granted</span>
-                  <span className='font-medium'>{info.grantedBalance}</span>
-                </div>
-                <div className='flex justify-between'>
-                  <span>Topped up</span>
-                  <span className='font-medium'>{info.toppedUpBalance}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {models.error && <ErrorBanner message={models.error} />}
-
-      {models.models && models.models.data.length > 0 && (
-        <div className='px-1'>
-          <h3 className='text-[10px] font-bold uppercase tracking-widest text-foreground/50 mb-2'>
-            Available Models ({models.models.data.length})
-          </h3>
-          <div className='flex flex-wrap gap-1.5'>
-            {models.models.data.map((m) => (
-              <span
-                key={m.id}
-                className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-muted/30 border border-border/30 text-foreground/80'
-              >
-                <Server className='h-3 w-3 text-muted-foreground' />
-                {m.id}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-// eslint-disable-next-line complexity -- multiple provider-specific branches
 export function ModelsSection() {
   const settings = useAppSettings();
   const activeProviderId = useAppStore((s) => s.activeProviderId);
   const stats = useModelStats(settings.apiKey);
 
-  const modelPresets = useMemo(
-    () => getModelsForProvider(activeProviderId),
-    [activeProviderId],
-  );
+  // Dynamic DeepSeek model list
+  const deepseekApiKey = useAppStore((s) => s.providers['deepseek']?.apiKey);
+  const deepseekModels = useDeepSeekModels(deepseekApiKey);
+
+  useEffect(() => {
+    if (deepseekApiKey && activeProviderId === 'deepseek') {
+      void deepseekModels.fetch();
+    }
+  }, [deepseekApiKey, activeProviderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const modelPresets = useMemo(() => {
+    if (activeProviderId === 'deepseek' && deepseekModels.models?.data.length) {
+      const dynamic = deepseekModels.models.data.map((m) => ({
+        id: m.id,
+        name: m.id,
+      }));
+      return [...dynamic, { id: 'custom', name: 'Custom…' }];
+    }
+    return getModelsForProvider(activeProviderId);
+  }, [activeProviderId, deepseekModels.models]);
   const imageModelPresets = useMemo(
     () => getImageModelsForProvider(activeProviderId),
     [activeProviderId],
   );
-
   const [localState, setLocalState] = useState({
     model: settings.model,
     markingModel: settings.markingModel,
@@ -921,17 +813,6 @@ export function ModelsSection() {
             apiKey={settings.apiKey}
             models={currentModelConfig}
           />
-        </>
-      )}
-      {activeProviderId === 'deepseek' && (
-        <>
-          <div className='py-4'>
-            <Divider key='divider-deepseek' />
-          </div>
-
-          <div className='pt-2'>
-            <DeepSeekInfoSection apiKey={settings.apiKey} />
-          </div>
         </>
       )}
     </AnimatedSection>
