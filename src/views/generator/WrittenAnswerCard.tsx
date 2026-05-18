@@ -1,6 +1,7 @@
 import { listen } from '@tauri-apps/api/event';
 import {
   CheckCircle2,
+  Coins,
   ImageIcon,
   Loader2,
   PencilRuler,
@@ -357,6 +358,13 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
           )}
         {localIsMarking && (markStreamText || !hasReceivedTokens) && (
           <div className='mt-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs'>
+          {markStreamText.length > 0 && (
+            <div className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-blue-600/60 dark:text-blue-400/60 mb-1'>
+              <Coins className='w-2.5 h-2.5' />
+              <span className='text-blue-600/40 dark:text-blue-400/40'>~</span>
+              {Math.round(markStreamText.length / 4).toLocaleString()} tok
+            </div>
+          )}
             {markStreamText ? (
               <div className='font-mono text-blue-600 dark:text-blue-400 max-h-48 overflow-auto whitespace-pre-wrap break-all'>
                 {markStreamText}

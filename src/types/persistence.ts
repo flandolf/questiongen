@@ -37,6 +37,7 @@ export type PersistedSettings = {
   /** ID of the currently active provider. */
   activeProviderId?: string;
   debugMode: boolean;
+  showRawLlmOutput?: boolean;
   questionTextSize?: number;
   responseTextSize?: number;
   includeExamContext?: boolean;

@@ -26,6 +26,7 @@ export interface SettingsSlice {
   imageMarkingModel: string;
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
+  showRawLlmOutput: boolean;
   questionTextSize: number;
   responseTextSize: number;
   includeExamContext: boolean;
@@ -87,6 +88,7 @@ export interface SettingsSlice {
   setImageMarkingModel: (model: string) => void;
   setUseSeparateImageMarkingModel: (enabled: boolean) => void;
   setDebugMode: (enabled: boolean) => void;
+  setShowRawLlmOutput: (enabled: boolean) => void;
   clearApiKey: () => void;
   setQuestionTextSize: (size: number) => void;
   setResponseTextSize: (size: number) => void;
@@ -174,6 +176,7 @@ export const createSettingsSlice: StateCreator<
     EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
   ),
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
+  showRawLlmOutput: EMPTY_PERSISTED_APP_STATE.settings.showRawLlmOutput ?? false,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
   responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
   includeExamContext: Boolean(
@@ -383,6 +386,7 @@ export const createSettingsSlice: StateCreator<
       },
     })),
   setDebugMode: (debugMode) => set({ debugMode }),
+  setShowRawLlmOutput: (showRawLlmOutput) => set({ showRawLlmOutput }),
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
   setResponseTextSize: (responseTextSize) => set({ responseTextSize }),
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),

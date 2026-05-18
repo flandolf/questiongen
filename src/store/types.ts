@@ -46,6 +46,7 @@ export interface AppState {
   imageMarkingModel: string;
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
+  showRawLlmOutput: boolean;
   questionTextSize: number;
   responseTextSize: number;
   includeExamContext: boolean;
@@ -191,6 +192,7 @@ export interface AppActions {
   setImageMarkingModel: (model: string) => void;
   setUseSeparateImageMarkingModel: (enabled: boolean) => void;
   setDebugMode: (enabled: boolean) => void;
+  setShowRawLlmOutput: (enabled: boolean) => void;
   clearApiKey: () => void;
   setQuestionTextSize: (size: number) => void;
   setResponseTextSize: (size: number) => void;
