@@ -172,7 +172,7 @@ pub struct GenerateQuestionsRequest {
     pub avoid_similar_questions: Option<bool>,
     pub prior_question_prompts: Option<Vec<String>>,
     pub strict_latex_validation: Option<bool>,
-    pub diversity_strictness: Option<String>,
+    pub diversity_enabled: Option<bool>,
     pub average_marks_per_question: Option<u8>,
     pub shuffle_subtopics: Option<bool>,
     pub ai_difficulty_scaling_enabled: Option<bool>,
@@ -507,7 +507,7 @@ pub struct GenerateMcQuestionsRequest {
     pub avoid_similar_questions: Option<bool>,
     pub prior_question_prompts: Option<Vec<String>>,
     pub strict_latex_validation: Option<bool>,
-    pub diversity_strictness: Option<String>,
+    pub diversity_enabled: Option<bool>,
     pub ai_difficulty_scaling_enabled: Option<bool>,
     pub shuffle_subtopics: Option<bool>,
     #[serde(default)]
@@ -680,8 +680,8 @@ pub struct PersistedGeneratorPreferences {
     pub ai_difficulty_scaling_enabled: bool,
     #[serde(default = "default_thresholds")]
     pub difficulty_thresholds: DifficultyThresholds,
-    #[serde(default = "default_diversity")]
-    pub diversity_strictness: String,
+    #[serde(default = "default_true")]
+    pub diversity_enabled: bool,
     #[serde(default = "default_true")]
     pub strict_latex_validation: bool,
     #[serde(default = "default_strategy")]
@@ -702,9 +702,6 @@ fn default_three() -> u8 {
 }
 fn default_question_mode() -> String {
     "written".to_string()
-}
-fn default_diversity() -> String {
-    "moderate".to_string()
 }
 fn default_strategy() -> String {
     "single-pass".to_string()

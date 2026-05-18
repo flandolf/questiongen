@@ -780,7 +780,7 @@ impl UserPromptBuilder {
             average_marks         = average_marks,
             total_marks           = total_marks,
             sim_note              = sanitize_for_api(&similarity_note(
-                self.avoid_similar_questions,
+                self.avoid_similar_questions || self.diversity_enabled,
                 self.prior_question_prompts.as_deref(),
             )),
         )

@@ -67,7 +67,7 @@ export interface SettingsSlice {
   // AI Difficulty Scaling
   aiDifficultyScalingEnabled: boolean;
   difficultyThresholds: { increase: number; decrease: number };
-  diversityStrictness: 'lenient' | 'moderate' | 'strict';
+  diversityEnabled: boolean;
   strictLatexValidation: boolean;
   shuffleSubtopics: boolean;
   shuffleQuestions: boolean;
@@ -128,7 +128,7 @@ export interface SettingsSlice {
 
   setAiDifficultyScalingEnabled: AppActions['setAiDifficultyScalingEnabled'];
   setDifficultyThresholds: AppActions['setDifficultyThresholds'];
-  setDiversityStrictness: AppActions['setDiversityStrictness'];
+  setDiversityEnabled: AppActions['setDiversityEnabled'];
   setStrictLatexValidation: AppActions['setStrictLatexValidation'];
   setShuffleSubtopics: AppActions['setShuffleSubtopics'];
   setShuffleQuestions: AppActions['setShuffleQuestions'];
@@ -224,7 +224,7 @@ export const createSettingsSlice: StateCreator<
 
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
-  diversityStrictness: 'moderate',
+  diversityEnabled: true,
   strictLatexValidation: true,
   shuffleSubtopics: false,
   shuffleQuestions: false,
@@ -516,7 +516,7 @@ export const createSettingsSlice: StateCreator<
 
   setDifficultyThresholds: (thresholds) =>
     set({ difficultyThresholds: thresholds }),
-  setDiversityStrictness: (diversityStrictness) => set({ diversityStrictness }),
+  setDiversityEnabled: (diversityEnabled) => set({ diversityEnabled }),
   setStrictLatexValidation: (strictLatexValidation) =>
     set({ strictLatexValidation }),
   setShuffleSubtopics: (shuffleSubtopics) => set({ shuffleSubtopics }),
@@ -564,7 +564,7 @@ export const createSettingsSlice: StateCreator<
       questionMode: EMPTY_PERSISTED_APP_STATE.preferences.questionMode,
       aiDifficultyScalingEnabled: true,
       difficultyThresholds: { increase: 85, decrease: 70 },
-      diversityStrictness: 'moderate',
+      diversityEnabled: true,
       strictLatexValidation: true,
       shuffleSubtopics: false,
       shuffleQuestions: false,

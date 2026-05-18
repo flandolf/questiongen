@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Calculator, Pen } from 'lucide-react';
+import { Calculator, Info, Pen } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,6 @@ import {
 import { cn } from '@/lib/utils';
 import type {
   CustomSubtopic,
-  DiversityStrictness,
   QuestionMode,
   TechMode,
   Topic,
@@ -99,8 +98,8 @@ export type AdvancedOptionsGroupProps = {
   onSetTechMode: (mode: TechMode) => void;
   customFocusArea: string;
   onSetCustomFocusArea: (value: string) => void;
-  diversityStrictness: DiversityStrictness;
-  onSetDiversityStrictness: (value: DiversityStrictness) => void;
+  diversityEnabled: boolean;
+  onSetDiversityEnabled: (enabled: boolean) => void;
   strictLatexValidation: boolean;
   onSetStrictLatexValidation: (enabled: boolean) => void;
 };
@@ -119,6 +118,10 @@ export function AdvancedOptionsGroup({
   onSetTechMode,
   customFocusArea,
   onSetCustomFocusArea,
+  diversityEnabled,
+  onSetDiversityEnabled,
+  strictLatexValidation,
+  onSetStrictLatexValidation,
 }: AdvancedOptionsGroupProps) {
   const getSubtopicGroups = (topic: Topic): readonly TopicSubtopicGroup[] => {
     let groups: readonly TopicSubtopicGroup[];
@@ -190,6 +193,24 @@ export function AdvancedOptionsGroup({
           />
         </motion.div>
       </div>
+
+      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+        <ToggleRow
+          id='diversity-toggle'
+          label='Enforce Diversity'
+          description='Strictly varies question styles and context.'
+          checked={diversityEnabled}
+          onCheckedChange={onSetDiversityEnabled}
+        />
+        <ToggleRow
+          id='latex-toggle'
+          label='Strict LaTeX'
+          description='Rejects formulas with syntax errors.'
+          checked={strictLatexValidation}
+          onCheckedChange={onSetStrictLatexValidation}
+        />
+      </div>
+
       {/* Calculator & Flags Row */}
       {hasAnyMathTopic && (
         <div

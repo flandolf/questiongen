@@ -51,7 +51,7 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
       questionMode: s.questionMode,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
-      diversityStrictness: s.diversityStrictness,
+      diversityEnabled: s.diversityEnabled,
       strictLatexValidation: s.strictLatexValidation,
       generationStrategy: s.generationStrategy,
     },
@@ -165,7 +165,7 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
     questionMode: prefs.questionMode,
     aiDifficultyScalingEnabled: prefs.aiDifficultyScalingEnabled,
     difficultyThresholds: prefs.difficultyThresholds,
-    diversityStrictness: prefs.diversityStrictness,
+    diversityEnabled: prefs.diversityEnabled,
     strictLatexValidation: prefs.strictLatexValidation,
     generationStrategy: prefs.generationStrategy,
 
