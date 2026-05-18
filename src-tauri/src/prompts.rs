@@ -709,6 +709,7 @@ pub struct UserPromptBuilder {
     pub tech_mode: String,
     pub include_exam_context: bool,
     pub avoid_similar_questions: bool,
+    pub diversity_enabled: bool,
     pub shuffle_subtopics: bool,
     pub prior_question_prompts: Option<Vec<String>>,
 }
@@ -833,7 +834,7 @@ impl UserPromptBuilder {
             focus_lock            = sanitize_for_api(&focus_lock_note(self.subtopics.as_ref(), self.custom_focus_area.as_deref(), self.shuffle_subtopics, self.count)),
             exam_context_preamble = exam_context_preamble,
             sim_note              = sanitize_for_api(&similarity_note(
-                self.avoid_similar_questions,
+                self.avoid_similar_questions || self.diversity_enabled,
                 self.prior_question_prompts.as_deref(),
             )),
         )
