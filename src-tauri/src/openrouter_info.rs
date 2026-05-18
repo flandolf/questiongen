@@ -174,10 +174,20 @@ fn now_secs() -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
+/// Map direct DeepSeek IDs (e.g. "deepseek-v4-flash") to the OpenRouter form
+/// ("deepseek/deepseek-v4-flash") so stats fetching and caching work.
+fn remap_deepseek_id(model_id: &str) -> String {
+    if model_id.starts_with("deepseek-") {
+        format!("deepseek/{}", model_id)
+    } else {
+        model_id.to_string()
+    }
+}
 
 /// Returns cached model stats when present and fresh, without performing I/O.
 pub fn get_cached_model_stats(api_key: &str, model_id: &str) -> Option<ModelStats> {
-    let cache_key = format!("{}:{}", api_key.trim(), model_id.trim());
+    let model_id = remap_deepseek_id(model_id.trim());
+    let cache_key = format!("{}:{}", api_key.trim(), model_id);
     let cache = STATS_CACHE.lock().ok()?;
     let (stats, ts) = cache.get(&cache_key)?;
     if now_secs().saturating_sub(*ts) <= STATS_CACHE_TTL_SECS {
@@ -287,7 +297,7 @@ async fn fetch_catalogue_and_lookup(
 /// catalogue fetch run in parallel via `tokio::join!` so there is no
 /// sequential latency penalty.
 #[tauri::command]
-pub async fn get_model_stats(api_key: String, mut model_id: String) -> CommandResult<ModelStats> {
+pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult<ModelStats> {
     if api_key.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
@@ -295,15 +305,11 @@ pub async fn get_model_stats(api_key: String, mut model_id: String) -> CommandRe
         return Err(AppError::new("VALIDATION_ERROR", "Model ID required."));
     }
 
-    // Map direct DeepSeek IDs to OpenRouter IDs for stats fetching
-    if model_id == "deepseek-v4-flash" {
-        model_id = "deepseek/deepseek-v4-flash".to_string();
-    } else if model_id == "deepseek-v4-pro" {
-        model_id = "deepseek/deepseek-v4-pro".to_string();
-    }
+    // Map direct DeepSeek IDs (e.g. "deepseek-v4-flash") to OpenRouter form
+    let model_id = remap_deepseek_id(model_id.trim());
 
     // ── Stats cache hit ───────────────────────────────────────────────────────
-    let cache_key = format!("{}:{}", api_key.trim(), model_id.trim());
+    let cache_key = format!("{}:{}", api_key.trim(), model_id);
     if let Ok(cache) = STATS_CACHE.lock() {
         if let Some((cached, ts)) = cache.get(&cache_key) {
             if now_secs().saturating_sub(*ts) <= STATS_CACHE_TTL_SECS {
@@ -312,7 +318,8 @@ pub async fn get_model_stats(api_key: String, mut model_id: String) -> CommandRe
         }
     }
 
-    let (author, slug) = split_model_id(model_id.trim())?;
+    let (author, slug) = split_model_id(&model_id)?;
+
     let endpoints_url = format!("{OPENROUTER_BASE}/models/{author}/{slug}/endpoints");
 
     // ── Resolve image/file support ─────────────────────────────────────────────

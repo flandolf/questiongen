@@ -1,3 +1,4 @@
+// Rate as of 2026-05-18 (approx CNY per USD)
 const USD_TO_CNY = 7.21;
 
 export const fmt = {

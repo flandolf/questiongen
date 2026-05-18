@@ -559,10 +559,10 @@ function ModelSearchResultsTable({
                 {fmt.latency(r.latencyP50)}
               </td>
               <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.price(r.promptPricePerToken, r.id.includes('deepseek'))}
+                {fmt.price(r.promptPricePerToken, r.id?.toLowerCase().startsWith('deepseek/'))}
               </td>
               <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.price(r.completionPricePerToken, r.id.includes('deepseek'))}
+                {fmt.price(r.completionPricePerToken, r.id?.toLowerCase().startsWith('deepseek/'))}
               </td>
               <td
                 className={cn(
@@ -575,7 +575,7 @@ function ModelSearchResultsTable({
                 {fmt.priceCombined(
                   r.promptPricePerToken,
                   r.completionPricePerToken,
-                  r.id.includes('deepseek'),
+                  r.id?.toLowerCase().startsWith('deepseek/'),
                 )}
               </td>
               <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
