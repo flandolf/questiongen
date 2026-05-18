@@ -1,11 +1,21 @@
+// Rate as of 2026-05-18 (approx CNY per USD)
+const USD_TO_CNY = 7.21;
+
 export const fmt = {
-  price(p: number | null) {
-    return p == null ? '—' : `$${(p * 1e6).toFixed(2)}/M`;
+  price(p: number | null, showCNY = false) {
+    if (p == null) return '—';
+    const usd = `$${(p * 1e6).toFixed(2)}/M`;
+    if (!showCNY) return usd;
+    const cny = `¥${(p * 1e6 * USD_TO_CNY).toFixed(2)}/M`;
+    return `${usd} / ${cny}`;
   },
-  priceCombined(a: number | null, b: number | null) {
+  priceCombined(a: number | null, b: number | null, showCNY = false) {
     if (a == null && b == null) return '—';
     const sum = (a ?? 0) + (b ?? 0);
-    return `$${(sum * 1e6).toFixed(2)}/M`;
+    const usd = `$${(sum * 1e6).toFixed(2)}/M`;
+    if (!showCNY) return usd;
+    const cny = `¥${(sum * 1e6 * USD_TO_CNY).toFixed(2)}/M`;
+    return `${usd} / ${cny}`;
   },
   tps(v: number | null) {
     return v == null ? '—' : `${v.toFixed(0)} t/s`;

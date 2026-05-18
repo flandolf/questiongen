@@ -524,7 +524,16 @@ function ModelSearchResultsTable({
           </tr>
         </thead>
         <tbody className='divide-y divide-border'>
-          {displayed.map((r) => (
+          {displayed.map((r) => {
+            const idLower = r.id?.toLowerCase();
+            const nameLower = r.name?.toLowerCase();
+            const isDeepSeek = Boolean(
+              idLower?.startsWith('deepseek') ||
+                nameLower?.startsWith('deepseek') ||
+                nameLower === 'deepseek',
+            );
+
+            return (
             <tr
               key={r.id}
               className='hover:bg-muted/40 transition-colors group'
@@ -559,10 +568,10 @@ function ModelSearchResultsTable({
                 {fmt.latency(r.latencyP50)}
               </td>
               <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.price(r.promptPricePerToken)}
+                {fmt.price(r.promptPricePerToken, isDeepSeek)}
               </td>
               <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.price(r.completionPricePerToken)}
+                {fmt.price(r.completionPricePerToken, isDeepSeek)}
               </td>
               <td
                 className={cn(
@@ -575,6 +584,7 @@ function ModelSearchResultsTable({
                 {fmt.priceCombined(
                   r.promptPricePerToken,
                   r.completionPricePerToken,
+                  isDeepSeek,
                 )}
               </td>
               <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
@@ -594,7 +604,8 @@ function ModelSearchResultsTable({
                 </Button>
               </td>
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
 
