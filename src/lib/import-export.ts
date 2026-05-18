@@ -406,6 +406,8 @@ export function mergeImportedState(
     increase: 85,
     decrease: 70,
   };
+  merged.diversityStrictness =
+    imported.preferences.diversityStrictness ?? merged.diversityStrictness;
 
   // Study goals: overwrite
   merged.studyGoals = imported.studyGoals ?? current.studyGoals;

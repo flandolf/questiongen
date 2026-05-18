@@ -459,6 +459,8 @@ impl GenerationService {
         let include_exam_context = request.include_exam_context();
         let strict_latex_validation = request.strict_latex_validation();
         let diversity_strictness = request.diversity_strictness().unwrap_or("moderate");
+        let diversity_enabled = diversity_strictness != "lenient";
+        let enforce_distinctness = request.avoid_similar_questions() || diversity_enabled;
         let (distinctness_threshold, per_question_distinctness_threshold) =
             self.diversity_thresholds(Some(diversity_strictness));
 
@@ -491,6 +493,7 @@ impl GenerationService {
             tech_mode: tech_mode.to_string(),
             include_exam_context: use_exam_context,
             avoid_similar_questions: request.avoid_similar_questions(),
+            diversity_enabled,
             shuffle_subtopics: request.shuffle_subtopics(),
             prior_question_prompts: prior_question_prompts.clone(),
         };
@@ -628,7 +631,7 @@ impl GenerationService {
         let mut final_completion_tokens = result.completion_tokens;
         let mut final_total_tokens = result.total_tokens;
 
-        let mut retry_deficit = if diversity_strictness == "lenient" {
+        let mut retry_deficit = if !enforce_distinctness {
             0.0
         } else {
             self.retry_deficit(
@@ -636,7 +639,7 @@ impl GenerationService {
                 &metrics,
                 distinctness_threshold,
                 per_question_distinctness_threshold,
-                request.avoid_similar_questions(),
+                enforce_distinctness,
                 &adjusted_difficulty,
                 is_mc,
             )
@@ -755,7 +758,7 @@ impl GenerationService {
                                 &new_metrics,
                                 distinctness_threshold,
                                 per_question_distinctness_threshold,
-                                request.avoid_similar_questions(),
+                                enforce_distinctness,
                                 &adjusted_difficulty,
                                 is_mc,
                             );
