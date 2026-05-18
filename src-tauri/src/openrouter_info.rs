@@ -383,6 +383,10 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         });
     }
 
+    let direct_deepseek_has_valid_prompt_price = direct_deepseek_endpoint
+        .and_then(|ep| parse_price(ep.pricing.as_ref().and_then(|p| p.prompt.as_ref())))
+        .is_some();
+
     for ep in &data.endpoints {
         if let Some(tps) = ep.throughput_last_30m.as_ref().and_then(|t| t.p50) {
             best_tps = Some(best_tps.map_or(tps, |prev: f64| prev.max(tps)));
@@ -393,15 +397,17 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
 
         if let Some(pp) = prompt_price {
             if is_deepseek_model {
-                // For DeepSeek models, we either use the direct endpoint pricing (if this is it)
-                // or keep looking. Once we've set it from the direct endpoint, we don't overwrite.
                 if let Some(direct_ep) = direct_deepseek_endpoint {
                     if std::ptr::eq(ep, direct_ep) {
                         best_prompt_price = Some(pp);
                         best_completion_price = completion_price;
+                    } else if !direct_deepseek_has_valid_prompt_price
+                        && best_prompt_price.is_none_or(|prev: f64| pp < prev)
+                    {
+                        best_prompt_price = Some(pp);
+                        best_completion_price = completion_price;
                     }
                 } else if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
-                    // Fallback to lowest price if no direct DeepSeek endpoint found
                     best_prompt_price = Some(pp);
                     best_completion_price = completion_price;
                 }
