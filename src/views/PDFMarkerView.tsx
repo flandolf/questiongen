@@ -4,6 +4,7 @@ import {
   AlertCircle,
   BarChart,
   CheckCircle2,
+  Coins,
   FileText,
   GripVertical,
   History,
@@ -262,6 +263,13 @@ const QuestionItem = ({
           )}
         </Button>
       </div>
+        {isMarking && streamText.length > 0 && (
+          <span className='text-[10px] font-mono tabular-nums text-muted-foreground flex items-center gap-1'>
+            <Coins className='w-2.5 h-2.5' />
+            <span className='text-muted-foreground/50'>~</span>
+            {Math.round(streamText.length / 4).toLocaleString()} tok
+          </span>
+        )}
 
       <AnimatePresence mode='wait'>
         {isMarking && streamText && (

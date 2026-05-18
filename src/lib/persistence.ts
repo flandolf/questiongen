@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   imageMarkingModel: 'openai/gpt-5.4-mini',
   useSeparateImageMarkingModel: false,
   debugMode: false,
+  showRawLlmOutput: false,
   questionTextSize: 16,
   responseTextSize: 16,
   includeExamContext: true,

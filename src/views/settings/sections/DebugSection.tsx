@@ -9,7 +9,8 @@ import {
 } from '@/views/settings/SettingsUI';
 
 export function DebugSection() {
-  const { debugMode, setDebugMode } = useAppSettings();
+  const { debugMode, setDebugMode, showRawLlmOutput, setShowRawLlmOutput } =
+    useAppSettings();
 
   return (
     <AnimatedSection className='space-y-6'>
@@ -37,6 +38,29 @@ export function DebugSection() {
         >
           <Bug className='h-4 w-4' />
           {debugMode ? 'Disable' : 'Enable'}
+        </Button>
+      </Card>
+      <Card
+        key='raw-llm-toggle'
+        className='flex items-center justify-between p-4'
+      >
+        <div>
+          <p className='text-sm font-medium'>Show Raw LLM Output</p>
+          <p className='text-xs text-muted-foreground mt-0.5'>
+            {showRawLlmOutput
+              ? 'Raw LLM streaming output is visible.'
+              : 'Raw LLM streaming output is hidden.'}
+          </p>
+        </div>
+        <Button
+          type='button'
+          variant={showRawLlmOutput ? 'default' : 'outline'}
+          size='sm'
+          className='gap-2 shrink-0 ml-4'
+          onClick={() => setShowRawLlmOutput(!showRawLlmOutput)}
+        >
+          <Bug className='h-4 w-4' />
+          {showRawLlmOutput ? 'Hide' : 'Show'}
         </Button>
       </Card>
     </AnimatedSection>

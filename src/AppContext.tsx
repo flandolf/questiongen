@@ -226,6 +226,8 @@ export function useAppSettings() {
       setUseSeparateImageMarkingModel: s.setUseSeparateImageMarkingModel,
       debugMode: s.debugMode,
       setDebugMode: s.setDebugMode,
+      showRawLlmOutput: s.showRawLlmOutput,
+      setShowRawLlmOutput: s.setShowRawLlmOutput,
       questionTextSize: s.questionTextSize,
       setQuestionTextSize: s.setQuestionTextSize,
       responseTextSize: s.responseTextSize,

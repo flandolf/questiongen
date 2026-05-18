@@ -258,7 +258,7 @@ function SetupPanelImpl({
   generationStrategy = 'single-pass',
 }: SetupPanelProps) {
   const navigate = useNavigate();
-  const { apiKey, model, setModel } = useAppSettings();
+  const { apiKey, model, setModel, showRawLlmOutput } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const customSubtopics = useAppStore((s) => s.customSubtopics);
   const syncCustomSubtopics = useAppStore((s) => s.syncCustomSubtopics);
@@ -825,6 +825,7 @@ function SetupPanelImpl({
                       isPaused={isPaused}
                       onTogglePause={onTogglePause}
                       onAbort={onAbort}
+                      showRawLlmOutput={showRawLlmOutput}
                     />
                   ) : (
                     <GenerationTimeline
@@ -837,6 +838,7 @@ function SetupPanelImpl({
                       isPaused={isPaused}
                       onTogglePause={onTogglePause}
                       onAbort={onAbort}
+                      showRawLlmOutput={showRawLlmOutput}
                     />
                   )}
                 </motion.div>

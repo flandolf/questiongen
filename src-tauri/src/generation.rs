@@ -458,8 +458,9 @@ impl GenerationService {
         let tech_mode = self.resolve_tech_mode(request.tech_mode());
         let include_exam_context = request.include_exam_context();
         let strict_latex_validation = request.strict_latex_validation();
+        let diversity_strictness = request.diversity_strictness().unwrap_or("moderate");
         let (distinctness_threshold, per_question_distinctness_threshold) =
-            self.diversity_thresholds(request.diversity_strictness());
+            self.diversity_thresholds(Some(diversity_strictness));
 
         let adjusted_difficulty = difficulty::adjust_difficulty(
             request.difficulty(),
@@ -627,15 +628,19 @@ impl GenerationService {
         let mut final_completion_tokens = result.completion_tokens;
         let mut final_total_tokens = result.total_tokens;
 
-        let mut retry_deficit = self.retry_deficit(
-            &summary,
-            &metrics,
-            distinctness_threshold,
-            per_question_distinctness_threshold,
-            request.avoid_similar_questions(),
-            &adjusted_difficulty,
-            is_mc,
-        );
+        let mut retry_deficit = if diversity_strictness == "lenient" {
+            0.0
+        } else {
+            self.retry_deficit(
+                &summary,
+                &metrics,
+                distinctness_threshold,
+                per_question_distinctness_threshold,
+                request.avoid_similar_questions(),
+                &adjusted_difficulty,
+                is_mc,
+            )
+        };
 
         if retry_deficit > 0.0 {
             let mut attempts = 0;

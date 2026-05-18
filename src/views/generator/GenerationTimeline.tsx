@@ -290,11 +290,13 @@ function GenerationTokenStream({
   currentStage,
   isGenerating,
   isDone,
+  showRawLlmOutput,
 }: {
   streamText: string;
   currentStage: string;
   isGenerating: boolean;
   isDone: boolean;
+  showRawLlmOutput: boolean;
 }) {
   const streamRef = useRef<HTMLDivElement>(null);
 
@@ -302,6 +304,8 @@ function GenerationTokenStream({
     if (streamRef.current)
       streamRef.current.scrollTop = streamRef.current.scrollHeight;
   }, [streamText]);
+
+  if (!showRawLlmOutput) return null;
 
   if (
     !(
@@ -338,23 +342,24 @@ function CompletedStats({
   if (!completedEvent) return null;
   return (
     <div className='flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 border-t border-border/40'>
-      {completedEvent.totalTokens != null && completedEvent.totalTokens > 0 && (
-        <span className='flex items-center gap-1 text-[11px] font-mono text-muted-foreground'>
-          <Coins className='w-3 h-3' />
-          <span className='tabular-nums font-semibold text-foreground'>
-            {completedEvent.totalTokens.toLocaleString()}
-          </span>
-          {' tok'}
-          {completedEvent.promptTokens != null &&
-            completedEvent.completionTokens != null && (
-              <span className='text-muted-foreground/60'>
-                {' '}
-                ({completedEvent.promptTokens.toLocaleString()} in /{' '}
-                {completedEvent.completionTokens.toLocaleString()} out)
-              </span>
-            )}
+      <span className='flex items-center gap-1 text-[11px] font-mono text-muted-foreground'>
+        <Coins className='w-3 h-3' />
+        <span className='tabular-nums font-semibold text-foreground'>
+          {completedEvent.totalTokens != null
+            ? completedEvent.totalTokens.toLocaleString()
+            : '?'}
         </span>
-      )}
+        {' tok'}
+        {completedEvent.totalTokens != null &&
+          completedEvent.promptTokens != null &&
+          completedEvent.completionTokens != null && (
+            <span className='text-muted-foreground/60'>
+              {' '}
+              ({completedEvent.promptTokens.toLocaleString()} in /{' '}
+              {completedEvent.completionTokens.toLocaleString()} out)
+            </span>
+          )}
+      </span>
       {completedEvent.estimatedCostUsd != null && (
         <span className='flex items-center gap-1 text-[11px] font-mono text-muted-foreground'>
           <DollarSign className='w-3 h-3' />
@@ -379,6 +384,7 @@ export function GenerationTimeline({
   isPaused,
   onTogglePause,
   onAbort,
+  showRawLlmOutput = false,
 }: {
   generationStatus: GenerationStatusEvent | null;
   /** Present when several API calls run for one subject (per locally chosen subtopic). */
@@ -390,6 +396,7 @@ export function GenerationTimeline({
   isPaused: boolean;
   onTogglePause: () => void;
   onAbort: () => void;
+  showRawLlmOutput?: boolean;
 }) {
   const currentStage = generationStatus?.stage ?? 'preparing';
   const isFailed = currentStage === 'failed';
@@ -422,6 +429,23 @@ export function GenerationTimeline({
         <span className='text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1'>
           <Clock3 className='w-2.5 h-2.5' />
           {elapsedTimeLabel}
+          {(() => {
+            const actualTokens = generationStatus?.totalTokens;
+            const showEstimate =
+              isGenerating &&
+              (currentStage === 'generating' || currentStage === 'parsing') &&
+              streamText.length > 0;
+            if (!actualTokens && !showEstimate) return null;
+            const tokens = actualTokens ?? Math.round(streamText.length / 4);
+            const isEstimate = !actualTokens;
+            return (
+              <span className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground ml-0.5'>
+                <Coins className='w-2.5 h-2.5' />
+                {isEstimate && <span className='text-muted-foreground/50'>~</span>}
+                {tokens.toLocaleString()} tok
+              </span>
+            );
+          })()}
           {isGenerating && (
             <div className='flex items-center gap-0.5 ml-1'>
               <button
@@ -465,6 +489,7 @@ export function GenerationTimeline({
         currentStage={currentStage}
         isGenerating={isGenerating}
         isDone={isDone}
+        showRawLlmOutput={showRawLlmOutput}
       />
 
       {isDone && <CompletedStats completedEvent={completedEvent} />}
@@ -483,6 +508,7 @@ export function BatchTimeline({
   isPaused,
   onTogglePause,
   onAbort,
+  showRawLlmOutput = false,
 }: {
   entries: BatchTopicProgress[];
   generationSubCallProgress?: GenerationSubCallProgress | null;
@@ -493,6 +519,7 @@ export function BatchTimeline({
   isPaused: boolean;
   onTogglePause: () => void;
   onAbort: () => void;
+  showRawLlmOutput?: boolean;
 }) {
   const streamRef = useRef<HTMLDivElement>(null);
 
@@ -536,6 +563,22 @@ export function BatchTimeline({
         <span className='text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1'>
           <Clock3 className='w-2.5 h-2.5' />
           {elapsedTimeLabel}
+          {(() => {
+            const stage = activeEntry?.stage;
+            const showEstimate =
+              isGenerating &&
+              (stage === 'generating' || stage === 'parsing') &&
+              streamText.length > 0;
+            if (!showEstimate) return null;
+            const tokens = Math.round(streamText.length / 4);
+            return (
+              <span className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground ml-0.5'>
+                <Coins className='w-2.5 h-2.5' />
+                <span className='text-muted-foreground/50'>~</span>
+                {tokens.toLocaleString()} tok
+              </span>
+            );
+          })()}
           {isGenerating && (
             <div className='flex items-center gap-0.5 ml-1'>
               <button
@@ -640,7 +683,8 @@ export function BatchTimeline({
 
       {activeEntry &&
         (activeEntry.stage === 'generating' ||
-          activeEntry.stage === 'parsing') && (
+          activeEntry.stage === 'parsing') &&
+        showRawLlmOutput && (
           <div
             ref={streamRef}
             className='max-h-20 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all'
