@@ -127,8 +127,8 @@ export function GeneratorView() {
     setCustomFocusArea,
     avoidSimilarQuestions,
     setAvoidSimilarQuestions,
-    diversityStrictness,
-    setDiversityStrictness,
+    diversityEnabled,
+    setDiversityEnabled,
     strictLatexValidation,
     setStrictLatexValidation,
     generationStrategy,
@@ -1096,8 +1096,8 @@ export function GeneratorView() {
         onSetTechMode={setTechMode}
         customFocusArea={customFocusArea}
         onSetCustomFocusArea={setCustomFocusArea}
-        diversityStrictness={diversityStrictness}
-        onSetDiversityStrictness={setDiversityStrictness}
+        diversityEnabled={diversityEnabled}
+        onSetDiversityEnabled={setDiversityEnabled}
         strictLatexValidation={strictLatexValidation}
         onSetStrictLatexValidation={setStrictLatexValidation}
         difficulty={difficulty}

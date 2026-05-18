@@ -255,7 +255,7 @@ pub trait GenerationRequestTrait {
     fn base_url(&self) -> Option<&str>;
     fn include_exam_context(&self) -> bool;
     fn strict_latex_validation(&self) -> bool;
-    fn diversity_strictness(&self) -> Option<&str>;
+    fn diversity_enabled(&self) -> bool;
     fn ai_difficulty_scaling_enabled(&self) -> bool;
     fn recent_average_score(&self) -> Option<f64>;
     fn recent_difficulty(&self) -> Option<&str>;
@@ -304,8 +304,8 @@ impl GenerationRequestTrait for GenerateQuestionsRequest {
     fn strict_latex_validation(&self) -> bool {
         self.strict_latex_validation.unwrap_or(false)
     }
-    fn diversity_strictness(&self) -> Option<&str> {
-        self.diversity_strictness.as_deref()
+    fn diversity_enabled(&self) -> bool {
+        self.diversity_enabled.unwrap_or(true)
     }
     fn ai_difficulty_scaling_enabled(&self) -> bool {
         self.ai_difficulty_scaling_enabled.unwrap_or(false)
@@ -373,8 +373,8 @@ impl GenerationRequestTrait for GenerateMcQuestionsRequest {
     fn strict_latex_validation(&self) -> bool {
         self.strict_latex_validation.unwrap_or(false)
     }
-    fn diversity_strictness(&self) -> Option<&str> {
-        self.diversity_strictness.as_deref()
+    fn diversity_enabled(&self) -> bool {
+        self.diversity_enabled.unwrap_or(true)
     }
     fn ai_difficulty_scaling_enabled(&self) -> bool {
         self.ai_difficulty_scaling_enabled.unwrap_or(false)
@@ -458,9 +458,9 @@ impl GenerationService {
         let tech_mode = self.resolve_tech_mode(request.tech_mode());
         let include_exam_context = request.include_exam_context();
         let strict_latex_validation = request.strict_latex_validation();
-        let diversity_strictness = request.diversity_strictness().unwrap_or("moderate");
+        let diversity_enabled = request.diversity_enabled();
         let (distinctness_threshold, per_question_distinctness_threshold) =
-            self.diversity_thresholds(Some(diversity_strictness));
+            self.diversity_thresholds(diversity_enabled);
 
         let adjusted_difficulty = difficulty::adjust_difficulty(
             request.difficulty(),
@@ -491,6 +491,7 @@ impl GenerationService {
             tech_mode: tech_mode.to_string(),
             include_exam_context: use_exam_context,
             avoid_similar_questions: request.avoid_similar_questions(),
+            diversity_enabled,
             shuffle_subtopics: request.shuffle_subtopics(),
             prior_question_prompts: prior_question_prompts.clone(),
         };
@@ -628,27 +629,49 @@ impl GenerationService {
         let mut final_completion_tokens = result.completion_tokens;
         let mut final_total_tokens = result.total_tokens;
 
-        let mut retry_deficit = if diversity_strictness == "lenient" {
-            0.0
-        } else {
-            self.retry_deficit(
-                &summary,
-                &metrics,
-                distinctness_threshold,
-                per_question_distinctness_threshold,
-                request.avoid_similar_questions(),
-                &adjusted_difficulty,
-                is_mc,
-            )
-        };
+        let mut retry_deficit = self.retry_deficit(
+            &summary,
+            &metrics,
+            distinctness_threshold,
+            per_question_distinctness_threshold,
+            request.avoid_similar_questions() || diversity_enabled,
+            &adjusted_difficulty,
+            is_mc,
+        );
 
         if retry_deficit > 0.0 {
             let mut attempts = 0;
             while retry_deficit > 0.0 && attempts < 2 {
                 attempts += 1;
-                self.emit_generation_status(serde_json::json!({ "mode": mode_str, "stage": "regenerating-duplicates", "message": format!("Regenerating to improve quality (attempt {})...", attempts), "attempt": attempts + 1 }));
 
-                let diversity_note = "\nDIVERSITY REGENERATION: The previous output contained similar questions. Now generate a new set of questions, replacing any that are similar with entirely different scenarios, contexts, names, numbers, or methods. Do NOT paraphrase previous questions; invent fresh contexts. Increase creativity and change details.";
+                // Reset frontend stream buffer for the new attempt
+                let _ = self.app.emit(
+                    "generation-reset",
+                    serde_json::json!({ "topic": topics.first() }),
+                );
+
+                self.emit_generation_status(serde_json::json!({
+                    "mode": mode_str,
+                    "stage": "regenerating-duplicates",
+                    "message": format!("Regenerating to improve quality (attempt {}/2)...", attempts),
+                    "attempt": attempts + 1
+                }));
+
+                let avoid_texts = Q::extract_texts(&payload.questions);
+                let avoid_context = avoid_texts
+                    .iter()
+                    .map(|t| format!("- {}", prompts::truncate_for_prompt(t, 160)))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                let diversity_note = format!(
+                    "\nDIVERSITY REGENERATION: The previous output contained repetitive or low-quality questions.\n\
+                     DO NOT REPEAT or paraphrase these previous scenarios/contexts:\n\
+                     {avoid_context}\n\n\
+                     Generate an ENTIRELY NEW set of questions with different scenarios, names, numbers, and methods. \
+                     Increase creativity and ensure high cognitive diversity."
+                );
+
                 let adaptive_note = prompts::adaptive_quality_note(&metrics);
                 let hard_difficulty_note =
                     self.high_difficulty_regen_note(&adjusted_difficulty, is_mc);
@@ -969,11 +992,11 @@ impl GenerationService {
         examples
     }
 
-    pub fn diversity_thresholds(&self, level: Option<&str>) -> (f32, f32) {
-        match level.unwrap_or("moderate") {
-            "lenient" => (0.5, 0.25),
-            "strict" => (0.75, 0.5),
-            _ => (0.6, 0.35),
+    pub fn diversity_thresholds(&self, enabled: bool) -> (f32, f32) {
+        if enabled {
+            (0.72, 0.45) // Strict: requires high distinctness
+        } else {
+            (0.55, 0.25) // Standard: basic variety
         }
     }
 

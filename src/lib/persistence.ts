@@ -76,7 +76,7 @@ const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {
   questionMode: 'written',
   aiDifficultyScalingEnabled: true,
   difficultyThresholds: { increase: 85, decrease: 70 },
-  diversityStrictness: 'moderate',
+  diversityEnabled: true,
   strictLatexValidation: true,
   generationStrategy: 'single-pass',
 };

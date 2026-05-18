@@ -37,8 +37,8 @@ export function GenerationSettingsSection() {
   );
   const difficultyThresholds = useAppStore((s) => s.difficultyThresholds);
   const setDifficultyThresholds = useAppStore((s) => s.setDifficultyThresholds);
-  const diversityStrictness = useAppStore((s) => s.diversityStrictness);
-  const setDiversityStrictness = useAppStore((s) => s.setDiversityStrictness);
+  const diversityEnabled = useAppStore((s) => s.diversityEnabled);
+  const setDiversityEnabled = useAppStore((s) => s.setDiversityEnabled);
   const strictLatexValidation = useAppStore((s) => s.strictLatexValidation);
   const setStrictLatexValidation = useAppStore(
     (s) => s.setStrictLatexValidation,
@@ -263,40 +263,35 @@ export function GenerationSettingsSection() {
             </p>
           </div>
 
-          <div>
-            <div className='flex items-center gap-1.5'>
-              <p className='text-sm font-medium'>Diversity Strictness</p>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className='max-w-xs text-sm'>
-                      Controls how strictly the AI should vary question styles
-                      and contexts to ensure a diverse set of questions.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+          <div className='flex items-center justify-between'>
+            <div>
+              <div className='flex items-center gap-1.5'>
+                <p className='text-sm font-medium'>Question Diversity</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='w-3.5 h-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors' />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className='max-w-xs text-sm'>
+                        When enabled, the AI strictly varies question styles
+                        and contexts to ensure a diverse set of questions, and
+                        automatically regenerates repetitive outputs.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className='text-xs text-muted-foreground mt-0.5'>
+                {diversityEnabled
+                  ? 'Strict diversity enforcement enabled.'
+                  : 'Balanced diversity (standard).'}
+              </p>
             </div>
-            <div className='mt-2 grid grid-cols-3 gap-2'>
-              {(['lenient', 'moderate', 'strict'] as const).map((lvl) => (
-                <button
-                  key={lvl}
-                  type='button'
-                  onClick={() => setDiversityStrictness(lvl)}
-                  className={cn(
-                    'text-xs font-semibold rounded-md py-2 transition-colors',
-                    diversityStrictness === lvl
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:bg-background',
-                  )}
-                >
-                  {lvl[0].toUpperCase() + lvl.slice(1)}
-                </button>
-              ))}
-            </div>
+            <Switch
+              checked={diversityEnabled}
+              onCheckedChange={setDiversityEnabled}
+            />
           </div>
 
           <div className='flex items-center justify-between'>

@@ -87,7 +87,7 @@ export interface AppState {
   aiDifficultyScalingEnabled: boolean;
   difficultyThresholds: { increase: number; decrease: number };
   // ── Generation flags ─────────────────────────────────────────────────────
-  diversityStrictness: 'lenient' | 'moderate' | 'strict';
+  diversityEnabled: boolean;
   strictLatexValidation: boolean;
   shuffleSubtopics: boolean;
   shuffleQuestions: boolean;
@@ -236,7 +236,7 @@ export interface AppActions {
     decrease: number;
   }) => void;
   // Generation flags
-  setDiversityStrictness: (level: 'lenient' | 'moderate' | 'strict') => void;
+  setDiversityEnabled: (enabled: boolean) => void;
   setStrictLatexValidation: (enabled: boolean) => void;
   setShuffleSubtopics: (enabled: boolean) => void;
   setShuffleQuestions: (enabled: boolean) => void;

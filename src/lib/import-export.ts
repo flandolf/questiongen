@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { APP_VERSION } from '@/views/settings/types';
 
 import type {
-  DiversityStrictness,
   GenerationRecord,
   McHistoryEntry,
   PersistedAppState,
@@ -89,7 +88,7 @@ export interface ImportExportState {
   presets: Preset[];
   writtenTimer: PersistedAppState['writtenTimer'];
   mcTimer: PersistedAppState['mcTimer'];
-  diversityStrictness: DiversityStrictness;
+  diversityEnabled: boolean;
   strictLatexValidation: boolean;
   timeAllocations: PersistedAppState['timeAllocations'];
 }
@@ -479,7 +478,7 @@ function buildExportSnapshot(
       questionMode: s.questionMode,
       aiDifficultyScalingEnabled: s.aiDifficultyScalingEnabled,
       difficultyThresholds: s.difficultyThresholds,
-      diversityStrictness: s.diversityStrictness,
+      diversityEnabled: s.diversityEnabled,
       strictLatexValidation: s.strictLatexValidation,
     },
     writtenSession: {
