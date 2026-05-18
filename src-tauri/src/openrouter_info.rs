@@ -83,6 +83,7 @@ struct Endpoint {
     throughput_last_30m: Option<ThroughputStats>,
     latency_last_30m: Option<LatencyStats>,
     uptime_last_30m: Option<f64>,
+    provider_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -173,10 +174,20 @@ fn now_secs() -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
+/// Map direct DeepSeek IDs (e.g. "deepseek-v4-flash") to the OpenRouter form
+/// ("deepseek/deepseek-v4-flash") so stats fetching and caching work.
+fn remap_deepseek_id(model_id: &str) -> String {
+    if model_id.starts_with("deepseek-") {
+        format!("deepseek/{}", model_id)
+    } else {
+        model_id.to_string()
+    }
+}
 
 /// Returns cached model stats when present and fresh, without performing I/O.
 pub fn get_cached_model_stats(api_key: &str, model_id: &str) -> Option<ModelStats> {
-    let cache_key = format!("{}:{}", api_key.trim(), model_id.trim());
+    let model_id = remap_deepseek_id(model_id.trim());
+    let cache_key = format!("{}:{}", api_key.trim(), model_id);
     let cache = STATS_CACHE.lock().ok()?;
     let (stats, ts) = cache.get(&cache_key)?;
     if now_secs().saturating_sub(*ts) <= STATS_CACHE_TTL_SECS {
@@ -294,8 +305,11 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         return Err(AppError::new("VALIDATION_ERROR", "Model ID required."));
     }
 
+    // Map direct DeepSeek IDs (e.g. "deepseek-v4-flash") to OpenRouter form
+    let model_id = remap_deepseek_id(model_id.trim());
+
     // ── Stats cache hit ───────────────────────────────────────────────────────
-    let cache_key = format!("{}:{}", api_key.trim(), model_id.trim());
+    let cache_key = format!("{}:{}", api_key.trim(), model_id);
     if let Ok(cache) = STATS_CACHE.lock() {
         if let Some((cached, ts)) = cache.get(&cache_key) {
             if now_secs().saturating_sub(*ts) <= STATS_CACHE_TTL_SECS {
@@ -304,7 +318,8 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         }
     }
 
-    let (author, slug) = split_model_id(model_id.trim())?;
+    let (author, slug) = split_model_id(&model_id)?;
+
     let endpoints_url = format!("{OPENROUTER_BASE}/models/{author}/{slug}/endpoints");
 
     // ── Resolve image/file support ─────────────────────────────────────────────
@@ -356,6 +371,22 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
     let mut best_latency: Option<f64> = None;
     let mut best_uptime: Option<f64> = None;
 
+    // If it's a DeepSeek model, we prefer the direct DeepSeek provider pricing
+    let is_deepseek_model = model_id.starts_with("deepseek/");
+    let mut direct_deepseek_endpoint = None;
+
+    if is_deepseek_model {
+        direct_deepseek_endpoint = data.endpoints.iter().find(|ep| {
+            ep.provider_name
+                .as_ref()
+                .is_some_and(|n| n.eq_ignore_ascii_case("DeepSeek"))
+        });
+    }
+
+    let direct_deepseek_has_valid_prompt_price = direct_deepseek_endpoint
+        .and_then(|ep| parse_price(ep.pricing.as_ref().and_then(|p| p.prompt.as_ref())))
+        .is_some();
+
     for ep in &data.endpoints {
         if let Some(tps) = ep.throughput_last_30m.as_ref().and_then(|t| t.p50) {
             best_tps = Some(best_tps.map_or(tps, |prev: f64| prev.max(tps)));
@@ -363,8 +394,24 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
 
         let prompt_price = parse_price(ep.pricing.as_ref().and_then(|p| p.prompt.as_ref()));
         let completion_price = parse_price(ep.pricing.as_ref().and_then(|p| p.completion.as_ref()));
+
         if let Some(pp) = prompt_price {
-            if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
+            if is_deepseek_model {
+                if let Some(direct_ep) = direct_deepseek_endpoint {
+                    if std::ptr::eq(ep, direct_ep) {
+                        best_prompt_price = Some(pp);
+                        best_completion_price = completion_price;
+                    } else if !direct_deepseek_has_valid_prompt_price
+                        && best_prompt_price.is_none_or(|prev: f64| pp < prev)
+                    {
+                        best_prompt_price = Some(pp);
+                        best_completion_price = completion_price;
+                    }
+                } else if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
+                    best_prompt_price = Some(pp);
+                    best_completion_price = completion_price;
+                }
+            } else if best_prompt_price.is_none_or(|prev: f64| pp < prev) {
                 best_prompt_price = Some(pp);
                 best_completion_price = completion_price;
             }

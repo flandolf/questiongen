@@ -16,6 +16,8 @@ import { fmt } from './formatters';
 import { Card, StatusBadge } from './SettingsUI';
 import type { ModelStats, StatsColumn } from './types';
 
+const isDeepSeek = (name?: string | null) => name?.toLowerCase().includes('deepseek');
+
 const STAT_ROWS: {
   icon: React.ReactNode;
   label: string;
@@ -37,13 +39,13 @@ const STAT_ROWS: {
   {
     icon: <DollarSign className='h-3.5 w-3.5' />,
     label: 'Input Pricing',
-    get: (s) => fmt.price(s.promptPricePerToken),
+    get: (s) => fmt.price(s.promptPricePerToken, isDeepSeek(s.name)),
     color: 'text-emerald-500',
   },
   {
     icon: <DollarSign className='h-3.5 w-3.5' />,
     label: 'Output Pricing',
-    get: (s) => fmt.price(s.completionPricePerToken),
+    get: (s) => fmt.price(s.completionPricePerToken, isDeepSeek(s.name)),
     color: 'text-emerald-600',
   },
   {
