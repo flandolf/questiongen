@@ -2,7 +2,6 @@ import type { Topic } from './catalog';
 import type { CustomSubtopic } from './custom-subtopics';
 import type {
   Difficulty,
-  DiversityStrictness,
   GenerationStrategy,
   QuestionMode,
   TechMode,
@@ -86,7 +85,7 @@ export type PersistedGeneratorPreferences = {
   questionMode: QuestionMode;
   aiDifficultyScalingEnabled?: boolean;
   difficultyThresholds?: { increase: number; decrease: number };
-  diversityStrictness: DiversityStrictness;
+  diversityEnabled: boolean;
   strictLatexValidation: boolean;
   generationStrategy?: GenerationStrategy;
 };

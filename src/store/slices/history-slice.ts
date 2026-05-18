@@ -147,7 +147,7 @@ export const createHistorySlice: StateCreator<
         questionCount: s.questionCount,
         averageMarksPerQuestion: s.averageMarksPerQuestion,
         questionMode: s.questionMode,
-        diversityStrictness: s.diversityStrictness,
+        diversityEnabled: s.diversityEnabled,
         strictLatexValidation: s.strictLatexValidation,
         generationStrategy: s.generationStrategy,
       };
@@ -212,7 +212,7 @@ export const createHistorySlice: StateCreator<
       questionCount: s.questionCount,
       averageMarksPerQuestion: s.averageMarksPerQuestion,
       questionMode: s.questionMode,
-      diversityStrictness: s.diversityStrictness,
+      diversityEnabled: s.diversityEnabled,
       strictLatexValidation: s.strictLatexValidation,
       generationStrategy: s.generationStrategy,
     };
