@@ -459,6 +459,7 @@ impl GenerationService {
         let include_exam_context = request.include_exam_context();
         let strict_latex_validation = request.strict_latex_validation();
         let diversity_enabled = request.diversity_enabled();
+        let enforce_distinctness = request.avoid_similar_questions() || diversity_enabled;
         let (distinctness_threshold, per_question_distinctness_threshold) =
             self.diversity_thresholds(diversity_enabled);
 
@@ -634,7 +635,7 @@ impl GenerationService {
             &metrics,
             distinctness_threshold,
             per_question_distinctness_threshold,
-            request.avoid_similar_questions() || diversity_enabled,
+            enforce_distinctness,
             &adjusted_difficulty,
             is_mc,
         );
@@ -778,7 +779,7 @@ impl GenerationService {
                                 &new_metrics,
                                 distinctness_threshold,
                                 per_question_distinctness_threshold,
-                                request.avoid_similar_questions(),
+                                enforce_distinctness,
                                 &adjusted_difficulty,
                                 is_mc,
                             );

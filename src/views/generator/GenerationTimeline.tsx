@@ -315,6 +315,7 @@ function GenerationTokenStream({
       currentStage === 'generating' ||
       currentStage === 'regenerating-duplicates' ||
       currentStage === 'parsing' ||
+      currentStage === 'regenerating-duplicates' ||
       (isDone && streamText)
     )
   )
@@ -331,7 +332,9 @@ function GenerationTokenStream({
         <span className='opacity-40'>Waiting for tokens…</span>
       )}
       {isGenerating &&
-        (currentStage === 'generating' || currentStage === 'parsing') && (
+        (currentStage === 'generating' ||
+          currentStage === 'parsing' ||
+          currentStage === 'regenerating-duplicates') && (
           <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
         )}
     </div>
