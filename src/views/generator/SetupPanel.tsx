@@ -45,7 +45,6 @@ import { useAppStore } from '@/store';
 import {
   type BatchTopicProgress,
   type Difficulty,
-  type DiversityStrictness,
   type GenerationStatusEvent,
   type GenerationSubCallProgress,
   type GenerationTelemetry,
@@ -157,8 +156,8 @@ type SetupPanelProps = {
   onSetTechMode: (mode: TechMode) => void;
   customFocusArea: string;
   onSetCustomFocusArea: (value: string) => void;
-  diversityStrictness: DiversityStrictness;
-  onSetDiversityStrictness: (value: DiversityStrictness) => void;
+  diversityEnabled: boolean;
+  onSetDiversityEnabled: (enabled: boolean) => void;
   strictLatexValidation: boolean;
   onSetStrictLatexValidation: (enabled: boolean) => void;
   difficulty: Difficulty;
@@ -231,8 +230,8 @@ function SetupPanelImpl({
   onSetTechMode,
   customFocusArea,
   onSetCustomFocusArea,
-  diversityStrictness,
-  onSetDiversityStrictness,
+  diversityEnabled,
+  onSetDiversityEnabled,
   strictLatexValidation,
   onSetStrictLatexValidation,
   difficulty,
@@ -794,8 +793,8 @@ function SetupPanelImpl({
                 onSetTechMode={onSetTechMode}
                 customFocusArea={customFocusArea}
                 onSetCustomFocusArea={onSetCustomFocusArea}
-                diversityStrictness={diversityStrictness}
-                onSetDiversityStrictness={onSetDiversityStrictness}
+                diversityEnabled={diversityEnabled}
+                onSetDiversityEnabled={onSetDiversityEnabled}
                 strictLatexValidation={strictLatexValidation}
                 onSetStrictLatexValidation={onSetStrictLatexValidation}
               />

@@ -25,6 +25,7 @@ const STAGE_ORDER = [
   'allocating_subtopics',
   'preparing',
   'generating',
+  'regenerating-duplicates',
   'parsing',
   'completed',
 ] as const;
@@ -35,6 +36,7 @@ const GENERATION_STAGE_LABELS: Record<string, string> = {
   allocating_subtopics: 'Focus subtopics (local)',
   preparing: 'Building prompt',
   generating: 'Generating',
+  'regenerating-duplicates': 'Improving quality',
   parsing: 'Parsing & validating',
   completed: 'Complete',
   failed: 'Failed',
@@ -77,6 +79,7 @@ const STAGE_LABELS: Record<KnownStage, string> = {
   allocating_subtopics: GENERATION_STAGE_LABELS.allocating_subtopics,
   preparing: GENERATION_STAGE_LABELS.preparing,
   generating: GENERATION_STAGE_LABELS.generating,
+  'regenerating-duplicates': GENERATION_STAGE_LABELS['regenerating-duplicates'],
   parsing: GENERATION_STAGE_LABELS.parsing,
   completed: GENERATION_STAGE_LABELS.completed,
 };
@@ -310,7 +313,9 @@ function GenerationTokenStream({
   if (
     !(
       currentStage === 'generating' ||
+      currentStage === 'regenerating-duplicates' ||
       currentStage === 'parsing' ||
+      currentStage === 'regenerating-duplicates' ||
       (isDone && streamText)
     )
   )
@@ -327,7 +332,9 @@ function GenerationTokenStream({
         <span className='opacity-40'>Waiting for tokens…</span>
       )}
       {isGenerating &&
-        (currentStage === 'generating' || currentStage === 'parsing') && (
+        (currentStage === 'generating' ||
+          currentStage === 'parsing' ||
+          currentStage === 'regenerating-duplicates') && (
           <span className='inline-block w-1 h-3 bg-muted-foreground/50 ml-0.5 align-middle animate-pulse' />
         )}
     </div>
@@ -433,7 +440,9 @@ export function GenerationTimeline({
             const actualTokens = generationStatus?.totalTokens;
             const showEstimate =
               isGenerating &&
-              (currentStage === 'generating' || currentStage === 'parsing') &&
+              (currentStage === 'generating' ||
+                currentStage === 'regenerating-duplicates' ||
+                currentStage === 'parsing') &&
               streamText.length > 0;
             if (!actualTokens && !showEstimate) return null;
             const tokens = actualTokens ?? Math.round(streamText.length / 4);
@@ -567,7 +576,9 @@ export function BatchTimeline({
             const stage = activeEntry?.stage;
             const showEstimate =
               isGenerating &&
-              (stage === 'generating' || stage === 'parsing') &&
+              (stage === 'generating' ||
+                stage === 'regenerating-duplicates' ||
+                stage === 'parsing') &&
               streamText.length > 0;
             if (!showEstimate) return null;
             const tokens = Math.round(streamText.length / 4);
@@ -683,6 +694,7 @@ export function BatchTimeline({
 
       {activeEntry &&
         (activeEntry.stage === 'generating' ||
+          activeEntry.stage === 'regenerating-duplicates' ||
           activeEntry.stage === 'parsing') &&
         showRawLlmOutput && (
           <div
