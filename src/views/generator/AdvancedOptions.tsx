@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Calculator, Info, Pen } from 'lucide-react';
+import { Calculator, Pen } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
