@@ -304,13 +304,13 @@ function processResults(
       (totalTelemetry.estimatedCostUsd || 0) +
       (res.telemetry.estimatedCostUsd || 0);
 
-    if (res.telemetry.distinctnessAvg) {
+    if (res.telemetry.distinctnessAvg !== undefined) {
       totalTelemetry.distinctnessAvg =
         (totalTelemetry.distinctnessAvg || 0) +
         res.telemetry.distinctnessAvg * res.questions.length;
       distinctnessWeight += res.questions.length;
     }
-    if (res.telemetry.multiStepDepthAvg) {
+    if (res.telemetry.multiStepDepthAvg !== undefined) {
       totalTelemetry.multiStepDepthAvg =
         (totalTelemetry.multiStepDepthAvg || 0) +
         res.telemetry.multiStepDepthAvg * res.questions.length;

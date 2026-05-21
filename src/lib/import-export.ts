@@ -7,6 +7,7 @@ import type {
   McHistoryEntry,
   PersistedAppState,
   Preset,
+  ProviderState,
   QuestionHistoryEntry,
   SavedQuestionSet,
   StreakData,
@@ -50,9 +51,44 @@ export interface ImportExportState {
   imageMarkingModel: string;
   useSeparateImageMarkingModel: boolean;
   debugMode: boolean;
+  showRawLlmOutput: boolean;
   questionTextSize: number;
   responseTextSize: number;
   includeExamContext: boolean;
+  providers: Record<string, ProviderState>;
+  activeProviderId: string;
+  autoSyncIntervalMinutes: number;
+  syncApiKey: boolean;
+  localBackupFolderPath: string;
+  localBackupIntervalMinutes: number;
+  theme: string;
+  customThemeSeedColor: string;
+  interfaceFont: string;
+  headingFont: string;
+  tutorPersona: string;
+  tutorModel: string;
+  markerStyle: 'strict' | 'relaxed' | 'targeted' | 'custom';
+  customMarkerStyle: string;
+  modelReasoningEnabled: boolean;
+  modelReasoningEffort:
+    | 'xhigh'
+    | 'high'
+    | 'max'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
+  markingReasoningEnabled: boolean;
+  markingReasoningEffort:
+    | 'xhigh'
+    | 'high'
+    | 'max'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
+  shuffleSubtopics: boolean;
+  shuffleQuestions: boolean;
   selectedTopics: PersistedAppState['preferences']['selectedTopics'];
   difficulty: PersistedAppState['preferences']['difficulty'];
   techMode: PersistedAppState['preferences']['techMode'];
@@ -391,6 +427,43 @@ export function computeImportCounts(
   };
 }
 
+// eslint-disable-next-line complexity
+function mergeSettings(
+  current: ImportExportState,
+  imported: PersistedAppState,
+): Partial<ImportExportState> {
+  return {
+    model: imported.settings.model,
+    markingModel: imported.settings.markingModel,
+    useSeparateMarkingModel: imported.settings.useSeparateMarkingModel,
+    imageMarkingModel: imported.settings.imageMarkingModel,
+    useSeparateImageMarkingModel: imported.settings.useSeparateImageMarkingModel,
+    debugMode: imported.settings.debugMode,
+    questionTextSize: imported.settings.questionTextSize ?? 16,
+    responseTextSize: imported.settings.responseTextSize ?? 16,
+    includeExamContext: imported.settings.includeExamContext ?? false,
+    showRawLlmOutput: imported.settings.showRawLlmOutput ?? false,
+    autoSyncIntervalMinutes: imported.settings.autoSyncIntervalMinutes ?? 0,
+    syncApiKey: imported.settings.syncApiKey ?? false,
+    localBackupFolderPath: imported.settings.localBackupFolderPath ?? '',
+    localBackupIntervalMinutes: imported.settings.localBackupIntervalMinutes ?? 0,
+    theme: imported.settings.theme ?? current.theme,
+    customThemeSeedColor: imported.settings.customThemeSeedColor ?? current.customThemeSeedColor,
+    interfaceFont: imported.settings.interfaceFont ?? current.interfaceFont,
+    headingFont: imported.settings.headingFont ?? current.headingFont,
+    tutorPersona: imported.settings.tutorPersona ?? '',
+    tutorModel: imported.settings.tutorModel ?? current.tutorModel,
+    markerStyle: imported.settings.markerStyle ?? 'strict',
+    customMarkerStyle: imported.settings.customMarkerStyle ?? '',
+    modelReasoningEnabled: imported.settings.modelReasoningEnabled ?? false,
+    modelReasoningEffort: imported.settings.modelReasoningEffort ?? 'medium',
+    markingReasoningEnabled: imported.settings.markingReasoningEnabled ?? false,
+    markingReasoningEffort: imported.settings.markingReasoningEffort ?? 'medium',
+    shuffleSubtopics: imported.settings.shuffleSubtopics ?? false,
+    shuffleQuestions: imported.settings.shuffleQuestions ?? false,
+  };
+}
+
 export function mergeImportedState(
   current: ImportExportState,
   imported: PersistedAppState,
@@ -411,16 +484,7 @@ export function mergeImportedState(
   );
 
   // Settings: overwrite, but preserve local API key
-  merged.model = imported.settings.model;
-  merged.markingModel = imported.settings.markingModel;
-  merged.useSeparateMarkingModel = imported.settings.useSeparateMarkingModel;
-  merged.imageMarkingModel = imported.settings.imageMarkingModel;
-  merged.useSeparateImageMarkingModel =
-    imported.settings.useSeparateImageMarkingModel;
-  merged.debugMode = imported.settings.debugMode;
-  merged.questionTextSize = imported.settings.questionTextSize ?? 16;
-  merged.responseTextSize = imported.settings.responseTextSize ?? 16;
-  merged.includeExamContext = imported.settings.includeExamContext ?? false;
+  Object.assign(merged, mergeSettings(current, imported));
   // API key is NOT overwritten — keep current.apiKey
 
   // Preferences: overwrite
@@ -500,9 +564,30 @@ function buildExportSnapshot(
       imageMarkingModel: s.imageMarkingModel,
       useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
       debugMode: s.debugMode,
+      showRawLlmOutput: s.showRawLlmOutput,
       questionTextSize: s.questionTextSize,
       responseTextSize: s.responseTextSize,
       includeExamContext: s.includeExamContext,
+      providers: s.providers,
+      activeProviderId: s.activeProviderId,
+      autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
+      syncApiKey: s.syncApiKey,
+      localBackupFolderPath: s.localBackupFolderPath,
+      localBackupIntervalMinutes: s.localBackupIntervalMinutes,
+      theme: s.theme,
+      customThemeSeedColor: s.customThemeSeedColor,
+      interfaceFont: s.interfaceFont,
+      headingFont: s.headingFont,
+      tutorPersona: s.tutorPersona,
+      tutorModel: s.tutorModel,
+      markerStyle: s.markerStyle,
+      customMarkerStyle: s.customMarkerStyle,
+      modelReasoningEnabled: s.modelReasoningEnabled,
+      modelReasoningEffort: s.modelReasoningEffort,
+      markingReasoningEnabled: s.markingReasoningEnabled,
+      markingReasoningEffort: s.markingReasoningEffort,
+      shuffleSubtopics: s.shuffleSubtopics,
+      shuffleQuestions: s.shuffleQuestions,
     },
     preferences: {
       selectedTopics: s.selectedTopics,

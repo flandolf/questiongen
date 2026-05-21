@@ -611,7 +611,8 @@ pub async fn call_openrouter_chat_streaming(
         return Err(AppError::new(
             "OPENROUTER_ERROR",
             format!("OpenRouter request failed ({status}): {err_body}"),
-        ));
+        )
+        .with_status(status.as_u16()));
     }
 
     let mut stream = response.byte_stream();

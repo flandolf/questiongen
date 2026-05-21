@@ -115,6 +115,22 @@ const QuestionItem = ({
     return [...new Set(indices)];
   }, [qIdx, getPageRange]);
 
+  const itemClassName = useMemo(() => {
+    return cn(
+      'group p-4 border rounded-xl space-y-4 transition-all duration-300 select-none',
+      hasDuplicate
+        ? 'border-amber-500/30 bg-amber-500/5 shadow-[0_2px_12px_rgba(245,158,11,0.08)]'
+        : results
+          ? 'border-emerald-500/20 bg-emerald-500/5 shadow-[0_2px_12px_rgba(16,185,129,0.05)]'
+          : 'border-border/40 bg-muted/20 hover:bg-muted/30 hover:border-border/80 shadow-sm',
+      isDragging && draggingIndex === qIdx && 'opacity-40',
+      dragOverIndex !== null &&
+        dragOverIndex !== qIdx &&
+        draggingIndex !== qIdx &&
+        'border-primary/50 border-dashed',
+    );
+  }, [hasDuplicate, results, isDragging, draggingIndex, qIdx, dragOverIndex]);
+
   return (
     <motion.div
       layout
@@ -129,19 +145,7 @@ const QuestionItem = ({
         onDragOver(qIdx);
       }}
       onDragEnd={onDragEnd}
-      className={cn(
-        'group p-4 border rounded-xl space-y-4 transition-all duration-300 select-none',
-        hasDuplicate
-          ? 'border-amber-500/30 bg-amber-500/5 shadow-[0_2px_12px_rgba(245,158,11,0.08)]'
-          : results
-            ? 'border-emerald-500/20 bg-emerald-500/5 shadow-[0_2px_12px_rgba(16,185,129,0.05)]'
-            : 'border-border/40 bg-muted/20 hover:bg-muted/30 hover:border-border/80 shadow-sm',
-        isDragging && draggingIndex === qIdx && 'opacity-40',
-        dragOverIndex !== null &&
-          dragOverIndex !== qIdx &&
-          draggingIndex !== qIdx &&
-          'border-primary/50 border-dashed',
-      )}
+      className={itemClassName}
     >
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
@@ -218,6 +222,7 @@ const QuestionItem = ({
             Pages (e.g. 1, 3-5)
           </Label>
           <Input
+            key={qIdx}
             className='h-9 bg-background/50 border-border/40 font-mono text-xs focus:ring-primary/30 transition-all'
             placeholder='Page range...'
             defaultValue={getPageRange(qIdx)}
@@ -662,41 +667,45 @@ export function PDFMarkerView() {
   );
 
   const addQuestion = () => {
-    const newQuestion = {
-      id: crypto.randomUUID(),
-      topic: `Question ${pdfMarkerQuestions.length + 1}`,
-      subtopic: '',
-      maxMarks: 5,
-      promptMarkdown: '',
-      techAllowed: true,
-    };
-    setPdfMarkerQuestions([...pdfMarkerQuestions, newQuestion]);
+    const current = useAppStore.getState().pdfMarkerQuestions;
+    setPdfMarkerQuestions([
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        topic: `Question ${current.length + 1}`,
+        subtopic: '',
+        maxMarks: 5,
+        promptMarkdown: '',
+        techAllowed: true,
+      },
+    ]);
   };
 
   const removeQuestion = (id: string) => {
-    const indexToRemove = pdfMarkerQuestions.findIndex((q) => q.id === id);
+    const currentQuestions = useAppStore.getState().pdfMarkerQuestions;
+    const currentMapping = useAppStore.getState().pdfMarkerPageMapping;
+    const indexToRemove = currentQuestions.findIndex((q) => q.id === id);
     if (indexToRemove === -1) return;
 
-    setPdfMarkerQuestions(pdfMarkerQuestions.filter((q) => q.id !== id));
-
-    // Update mapping: remove the question's mapping and shift others
-    const newMapping = pdfMarkerPageMapping
-      .filter((m) => m.questionIndex !== indexToRemove)
-      .map((m) => {
-        if (m.questionIndex > indexToRemove) {
-          return { ...m, questionIndex: m.questionIndex - 1 };
-        }
-        return m;
-      });
-    setPdfMarkerPageMapping(newMapping);
+    setPdfMarkerQuestions(currentQuestions.filter((q) => q.id !== id));
+    setPdfMarkerPageMapping(
+      currentMapping
+        .filter((m) => m.questionIndex !== indexToRemove)
+        .map((m) =>
+          m.questionIndex > indexToRemove
+            ? { ...m, questionIndex: m.questionIndex - 1 }
+            : m,
+        ),
+    );
   };
 
   const updateQuestion = (
     id: string,
     updates: Partial<(typeof pdfMarkerQuestions)[0]>,
   ) => {
+    const current = useAppStore.getState().pdfMarkerQuestions;
     setPdfMarkerQuestions(
-      pdfMarkerQuestions.map((q) => (q.id === id ? { ...q, ...updates } : q)),
+      current.map((q) => (q.id === id ? { ...q, ...updates } : q)),
     );
   };
 
@@ -723,17 +732,17 @@ export function PDFMarkerView() {
 
     const uniqueIndices = Array.from(new Set(indices)).sort((a, b) => a - b);
 
-    const existingIdx = pdfMarkerPageMapping.findIndex(
+    const currentMapping = useAppStore.getState().pdfMarkerPageMapping;
+    const existingIdx = currentMapping.findIndex(
       (m) => m.questionIndex === questionIndex,
     );
-
     if (existingIdx !== -1) {
-      const newMapping = [...pdfMarkerPageMapping];
+      const newMapping = [...currentMapping];
       newMapping[existingIdx] = { questionIndex, pageIndices: uniqueIndices };
       setPdfMarkerPageMapping(newMapping);
     } else {
       setPdfMarkerPageMapping([
-        ...pdfMarkerPageMapping,
+        ...currentMapping,
         { questionIndex, pageIndices: uniqueIndices },
       ]);
     }

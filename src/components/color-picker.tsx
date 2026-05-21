@@ -1,4 +1,3 @@
-'use client';
 
 import { Pipette } from 'lucide-react';
 import * as React from 'react';

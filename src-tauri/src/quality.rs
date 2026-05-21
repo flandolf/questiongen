@@ -1,4 +1,11 @@
+use regex::Regex;
 use std::collections::HashSet;
+use std::sync::OnceLock;
+
+fn part_label_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\([a-z]\)").unwrap())
+}
 
 const COMMAND_VERBS: [&str; 34] = [
     "define",
@@ -269,9 +276,12 @@ fn extract_primary_command_verb(text: &str) -> String {
 }
 
 /// Detect scaffold pattern in question text (single-part vs multi-part with labels).
+/// Matches parenthesized lowercase letter labels like `(a)`, `(b)` to avoid
+/// false positives from math expressions like `f(x)`.
 pub fn detect_scaffold_pattern(text: &str) -> String {
-    if text.contains("(") && text.contains(")") && text.matches("(").count() >= 2 {
-        format!("multi-part-{}", text.matches("(").count())
+    let count = part_label_regex().find_iter(text).count();
+    if count >= 2 {
+        format!("multi-part-{}", count)
     } else {
         "single-part".to_string()
     }

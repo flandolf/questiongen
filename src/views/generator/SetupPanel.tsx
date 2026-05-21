@@ -403,7 +403,7 @@ function SetupPanelImpl({
     if (questionCount > 20) reasons.push('Question count cannot exceed 20');
     if (isGenerating) reasons.push('Generation in progress');
     return reasons;
-  }, [hasApiKey, model, selectedTopics.length, questionCount, isGenerating]);
+  }, [hasApiKey, activeProviderId, model, selectedTopics.length, questionCount, isGenerating]);
 
   const isGenerationDisabled = generationDisabledReasons.length > 0;
 
