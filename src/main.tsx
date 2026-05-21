@@ -1,7 +1,7 @@
 import './App.css';
 import './themes/fonts.css';
 
-import React from 'react';
+import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 
 import App from './App';
@@ -221,11 +221,11 @@ async function bootstrap() {
   }
 
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <React.StrictMode>
+    <StrictMode>
       <ThemeProvider defaultTheme='dark' storageKey='questiongen-theme'>
         <App />
       </ThemeProvider>
-    </React.StrictMode>,
+    </StrictMode>,
   );
 }
 

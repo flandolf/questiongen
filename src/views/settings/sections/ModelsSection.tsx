@@ -200,6 +200,112 @@ function LiveStatsSection({
 }
 
 
+function ReasoningEffortSelect({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  id: string;
+}) {
+  const activeProviderId = useAppStore((s) => s.activeProviderId);
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger id={id} className='w-40'>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {activeProviderId === 'deepseek' ? (
+          <>
+            <SelectItem value='high'>High</SelectItem>
+            <SelectItem value='max'>Max</SelectItem>
+          </>
+        ) : (
+          <>
+            <SelectItem value='xhigh'>Extra High</SelectItem>
+            <SelectItem value='high'>High</SelectItem>
+            <SelectItem value='medium'>Medium</SelectItem>
+            <SelectItem value='low'>Low</SelectItem>
+            <SelectItem value='minimal'>Minimal</SelectItem>
+            <SelectItem value='none'>None</SelectItem>
+          </>
+        )}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ReasoningEffortField({
+  enabled,
+  value,
+  onChange,
+  id,
+}: {
+  enabled: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  id: string;
+}) {
+  const activeProviderId = useAppStore((s) => s.activeProviderId);
+  return (
+    <AnimatePresence>
+      {enabled && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          className='overflow-hidden'
+        >
+          <FieldGroup
+            label={activeProviderId === 'deepseek' ? 'Thinking effort' : 'Reasoning effort'}
+            htmlFor={id}
+          >
+            <ReasoningEffortSelect value={value} onChange={onChange} id={id} />
+          </FieldGroup>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function CustomModelSlideDown({
+  show,
+  id,
+  label,
+  value,
+  onChange,
+  onApply,
+}: {
+  show: boolean;
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onApply: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          className='overflow-hidden'
+        >
+          <CustomModelInput
+            id={id}
+            label={label}
+            value={value}
+            onChange={onChange}
+            onApply={onApply}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export function ModelsSection() {
   const settings = useAppSettings();
   const activeProviderId = useAppStore((s) => s.activeProviderId);
@@ -443,84 +549,35 @@ export function ModelsSection() {
           label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
           description='Allow model to use extended thinking for better quality'
         />
-        <AnimatePresence>
-          {localState.modelReasoningEnabled && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className='overflow-hidden'
-            >
-              <FieldGroup
-                label={activeProviderId === 'deepseek' ? 'Thinking effort' : 'Reasoning effort'}
-                htmlFor='reasoning-effort'
-              >
-                <Select
-                  value={localState.modelReasoningEffort}
-                  onValueChange={(v) =>
-                    updateSetting(
-                      'modelReasoningEffort',
-                      v as
-                        | 'xhigh'
-                        | 'high'
-                        | 'max'
-                        | 'medium'
-                        | 'low'
-                        | 'minimal'
-                        | 'none',
-                    )
-                  }
-                >
-                  <SelectTrigger id='reasoning-effort' className='w-40'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeProviderId === 'deepseek' ? (
-                      <>
-                        <SelectItem value='high'>High</SelectItem>
-                        <SelectItem value='max'>Max</SelectItem>
-                      </>
-                    ) : (
-                      <>
-                        <SelectItem value='xhigh'>Extra High</SelectItem>
-                        <SelectItem value='high'>High</SelectItem>
-                        <SelectItem value='medium'>Medium</SelectItem>
-                        <SelectItem value='low'>Low</SelectItem>
-                        <SelectItem value='minimal'>Minimal</SelectItem>
-                        <SelectItem value='none'>None</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {showCustom['generation'] && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className='overflow-hidden'
-            >
-              <CustomModelInput
-                key='gen-model-custom'
-                id='custom-model-id'
-                label='Custom Model ID'
-                value={customIds['generation'] || ''}
-                onChange={(v) => setCustomId('generation', v)}
-                onApply={() => {
-                  updateSetting(
-                    'model',
-                    (customIds['generation'] || '').trim(),
-                  );
-                  toggleCustom('generation', false);
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <ReasoningEffortField
+          enabled={localState.modelReasoningEnabled}
+          value={localState.modelReasoningEffort}
+          onChange={(v) =>
+            updateSetting(
+              'modelReasoningEffort',
+              v as
+                | 'xhigh'
+                | 'high'
+                | 'max'
+                | 'medium'
+                | 'low'
+                | 'minimal'
+                | 'none',
+            )
+          }
+          id='reasoning-effort'
+        />
+        <CustomModelSlideDown
+          show={showCustom['generation']}
+          id='custom-model-id'
+          label='Custom Model ID'
+          value={customIds['generation'] || ''}
+          onChange={(v) => setCustomId('generation', v)}
+          onApply={() => {
+            updateSetting('model', (customIds['generation'] || '').trim());
+            toggleCustom('generation', false);
+          }}
+        />
       </ConfigSection>
 
       <ConfigSection key='marking-model-section' className='space-y-4'>
@@ -573,84 +630,35 @@ export function ModelsSection() {
                 label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
                 description='Allow model to use extended thinking for marking answers'
               />
-              <AnimatePresence>
-                {localState.markingReasoningEnabled && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className='overflow-hidden'
-                  >
-                    <FieldGroup
-                      label={activeProviderId === 'deepseek' ? 'Thinking effort' : 'Reasoning effort'}
-                      htmlFor='marking-reasoning-effort'
-                    >
-                      <Select
-                        value={localState.markingReasoningEffort}
-                        onValueChange={(v) =>
-                          updateSetting(
-                            'markingReasoningEffort',
-                            v as
-                              | 'xhigh'
-                              | 'high'
-                              | 'max'
-                              | 'medium'
-                              | 'low'
-                              | 'minimal'
-                              | 'none',
-                          )
-                        }
-                      >
-                        <SelectTrigger id='marking-reasoning-effort' className='w-40'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {activeProviderId === 'deepseek' ? (
-                            <>
-                              <SelectItem value='high'>High</SelectItem>
-                              <SelectItem value='max'>Max</SelectItem>
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value='xhigh'>Extra High</SelectItem>
-                              <SelectItem value='high'>High</SelectItem>
-                              <SelectItem value='medium'>Medium</SelectItem>
-                              <SelectItem value='low'>Low</SelectItem>
-                              <SelectItem value='minimal'>Minimal</SelectItem>
-                              <SelectItem value='none'>None</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FieldGroup>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <AnimatePresence>
-                {showCustom['marking'] && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className='overflow-hidden'
-                  >
-                    <CustomModelInput
-                      key='marking-model-custom'
-                      id='custom-marking-model-id'
-                      label='Custom Marking Model ID'
-                      value={customIds['marking'] || ''}
-                      onChange={(v) => setCustomId('marking', v)}
-                      onApply={() => {
-                        updateSetting(
-                          'markingModel',
-                          (customIds['marking'] || '').trim(),
-                        );
-                        toggleCustom('marking', false);
-                      }}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <ReasoningEffortField
+                enabled={localState.markingReasoningEnabled}
+                value={localState.markingReasoningEffort}
+                onChange={(v) =>
+                  updateSetting(
+                    'markingReasoningEffort',
+                    v as
+                      | 'xhigh'
+                      | 'high'
+                      | 'max'
+                      | 'medium'
+                      | 'low'
+                      | 'minimal'
+                      | 'none',
+                  )
+                }
+                id='marking-reasoning-effort'
+              />
+              <CustomModelSlideDown
+                show={showCustom['marking']}
+                id='custom-marking-model-id'
+                label='Custom Marking Model ID'
+                value={customIds['marking'] || ''}
+                onChange={(v) => setCustomId('marking', v)}
+                onApply={() => {
+                  updateSetting('markingModel', (customIds['marking'] || '').trim());
+                  toggleCustom('marking', false);
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -707,84 +715,35 @@ export function ModelsSection() {
                 label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
                 description='Allow model to use extended thinking for marking handwritten answers'
               />
-              <AnimatePresence>
-                {localState.markingReasoningEnabled && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className='overflow-hidden'
-                  >
-                    <FieldGroup
-                      label={activeProviderId === 'deepseek' ? 'Thinking effort' : 'Reasoning effort'}
-                      htmlFor='image-marking-reasoning-effort'
-                    >
-                      <Select
-                        value={localState.markingReasoningEffort}
-                        onValueChange={(v) =>
-                          updateSetting(
-                            'markingReasoningEffort',
-                            v as
-                              | 'xhigh'
-                              | 'high'
-                              | 'max'
-                              | 'medium'
-                              | 'low'
-                              | 'minimal'
-                              | 'none',
-                          )
-                        }
-                      >
-                        <SelectTrigger id='image-marking-reasoning-effort' className='w-40'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {activeProviderId === 'deepseek' ? (
-                            <>
-                              <SelectItem value='high'>High</SelectItem>
-                              <SelectItem value='max'>Max</SelectItem>
-                            </>
-                          ) : (
-                            <>
-                              <SelectItem value='xhigh'>Extra High</SelectItem>
-                              <SelectItem value='high'>High</SelectItem>
-                              <SelectItem value='medium'>Medium</SelectItem>
-                              <SelectItem value='low'>Low</SelectItem>
-                              <SelectItem value='minimal'>Minimal</SelectItem>
-                              <SelectItem value='none'>None</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </FieldGroup>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <AnimatePresence>
-                {showCustom['imageMarking'] && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className='overflow-hidden'
-                  >
-                    <CustomModelInput
-                      key='image-marking-model-custom'
-                      id='custom-image-marking-model-id'
-                      label='Custom Vision ID'
-                      value={customIds['imageMarking'] || ''}
-                      onChange={(v) => setCustomId('imageMarking', v)}
-                      onApply={() => {
-                        updateSetting(
-                          'imageMarkingModel',
-                          (customIds['imageMarking'] || '').trim(),
-                        );
-                        toggleCustom('imageMarking', false);
-                      }}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <ReasoningEffortField
+                enabled={localState.markingReasoningEnabled}
+                value={localState.markingReasoningEffort}
+                onChange={(v) =>
+                  updateSetting(
+                    'markingReasoningEffort',
+                    v as
+                      | 'xhigh'
+                      | 'high'
+                      | 'max'
+                      | 'medium'
+                      | 'low'
+                      | 'minimal'
+                      | 'none',
+                  )
+                }
+                id='image-marking-reasoning-effort'
+              />
+              <CustomModelSlideDown
+                show={showCustom['imageMarking']}
+                id='custom-image-marking-model-id'
+                label='Custom Vision ID'
+                value={customIds['imageMarking'] || ''}
+                onChange={(v) => setCustomId('imageMarking', v)}
+                onApply={() => {
+                  updateSetting('imageMarkingModel', (customIds['imageMarking'] || '').trim());
+                  toggleCustom('imageMarking', false);
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -814,31 +773,17 @@ export function ModelsSection() {
             onSearch={() => openSearch('tutor')}
           />
         </FieldGroup>
-        <AnimatePresence>
-          {showCustom['tutor'] && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className='overflow-hidden'
-            >
-              <CustomModelInput
-                key='tutor-model-custom'
-                id='custom-tutor-model-id'
-                label='Custom Tutor ID'
-                value={customIds['tutor'] || ''}
-                onChange={(v) => setCustomId('tutor', v)}
-                onApply={() => {
-                  updateSetting(
-                    'tutorModel',
-                    (customIds['tutor'] || '').trim(),
-                  );
-                  toggleCustom('tutor', false);
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <CustomModelSlideDown
+          show={showCustom['tutor']}
+          id='custom-tutor-model-id'
+          label='Custom Tutor ID'
+          value={customIds['tutor'] || ''}
+          onChange={(v) => setCustomId('tutor', v)}
+          onApply={() => {
+            updateSetting('tutorModel', (customIds['tutor'] || '').trim());
+            toggleCustom('tutor', false);
+          }}
+        />
       </ConfigSection>
 
       <ConfigSection key='exam-context-section' className='space-y-4'>

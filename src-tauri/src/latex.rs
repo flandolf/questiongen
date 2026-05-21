@@ -232,8 +232,11 @@ fn repair_math_typos(text: &str) -> String {
     RE_B.replace_all(&text, |caps: &Captures| {
         let cmd = &caps[1];
         if COMMANDS.contains(&cmd) {
-            let b_prefixed_is_valid = COMMANDS.iter().any(|&c| c == format!("b{}", cmd));
-            if cmd.starts_with('b') || b_prefixed_is_valid {
+            if cmd.starts_with('b') {
+                return format!("\\b{}", cmd);
+            }
+            let b_prefixed = format!("b{}", cmd);
+            if COMMANDS.contains(&b_prefixed.as_str()) {
                 format!("\\b{}", cmd)
             } else {
                 format!("\\{}", cmd)

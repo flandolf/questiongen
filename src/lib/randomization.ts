@@ -10,7 +10,7 @@ import type { McOption } from '@/types';
  * Each call advances the internal state.
  */
 export function createSeededRandom(seed: number = Date.now()) {
-  let current = seed || 1;
+  let current = seed ?? 1;
 
   return {
     seed,

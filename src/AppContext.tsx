@@ -11,7 +11,7 @@
  */
 
 import { listen } from '@tauri-apps/api/event';
-import React, { useEffect } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useLocalBackupExport } from './hooks/useLocalBackupExport';
@@ -20,7 +20,7 @@ import type { GenerationStatusEvent, LogEntry } from './types';
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
+export function AppProvider({ children }: { children: ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
   const setGenerationStatus = useAppStore((s) => s.setGenerationStatus);
 

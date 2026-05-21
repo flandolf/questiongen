@@ -80,7 +80,7 @@ export function GeneratorView() {
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
     useState(false);
-  const [_showMarkingScreen, setShowMarkingScreen] = useState(false);
+  const [, setShowMarkingScreen] = useState(false);
 
   const [showKeyboardHint, setShowKeyboardHint] = useState(() => {
     try {
@@ -666,7 +666,7 @@ export function GeneratorView() {
     }).then((fn) => {
       if (cancelled) fn();
       else unlisten = fn;
-    });
+    }).catch(() => {});
 
     return () => {
       cancelled = true;
