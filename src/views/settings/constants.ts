@@ -12,9 +12,11 @@ export const PRESET_MODELS = [
   { id: 'xiaomi/mimo-v2.5-omni:nitro', name: 'MiMo V2.5 Omni' },
   { id: 'minimax/minimax-m2.7:nitro', name: 'Minimax M2.7' },
   { id: 'qwen/qwen3.6-plus:nitro', name: 'Qwen 3.6 Plus' },
-  { id: 'deepseek/deepseek-v4-pro:nitro', name: 'DeepSeek V4 Pro' },
-  { id: 'deepseek/deepseek-v4-flash:nitro', name: 'DeepSeek V4 Flash' },
   { id: 'openai/gpt-oss-120b:nitro', name: 'GPT-OSS 120B (Nitro)' },
+  { id: 'deepseek/deepseek-v4-flash:nitro', name: 'DeepSeek V4 Flash (Nitro)' },
+  { id: 'deepseek/deepseek-v4-pro:nitro', name: 'DeepSeek V4 Pro (Nitro)' },
+  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
   { id: 'custom', name: 'Custom…' },
 ];
 
@@ -28,6 +30,7 @@ export const PRESET_IMAGE_MODELS = [
   { id: 'xiaomi/mimo-v2.5-omni:nitro', name: 'MiMo V2.5 Omni' },
   { id: 'minimax/minimax-m2.7:nitro', name: 'Minimax M2.7' },
   { id: 'qwen/qwen3.6-plus:nitro', name: 'Qwen 3.6 Plus' },
+  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
   { id: 'custom', name: 'Custom…' },
 ];
 
@@ -41,6 +44,14 @@ export const DEEPSEEK_PRESET_IMAGE_MODELS = [
   { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
   { id: 'custom', name: 'Custom…' },
 ];
+
+/** Extract a human-readable API provider label from a model ID. */
+export function getProviderLabel(modelId: string): string {
+  if (!modelId || modelId === 'custom') return '';
+  if (modelId.startsWith('deepseek-')) return 'DeepSeek';
+  if (modelId.includes('/')) return 'OpenRouter';
+  return '';
+}
 
 /** Get model presets for a given provider ID. */
 export function getModelsForProvider(providerId: string) {

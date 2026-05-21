@@ -14,6 +14,7 @@ export type GenerationTelemetry = {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  reasoningTokens?: number;
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
@@ -26,6 +27,7 @@ export type GenerateQuestionsResponse = {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  reasoningTokens?: number;
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
@@ -38,6 +40,7 @@ export type GenerateMcQuestionsResponse = {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  reasoningTokens?: number;
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;

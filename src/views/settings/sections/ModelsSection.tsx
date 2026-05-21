@@ -216,14 +216,20 @@ export function ModelsSection() {
   }, [deepseekApiKey, activeProviderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const modelPresets = useMemo(() => {
+    const base = [...getModelsForProvider(activeProviderId)];
     if (activeProviderId === 'deepseek' && deepseekModels.models?.data.length) {
-      const dynamic = deepseekModels.models.data.map((m) => ({
-        id: m.id,
-        name: m.id,
-      }));
-      return [...dynamic, { id: 'custom', name: 'Custom…' }];
+      const seen = new Set(base.map((m) => m.id));
+      for (const m of deepseekModels.models.data) {
+        if (!seen.has(m.id)) {
+          base.push({ id: m.id, name: m.id });
+          seen.add(m.id);
+        }
+      }
+      if (!seen.has('custom')) {
+        base.push({ id: 'custom', name: 'Custom…' });
+      }
     }
-    return getModelsForProvider(activeProviderId);
+    return base;
   }, [activeProviderId, deepseekModels.models]);
   const imageModelPresets = useMemo(
     () => getImageModelsForProvider(activeProviderId),
@@ -241,6 +247,8 @@ export function ModelsSection() {
     customMarkerStyle: settings.customMarkerStyle,
     modelReasoningEnabled: settings.modelReasoningEnabled,
     modelReasoningEffort: settings.modelReasoningEffort,
+    markingReasoningEnabled: settings.markingReasoningEnabled,
+    markingReasoningEffort: settings.markingReasoningEffort,
   });
 
   const [showCustom, setShowCustom] = useState<Record<string, boolean>>({});
@@ -266,6 +274,8 @@ export function ModelsSection() {
       customMarkerStyle: settings.customMarkerStyle,
       modelReasoningEnabled: settings.modelReasoningEnabled,
       modelReasoningEffort: settings.modelReasoningEffort,
+      markingReasoningEnabled: settings.markingReasoningEnabled,
+      markingReasoningEffort: settings.markingReasoningEffort,
     }));
   }, [
     settings.model,
@@ -279,6 +289,8 @@ export function ModelsSection() {
     settings.customMarkerStyle,
     settings.modelReasoningEnabled,
     settings.modelReasoningEffort,
+    settings.markingReasoningEnabled,
+    settings.markingReasoningEffort,
   ]);
 
   // Sync from local state to store
@@ -554,6 +566,66 @@ export function ModelsSection() {
                   />
                 </FieldGroup>
               </div>
+              <ToggleRow
+                id='marking-reasoning'
+                checked={localState.markingReasoningEnabled}
+                onChange={(v) => updateSetting('markingReasoningEnabled', v)}
+                label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
+                description='Allow model to use extended thinking for marking answers'
+              />
+              <AnimatePresence>
+                {localState.markingReasoningEnabled && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className='overflow-hidden'
+                  >
+                    <FieldGroup
+                      label={activeProviderId === 'deepseek' ? 'Thinking effort' : 'Reasoning effort'}
+                      htmlFor='marking-reasoning-effort'
+                    >
+                      <Select
+                        value={localState.markingReasoningEffort}
+                        onValueChange={(v) =>
+                          updateSetting(
+                            'markingReasoningEffort',
+                            v as
+                              | 'xhigh'
+                              | 'high'
+                              | 'max'
+                              | 'medium'
+                              | 'low'
+                              | 'minimal'
+                              | 'none',
+                          )
+                        }
+                      >
+                        <SelectTrigger id='marking-reasoning-effort' className='w-40'>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeProviderId === 'deepseek' ? (
+                            <>
+                              <SelectItem value='high'>High</SelectItem>
+                              <SelectItem value='max'>Max</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value='xhigh'>Extra High</SelectItem>
+                              <SelectItem value='high'>High</SelectItem>
+                              <SelectItem value='medium'>Medium</SelectItem>
+                              <SelectItem value='low'>Low</SelectItem>
+                              <SelectItem value='minimal'>Minimal</SelectItem>
+                              <SelectItem value='none'>None</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </FieldGroup>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <AnimatePresence>
                 {showCustom['marking'] && (
                   <motion.div
@@ -628,6 +700,66 @@ export function ModelsSection() {
                   />
                 </FieldGroup>
               </div>
+              <ToggleRow
+                id='image-marking-reasoning'
+                checked={localState.markingReasoningEnabled}
+                onChange={(v) => updateSetting('markingReasoningEnabled', v)}
+                label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
+                description='Allow model to use extended thinking for marking handwritten answers'
+              />
+              <AnimatePresence>
+                {localState.markingReasoningEnabled && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className='overflow-hidden'
+                  >
+                    <FieldGroup
+                      label={activeProviderId === 'deepseek' ? 'Thinking effort' : 'Reasoning effort'}
+                      htmlFor='image-marking-reasoning-effort'
+                    >
+                      <Select
+                        value={localState.markingReasoningEffort}
+                        onValueChange={(v) =>
+                          updateSetting(
+                            'markingReasoningEffort',
+                            v as
+                              | 'xhigh'
+                              | 'high'
+                              | 'max'
+                              | 'medium'
+                              | 'low'
+                              | 'minimal'
+                              | 'none',
+                          )
+                        }
+                      >
+                        <SelectTrigger id='image-marking-reasoning-effort' className='w-40'>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {activeProviderId === 'deepseek' ? (
+                            <>
+                              <SelectItem value='high'>High</SelectItem>
+                              <SelectItem value='max'>Max</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value='xhigh'>Extra High</SelectItem>
+                              <SelectItem value='high'>High</SelectItem>
+                              <SelectItem value='medium'>Medium</SelectItem>
+                              <SelectItem value='low'>Low</SelectItem>
+                              <SelectItem value='minimal'>Minimal</SelectItem>
+                              <SelectItem value='none'>None</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </FieldGroup>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <AnimatePresence>
                 {showCustom['imageMarking'] && (
                   <motion.div

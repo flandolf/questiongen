@@ -113,6 +113,8 @@ export const createPdfMarkerSlice: StateCreator<
             baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
             markerStyle: s.markerStyle,
             customMarkerStyle: s.customMarkerStyle,
+            reasoningEnabled: s.markingReasoningEnabled,
+            reasoningEffort: s.markingReasoningEffort,
           },
         },
       );
@@ -214,6 +216,8 @@ export const createPdfMarkerSlice: StateCreator<
             baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
             markerStyle: s.markerStyle,
             customMarkerStyle: s.customMarkerStyle,
+            reasoningEnabled: s.markingReasoningEnabled,
+            reasoningEffort: s.markingReasoningEffort,
           },
         },
       );

@@ -119,8 +119,24 @@ export function exportAppState(s: ImportExportState): PersistedAppState {
   const preserveImages = true;
   const snapshot = buildExportSnapshot(s, { preserveImages });
 
-  // Strip API key from top-level settings
-  snapshot.settings = { ...snapshot.settings, apiKey: '' };
+  // Strip API keys from top-level settings and all providers
+  const strippedProviders: Record<string, NonNullable<typeof snapshot.settings.providers>[string]> = {};
+  if (snapshot.settings.providers) {
+    for (const [id, provider] of Object.entries(snapshot.settings.providers)) {
+      strippedProviders[id] = {
+        ...provider,
+        apiKey: '',
+        keyStatus: 'untested' as const,
+        keyLastTestedAt: null,
+      };
+    }
+  }
+
+  snapshot.settings = {
+    ...snapshot.settings,
+    apiKey: '',
+    providers: strippedProviders,
+  };
 
   // Strip API key from saved set preferences
   snapshot.savedSets = snapshot.savedSets.map((ss) => ({
@@ -248,7 +264,26 @@ export function parseImportText(text: string): PersistedAppState {
   }
 
   const normalized = normalizePersistedAppState(rawState);
-  normalized.settings = { ...normalized.settings, apiKey: '' };
+
+  // Strip API keys from top-level settings and all providers
+  const strippedProviders: Record<string, NonNullable<typeof normalized.settings.providers>[string]> = {};
+  if (normalized.settings.providers) {
+    for (const [id, provider] of Object.entries(normalized.settings.providers)) {
+      strippedProviders[id] = {
+        ...provider,
+        apiKey: '',
+        keyStatus: 'untested' as const,
+        keyLastTestedAt: null,
+      };
+    }
+  }
+
+  normalized.settings = {
+    ...normalized.settings,
+    apiKey: '',
+    providers: strippedProviders,
+  };
+
   return normalized;
 }
 

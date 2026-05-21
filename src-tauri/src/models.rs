@@ -111,6 +111,14 @@ pub struct OpenRouterUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    #[serde(default)]
+    pub completion_tokens_details: Option<OpenRouterCompletionTokenDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenRouterCompletionTokenDetails {
+    #[serde(default)]
+    pub reasoning_tokens: Option<u32>,
 }
 
 // ─── Shared question types ────────────────────────────────────────────────────
@@ -193,6 +201,7 @@ pub struct GenerateQuestionsResponse {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    pub reasoning_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub estimated_cost_usd: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -233,6 +242,10 @@ pub struct MarkAnswerRequest {
     pub base_url: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
+    #[serde(default)]
+    pub reasoning_enabled: bool,
+    #[serde(default)]
+    pub reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -410,6 +423,10 @@ pub struct MarkPdfRequest {
     pub base_url: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
+    #[serde(default)]
+    pub reasoning_enabled: bool,
+    #[serde(default)]
+    pub reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -531,6 +548,7 @@ pub struct GenerateMcQuestionsResponse {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    pub reasoning_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub estimated_cost_usd: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]

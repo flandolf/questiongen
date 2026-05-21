@@ -14,6 +14,7 @@ import type {
   McHistoryEntry,
   QuestionHistoryEntry,
 } from '@/types';
+import { getModelCredentials } from '@/types/provider';
 
 export interface SessionSlice {
   // Written session
@@ -304,7 +305,13 @@ export const createSessionSlice: StateCreator<
     const image = s.imagesByQuestionId[activeQuestion.id];
 
     if (!answer && !image) return;
-    if (!s.apiKey.trim() || !markingModel.trim() || s.isMarking) return;
+    if (!markingModel.trim() || s.isMarking) return;
+
+    const credentials = getModelCredentials(markingModel, s.providers);
+    if (!credentials) {
+      toast.error('No valid API credentials for marking model');
+      return;
+    }
 
     set({ isMarking: true, errorMessage: null });
 
@@ -317,10 +324,12 @@ export const createSessionSlice: StateCreator<
           studentAnswer: answer,
           studentAnswerImageDataUrl: image?.dataUrl,
           model: markingModel,
-          apiKey: s.apiKey,
-          baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
+          apiKey: credentials.apiKey,
+          baseUrl: credentials.baseUrl,
           markerStyle: s.markerStyle,
           customMarkerStyle: s.customMarkerStyle,
+          reasoningEnabled: s.markingReasoningEnabled,
+          reasoningEffort: s.markingReasoningEffort,
         },
       });
 
@@ -392,7 +401,13 @@ export const createSessionSlice: StateCreator<
     if (!activeQuestion) return;
 
     const appealText = s.markAppealByQuestionId[activeQuestion.id] || '';
-    if (!appealText.trim() || !s.apiKey.trim() || !markingModel.trim()) return;
+    if (!appealText.trim() || !markingModel.trim()) return;
+
+    const credentials = getModelCredentials(markingModel, s.providers);
+    if (!credentials) {
+      toast.error('No valid API credentials for marking model');
+      return;
+    }
 
     set({ isMarking: true, errorMessage: null });
 
@@ -413,10 +428,12 @@ export const createSessionSlice: StateCreator<
           studentAnswer: arguedAnswer,
           studentAnswerImageDataUrl: image?.dataUrl,
           model: markingModel,
-          apiKey: s.apiKey,
-          baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
+          apiKey: credentials.apiKey,
+          baseUrl: credentials.baseUrl,
           markerStyle: s.markerStyle,
           customMarkerStyle: s.customMarkerStyle,
+          reasoningEnabled: s.markingReasoningEnabled,
+          reasoningEffort: s.markingReasoningEffort,
         },
       });
 

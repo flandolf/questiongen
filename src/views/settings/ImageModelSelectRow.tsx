@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { PRESET_IMAGE_MODELS } from './constants';
+import { getProviderLabel, PRESET_IMAGE_MODELS } from './constants';
 import {
   getCachedImageValidation,
   setCachedImageValidation,
@@ -99,30 +99,46 @@ export function ImageModelSelectRow({
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           <SelectContent>
-            {extraEntry.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                <span className='flex items-center gap-2 min-w-0'>
-                  <span className='truncate font-mono text-xs'>{m.name}</span>
-                  <span className='shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none'>
-                    custom
+            {extraEntry.map((m) => {
+              const provider = getProviderLabel(m.id);
+              return (
+                <SelectItem key={m.id} value={m.id}>
+                  <span className='flex items-center gap-2 min-w-0'>
+                    <span className='truncate font-mono text-xs'>{m.name}</span>
+                    {provider && (
+                      <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
+                        {provider}
+                      </span>
+                    )}
+                    <span className='shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium leading-none'>
+                      custom
+                    </span>
                   </span>
-                </span>
-              </SelectItem>
-            ))}
+                </SelectItem>
+              );
+            })}
             {extraEntry.length > 0 && (
               <div className='my-1 border-t border-border' />
             )}
-            {models.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.id === 'custom' ? (
-                  m.name
-                ) : (
-                  <span className='flex items-center gap-2 min-w-0'>
-                    <span className='truncate'>{m.name}</span>
-                  </span>
-                )}
-              </SelectItem>
-            ))}
+            {models.map((m) => {
+              const provider = m.id !== 'custom' ? getProviderLabel(m.id) : '';
+              return (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.id === 'custom' ? (
+                    m.name
+                  ) : (
+                    <span className='flex items-center gap-2 min-w-0'>
+                      <span className='truncate'>{m.name}</span>
+                      {provider && (
+                        <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
+                          {provider}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
         {onSearch && (
