@@ -63,6 +63,8 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   customMarkerStyle: '',
   modelReasoningEnabled: false,
   modelReasoningEffort: 'medium',
+  markingReasoningEnabled: false,
+  markingReasoningEffort: 'medium',
 };
 
 const DEFAULT_PREFERENCES: PersistedGeneratorPreferences = {

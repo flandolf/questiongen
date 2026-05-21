@@ -262,6 +262,10 @@ export function useAppSettings() {
       setModelReasoningEnabled: s.setModelReasoningEnabled,
       modelReasoningEffort: s.modelReasoningEffort,
       setModelReasoningEffort: s.setModelReasoningEffort,
+      markingReasoningEnabled: s.markingReasoningEnabled,
+      setMarkingReasoningEnabled: s.setMarkingReasoningEnabled,
+      markingReasoningEffort: s.markingReasoningEffort,
+      setMarkingReasoningEffort: s.setMarkingReasoningEffort,
       clearApiKey: s.clearApiKey,
     })),
   );

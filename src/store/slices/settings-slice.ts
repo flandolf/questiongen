@@ -51,6 +51,15 @@ export interface SettingsSlice {
     | 'low'
     | 'minimal'
     | 'none';
+  markingReasoningEnabled: boolean;
+  markingReasoningEffort:
+    | 'xhigh'
+    | 'high'
+    | 'max'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
   presets: AppState['presets'];
 
   // Preferences
@@ -107,6 +116,10 @@ export interface SettingsSlice {
   setCustomMarkerStyle: (style: string) => void;
   setModelReasoningEnabled: (enabled: boolean) => void;
   setModelReasoningEffort: (
+    effort: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none',
+  ) => void;
+  setMarkingReasoningEnabled: (enabled: boolean) => void;
+  setMarkingReasoningEffort: (
     effort: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none',
   ) => void;
 
@@ -208,6 +221,8 @@ export const createSettingsSlice: StateCreator<
   customMarkerStyle: EMPTY_PERSISTED_APP_STATE.settings.customMarkerStyle ?? '',
   modelReasoningEnabled: false,
   modelReasoningEffort: 'medium',
+  markingReasoningEnabled: false,
+  markingReasoningEffort: 'medium',
   presets: [],
 
   selectedTopics: EMPTY_PERSISTED_APP_STATE.preferences.selectedTopics,
@@ -423,6 +438,10 @@ export const createSettingsSlice: StateCreator<
     set({ modelReasoningEnabled }),
   setModelReasoningEffort: (modelReasoningEffort) =>
     set({ modelReasoningEffort }),
+  setMarkingReasoningEnabled: (markingReasoningEnabled) =>
+    set({ markingReasoningEnabled }),
+  setMarkingReasoningEffort: (markingReasoningEffort) =>
+    set({ markingReasoningEffort }),
   clearApiKey: () =>
     set((s) => ({
       apiKey: '',

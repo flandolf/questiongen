@@ -71,6 +71,15 @@ export interface AppState {
     | 'low'
     | 'minimal'
     | 'none';
+  markingReasoningEnabled: boolean;
+  markingReasoningEffort:
+    | 'xhigh'
+    | 'high'
+    | 'max'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
 
   // ── Preferences ────────────────────────────────────────────────────────────
   selectedTopics: Topic[];
@@ -211,6 +220,10 @@ export interface AppActions {
   setCustomMarkerStyle: (style: string) => void;
   setModelReasoningEnabled: (enabled: boolean) => void;
   setModelReasoningEffort: (
+    effort: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none',
+  ) => void;
+  setMarkingReasoningEnabled: (enabled: boolean) => void;
+  setMarkingReasoningEffort: (
     effort: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none',
   ) => void;
 

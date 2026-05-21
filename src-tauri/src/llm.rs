@@ -18,7 +18,9 @@ pub struct OpenRouterRequestConfig {
     pub app: Option<tauri::AppHandle>,
     pub topic: Option<String>,
     pub abort_signal: Option<AbortSignal>,
+    pub reasoning_enabled: bool,
     pub reasoning_effort: Option<String>,
+    pub reasoning_exclude: bool,
 }
 
 impl OpenRouterRequestConfig {
@@ -45,7 +47,9 @@ impl OpenRouterRequestConfig {
             app: None,
             topic: None,
             abort_signal: None,
+            reasoning_enabled: false,
             reasoning_effort: None,
+            reasoning_exclude: false,
         }
     }
 
@@ -71,6 +75,11 @@ impl OpenRouterRequestConfig {
         self
     }
 
+    pub fn with_reasoning_enabled(mut self, enabled: bool) -> Self {
+        self.reasoning_enabled = enabled;
+        self
+    }
+
     pub fn with_reasoning_effort(mut self, effort: &str) -> Self {
         self.reasoning_effort = Some(effort.to_string());
         self
@@ -83,6 +92,7 @@ pub struct OpenRouterResult {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+    pub reasoning_tokens: u32,
 }
 
 /// Unified OpenRouter caller.
@@ -109,7 +119,9 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 app: config.app.clone(),
                 topic: config.topic.clone(),
                 abort_signal: config.abort_signal.clone(),
+                reasoning_enabled: config.reasoning_enabled,
                 reasoning_effort: config.reasoning_effort.clone(),
+                reasoning_exclude: config.reasoning_exclude,
             };
             if attempt > 0 {
                 if let Some(ref app) = retry_config.app {
@@ -134,7 +146,9 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
                 app: config.app.clone(),
                 topic: config.topic.clone(),
                 abort_signal: config.abort_signal.clone(),
+                reasoning_enabled: config.reasoning_enabled,
                 reasoning_effort: config.reasoning_effort.clone(),
+                reasoning_exclude: config.reasoning_exclude,
             };
             call_openrouter_non_streaming(retry_config).await
         };
@@ -194,25 +208,34 @@ async fn call_openrouter_non_streaming(
     body_map.insert("plugins".to_string(), config.plugins.clone());
 
     if is_deepseek_direct_model(&config.model) {
-        if let Some(ref effort) = config.reasoning_effort {
+        if config.reasoning_enabled {
             body_map.insert(
                 "thinking".to_string(),
                 serde_json::json!({"type": "enabled"}),
             );
-            body_map.insert(
-                "reasoning_effort".to_string(),
-                serde_json::json!(effort),
-            );
+            if let Some(ref effort) = config.reasoning_effort {
+                body_map.insert(
+                    "reasoning_effort".to_string(),
+                    serde_json::json!(effort),
+                );
+            }
         } else {
             body_map.insert(
                 "thinking".to_string(),
                 serde_json::json!({"type": "disabled"}),
             );
         }
-    } else if let Some(ref effort) = config.reasoning_effort {
+    } else if config.reasoning_enabled {
+        let mut reasoning_obj = serde_json::Map::new();
+        if let Some(ref effort) = config.reasoning_effort {
+            reasoning_obj.insert("effort".to_string(), serde_json::Value::String(effort.clone()));
+        }
+        if config.reasoning_exclude {
+            reasoning_obj.insert("exclude".to_string(), serde_json::Value::Bool(true));
+        }
         body_map.insert(
             "reasoning".to_string(),
-            serde_json::json!({ "effort": effort }),
+            serde_json::Value::Object(reasoning_obj),
         );
     }
 
@@ -249,16 +272,22 @@ async fn call_openrouter_non_streaming(
         .map(|c| c.message.content.clone())
         .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
 
-    let (prompt_tokens, completion_tokens, total_tokens) = parsed
+    let (prompt_tokens, completion_tokens, total_tokens, reasoning_tokens) = parsed
         .usage
-        .map(|u| (u.prompt_tokens, u.completion_tokens, u.total_tokens))
-        .unwrap_or((0, 0, 0));
+        .map(|u| (
+            u.prompt_tokens,
+            u.completion_tokens,
+            u.total_tokens,
+            u.completion_tokens_details.and_then(|d| d.reasoning_tokens).unwrap_or(0),
+        ))
+        .unwrap_or((0, 0, 0, 0));
 
     Ok(OpenRouterResult {
         content,
         prompt_tokens,
         completion_tokens,
         total_tokens,
+        reasoning_tokens,
     })
 }
 
@@ -285,6 +314,14 @@ struct SseUsage {
     prompt_tokens: u32,
     completion_tokens: u32,
     total_tokens: u32,
+    #[serde(default)]
+    completion_tokens_details: Option<SseCompletionTokenDetails>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+struct SseCompletionTokenDetails {
+    #[serde(default)]
+    reasoning_tokens: Option<u32>,
 }
 
 async fn call_openrouter_streaming(
@@ -321,25 +358,34 @@ async fn call_openrouter_streaming(
     );
 
     if is_deepseek_direct_model(&config.model) {
-        if let Some(ref effort) = config.reasoning_effort {
+        if config.reasoning_enabled {
             body_map.insert(
                 "thinking".to_string(),
                 serde_json::json!({"type": "enabled"}),
             );
-            body_map.insert(
-                "reasoning_effort".to_string(),
-                serde_json::json!(effort),
-            );
+            if let Some(ref effort) = config.reasoning_effort {
+                body_map.insert(
+                    "reasoning_effort".to_string(),
+                    serde_json::json!(effort),
+                );
+            }
         } else {
             body_map.insert(
                 "thinking".to_string(),
                 serde_json::json!({"type": "disabled"}),
             );
         }
-    } else if let Some(ref effort) = config.reasoning_effort {
+    } else if config.reasoning_enabled {
+        let mut reasoning_obj = serde_json::Map::new();
+        if let Some(ref effort) = config.reasoning_effort {
+            reasoning_obj.insert("effort".to_string(), serde_json::Value::String(effort.clone()));
+        }
+        if config.reasoning_exclude {
+            reasoning_obj.insert("exclude".to_string(), serde_json::Value::Bool(true));
+        }
         body_map.insert(
             "reasoning".to_string(),
-            serde_json::json!({ "effort": effort }),
+            serde_json::Value::Object(reasoning_obj),
         );
     }
 
@@ -501,15 +547,21 @@ async fn call_openrouter_streaming(
         ));
     }
 
-    let (pt, ct, tt) = usage
-        .map(|u| (u.prompt_tokens, u.completion_tokens, u.total_tokens))
-        .unwrap_or((0, 0, 0));
+    let (pt, ct, tt, rt) = usage
+        .map(|u| (
+            u.prompt_tokens,
+            u.completion_tokens,
+            u.total_tokens,
+            u.completion_tokens_details.and_then(|d| d.reasoning_tokens).unwrap_or(0),
+        ))
+        .unwrap_or((0, 0, 0, 0));
 
     Ok(OpenRouterResult {
         content: assembled,
         prompt_tokens: pt,
         completion_tokens: ct,
         total_tokens: tt,
+        reasoning_tokens: rt,
     })
 }
 
@@ -687,15 +739,21 @@ pub async fn call_openrouter_chat_streaming(
         ));
     }
 
-    let (pt, ct, tt) = usage
-        .map(|u| (u.prompt_tokens, u.completion_tokens, u.total_tokens))
-        .unwrap_or((0, 0, 0));
+    let (pt, ct, tt, rt) = usage
+        .map(|u| (
+            u.prompt_tokens,
+            u.completion_tokens,
+            u.total_tokens,
+            u.completion_tokens_details.and_then(|d| d.reasoning_tokens).unwrap_or(0),
+        ))
+        .unwrap_or((0, 0, 0, 0));
 
     Ok(OpenRouterResult {
         content: assembled,
         prompt_tokens: pt,
         completion_tokens: ct,
         total_tokens: tt,
+        reasoning_tokens: rt,
     })
 }
 

@@ -72,6 +72,17 @@ export type PersistedSettings = {
     | 'low'
     | 'minimal'
     | 'none';
+  /** Enable extended reasoning for marking & grading */
+  markingReasoningEnabled?: boolean;
+  /** Reasoning effort level for marking when enabled */
+  markingReasoningEffort?:
+    | 'xhigh'
+    | 'high'
+    | 'max'
+    | 'medium'
+    | 'low'
+    | 'minimal'
+    | 'none';
 };
 
 export type PersistedGeneratorPreferences = {

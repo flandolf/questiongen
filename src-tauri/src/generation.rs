@@ -428,6 +428,7 @@ impl GenerationService {
         u32,
         u32,
         u32,
+        u32,
         Option<f64>,
         quality::QualitySummary,
         Option<GenerationQualityDiagnostics>,
@@ -579,7 +580,8 @@ impl GenerationService {
         )
         .with_plugins(plugins.clone())
         .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
-        .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new));
+        .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new))
+        .with_reasoning_enabled(request.reasoning_enabled());
 
         if request.reasoning_enabled() {
             let effort = request.reasoning_effort().unwrap_or("medium");
@@ -629,6 +631,7 @@ impl GenerationService {
         let mut final_prompt_tokens = result.prompt_tokens;
         let mut final_completion_tokens = result.completion_tokens;
         let mut final_total_tokens = result.total_tokens;
+        let mut final_reasoning_tokens = result.reasoning_tokens;
 
         let mut retry_deficit = self.retry_deficit(
             &summary,
@@ -791,6 +794,7 @@ impl GenerationService {
                                 final_prompt_tokens = r.prompt_tokens;
                                 final_completion_tokens = r.completion_tokens;
                                 final_total_tokens = r.total_tokens;
+                                final_reasoning_tokens = r.reasoning_tokens;
                                 for (q, metric) in payload.questions.iter_mut().zip(metrics.iter())
                                 {
                                     q.apply_metrics(metric);
@@ -826,7 +830,7 @@ impl GenerationService {
         });
         let duration_ms = started.elapsed().as_millis() as u64;
 
-        self.emit_generation_status(serde_json::json!({ "mode": mode_str, "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": final_total_tokens, "promptTokens": final_prompt_tokens, "completionTokens": final_completion_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
+        self.emit_generation_status(serde_json::json!({ "mode": mode_str, "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": final_total_tokens, "promptTokens": final_prompt_tokens, "completionTokens": final_completion_tokens, "reasoningTokens": final_reasoning_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
         Ok((
             payload.questions,
@@ -834,6 +838,7 @@ impl GenerationService {
             final_prompt_tokens,
             final_completion_tokens,
             final_total_tokens,
+            final_reasoning_tokens,
             estimated_cost_usd,
             summary,
             quality_diagnostics,
@@ -1154,6 +1159,7 @@ impl GenerationService {
             prompt_tokens,
             completion_tokens,
             total_tokens,
+            reasoning_tokens,
             estimated_cost_usd,
             summary,
             quality_diagnostics,
@@ -1167,6 +1173,7 @@ impl GenerationService {
             prompt_tokens,
             completion_tokens,
             total_tokens,
+            reasoning_tokens,
             estimated_cost_usd,
             distinctness_avg: summary.distinctness_avg,
             multi_step_depth_avg: summary.multi_step_depth_avg,
@@ -1198,6 +1205,7 @@ impl GenerationService {
             prompt_tokens,
             completion_tokens,
             total_tokens,
+            reasoning_tokens,
             estimated_cost_usd,
             summary,
             quality_diagnostics,
@@ -1211,6 +1219,7 @@ impl GenerationService {
             prompt_tokens,
             completion_tokens,
             total_tokens,
+            reasoning_tokens,
             estimated_cost_usd,
             distinctness_avg: summary.distinctness_avg,
             multi_step_depth_avg: summary.multi_step_depth_avg,
@@ -1244,6 +1253,8 @@ impl GenerationService {
             request.marker_style.as_deref(),
             request.custom_marker_style.as_deref(),
             self.abort_signal.clone().unwrap_or_else(AbortSignal::new),
+            request.reasoning_enabled,
+            request.reasoning_effort.as_deref(),
         )
         .await
     }
@@ -1262,6 +1273,8 @@ impl GenerationService {
         marker_style: Option<&str>,
         custom_marker_style: Option<&str>,
         abort_signal: AbortSignal,
+        reasoning_enabled: bool,
+        reasoning_effort: Option<&str>,
     ) -> CommandResult<MarkAnswerResponse> {
         self.rust_log(
             "info",
@@ -1435,7 +1448,11 @@ impl GenerationService {
         )
         .with_plugins(plugins)
         .with_abort_signal(abort_signal)
-        .with_stream(self.app.clone(), Some(question.id.clone()));
+        .with_stream(self.app.clone(), Some(question.id.clone()))
+        .with_reasoning_enabled(reasoning_enabled);
+        if let Some(effort) = reasoning_effort {
+            marking_config = marking_config.with_reasoning_effort(effort);
+        }
         if let Some(url) = base_url {
             marking_config = marking_config.with_base_url(url);
         }
@@ -1649,6 +1666,8 @@ impl GenerationService {
                     request.marker_style.as_deref(),
                     request.custom_marker_style.as_deref(),
                     abort_signal.clone(),
+                    request.reasoning_enabled,
+                    request.reasoning_effort.as_deref(),
                 )
                 .await
             {

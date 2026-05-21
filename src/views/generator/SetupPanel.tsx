@@ -54,7 +54,7 @@ import {
   type Topic,
 } from '@/types';
 
-import { getModelsForProvider } from '../settings/constants';
+import { getModelsForProvider, getProviderLabel } from '../settings/constants';
 import { AdvancedOptionsGroup } from './AdvancedOptions';
 import {
   BatchTimeline,
@@ -391,7 +391,11 @@ function SetupPanelImpl({
 
   const generationDisabledReasons = useMemo(() => {
     const reasons: string[] = [];
-    if (!hasApiKey) reasons.push('OpenRouter API key is missing');
+    if (!hasApiKey) {
+      const name =
+        activeProviderId === 'deepseek' ? 'DeepSeek' : 'OpenRouter';
+      reasons.push(`${name} API key is missing`);
+    }
     if (!model || model.trim().length === 0)
       reasons.push('AI model not selected');
     if (selectedTopics.length === 0) reasons.push('Select at least one topic');
@@ -734,7 +738,7 @@ function SetupPanelImpl({
                     API key missing
                   </p>
                   <p className='text-xs text-muted-foreground leading-relaxed'>
-                    An OpenRouter API key is required before generating
+                    An API key is required before generating
                     questions.
                   </p>
                   <Button
@@ -885,11 +889,21 @@ function SetupPanelImpl({
                       <SelectValue placeholder='Select model' />
                     </SelectTrigger>
                     <SelectContent>
-                      {displayModels.map((m) => (
-                        <SelectItem key={m.id} value={m.id} className='text-xs'>
-                          {m.name}
-                        </SelectItem>
-                      ))}
+                      {displayModels.map((m) => {
+                        const provider = getProviderLabel(m.id);
+                        return (
+                          <SelectItem key={m.id} value={m.id} className='text-xs'>
+                            <span className='flex items-center gap-2 min-w-0'>
+                              <span className='truncate'>{m.name}</span>
+                              {provider && (
+                                <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
+                                  {provider}
+                                </span>
+                              )}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

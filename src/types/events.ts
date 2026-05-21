@@ -24,6 +24,7 @@ export type GenerationStatusEvent = {
   totalTokens?: number;
   promptTokens?: number;
   completionTokens?: number;
+  reasoningTokens?: number;
   estimatedCostUsd?: number;
   durationMs?: number;
 };

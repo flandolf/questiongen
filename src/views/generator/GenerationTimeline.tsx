@@ -192,6 +192,13 @@ export function LastGenerationStats({
       value: telemetry.totalTokens.toLocaleString(),
     });
   }
+  if (telemetry.reasoningTokens != null && telemetry.reasoningTokens > 0) {
+    items.push({
+      icon: <Coins className='w-3 h-3' />,
+      label: 'Reasoning',
+      value: telemetry.reasoningTokens.toLocaleString(),
+    });
+  }
   if (telemetry.durationMs != null) {
     items.push({
       icon: <Clock3 className='w-3 h-3' />,
@@ -357,13 +364,19 @@ function CompletedStats({
             : '?'}
         </span>
         {' tok'}
-        {completedEvent.totalTokens != null &&
-          completedEvent.promptTokens != null &&
+        {completedEvent.promptTokens != null &&
           completedEvent.completionTokens != null && (
             <span className='text-muted-foreground/60'>
               {' '}
               ({completedEvent.promptTokens.toLocaleString()} in /{' '}
               {completedEvent.completionTokens.toLocaleString()} out)
+            </span>
+          )}
+        {completedEvent.reasoningTokens != null &&
+          completedEvent.reasoningTokens > 0 && (
+            <span className='text-muted-foreground/60'>
+              {' '}
+              ({completedEvent.reasoningTokens.toLocaleString()} reasoning)
             </span>
           )}
       </span>
