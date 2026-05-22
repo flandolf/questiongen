@@ -189,7 +189,8 @@ export const createSettingsSlice: StateCreator<
     EMPTY_PERSISTED_APP_STATE.settings.useSeparateImageMarkingModel,
   ),
   debugMode: EMPTY_PERSISTED_APP_STATE.settings.debugMode,
-  showRawLlmOutput: EMPTY_PERSISTED_APP_STATE.settings.showRawLlmOutput ?? false,
+  showRawLlmOutput:
+    EMPTY_PERSISTED_APP_STATE.settings.showRawLlmOutput ?? false,
   questionTextSize: EMPTY_PERSISTED_APP_STATE.settings.questionTextSize ?? 16,
   responseTextSize: EMPTY_PERSISTED_APP_STATE.settings.responseTextSize ?? 16,
   includeExamContext: Boolean(

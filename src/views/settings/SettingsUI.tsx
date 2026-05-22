@@ -302,7 +302,11 @@ export function ModelSelectRow({
           {extraEntry.map((m) => {
             const provider = getProviderLabel(m.id);
             return (
-              <SelectItem key={m.id} value={m.id} className='text-xs font-medium'>
+              <SelectItem
+                key={m.id}
+                value={m.id}
+                className='text-xs font-medium'
+              >
                 <span className='flex items-center gap-2 min-w-0'>
                   <span className='truncate font-mono text-[10px] opacity-70'>
                     {m.name}
@@ -325,7 +329,11 @@ export function ModelSelectRow({
           {models.map((m) => {
             const provider = m.id !== 'custom' ? getProviderLabel(m.id) : '';
             return (
-              <SelectItem key={m.id} value={m.id} className='text-xs font-medium'>
+              <SelectItem
+                key={m.id}
+                value={m.id}
+                className='text-xs font-medium'
+              >
                 {m.id === 'custom' ? (
                   m.name
                 ) : (

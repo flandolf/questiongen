@@ -4,6 +4,7 @@ use crate::difficulty;
 use crate::envelope::normalise_envelope;
 use crate::json_input::{extract_json_array, extract_json_object};
 use crate::latex;
+use crate::llm::{call_openrouter, OpenRouterRequestConfig};
 use crate::models::{
     AbortSignal, AnalyzeImageRequest, AnalyzeImageResponse, AppError, CommandResult,
     GenerateMcQuestionsRequest, GenerateMcQuestionsResponse, GenerateQuestionsRequest,
@@ -11,7 +12,6 @@ use crate::models::{
     MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, McQuestion,
 };
 use crate::normalization;
-use crate::llm::{call_openrouter, OpenRouterRequestConfig};
 use crate::openrouter_info::{compute_generation_cost, get_cached_model_stats, get_model_stats};
 use crate::parsing::protect_latex_in_raw_json;
 use crate::pdf;

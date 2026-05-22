@@ -290,7 +290,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const currentSize = toolSettingsMap[activeTool].size;
     const currentSmoothing = toolSettingsMap[activeTool].smoothing;
 
-const currentDisablePressure = toolSettingsMap[activeTool].disablePressure;
+    const currentDisablePressure = toolSettingsMap[activeTool].disablePressure;
     const undoStack = useRef<CanvasSnapshot[]>([]);
     const redoStack = useRef<CanvasSnapshot[]>([]);
     const historyGenerationRef = useRef(0);
@@ -1120,12 +1120,12 @@ const currentDisablePressure = toolSettingsMap[activeTool].disablePressure;
       },
       [updateCurrentTool],
     );
-const setDisablePressure = useCallback(
-  (disable: boolean) => {
-    updateCurrentTool({ disablePressure: disable });
-  },
-  [updateCurrentTool],
-);
+    const setDisablePressure = useCallback(
+      (disable: boolean) => {
+        updateCurrentTool({ disablePressure: disable });
+      },
+      [updateCurrentTool],
+    );
 
     const setColor = useCallback(
       (color: string) => {
@@ -2553,21 +2553,25 @@ const setDisablePressure = useCallback(
                     />
                   </div>
 
-{(activeTool === 'pen' || activeTool === 'eraser') && (
-  <div className='flex items-center justify-between'>
-    <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
-      Pen Pressure
-    </Label>
-    <Button
-      variant={currentDisablePressure ? 'secondary' : 'default'}
-      size='sm'
-      onClick={() => setDisablePressure(!currentDisablePressure)}
-      className='rounded-lg h-7 px-2.5 text-[10px]'
-    >
-      {currentDisablePressure ? 'Off' : 'On'}
-    </Button>
-  </div>
-)}
+                  {(activeTool === 'pen' || activeTool === 'eraser') && (
+                    <div className='flex items-center justify-between'>
+                      <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
+                        Pen Pressure
+                      </Label>
+                      <Button
+                        variant={
+                          currentDisablePressure ? 'secondary' : 'default'
+                        }
+                        size='sm'
+                        onClick={() =>
+                          setDisablePressure(!currentDisablePressure)
+                        }
+                        className='rounded-lg h-7 px-2.5 text-[10px]'
+                      >
+                        {currentDisablePressure ? 'Off' : 'On'}
+                      </Button>
+                    </div>
+                  )}
                   <Separator />
 
                   <div className='flex items-center justify-between'>
@@ -2659,24 +2663,24 @@ const setDisablePressure = useCallback(
                 className='w-16'
               />
             </div>
-{(activeTool === 'pen' || activeTool === 'eraser') && (
-  <>
-    <Separator orientation='vertical' className='h-5 mx-0.5' />
-    <div className='flex items-center gap-2 px-1'>
-      <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
-        Pressure
-      </Label>
-      <Button
-        variant={currentDisablePressure ? 'secondary' : 'default'}
-        size='sm'
-        onClick={() => setDisablePressure(!currentDisablePressure)}
-        className='rounded-lg h-7 px-2 text-[10px]'
-      >
-        {currentDisablePressure ? 'Off' : 'On'}
-      </Button>
-    </div>
-  </>
-)}
+            {(activeTool === 'pen' || activeTool === 'eraser') && (
+              <>
+                <Separator orientation='vertical' className='h-5 mx-0.5' />
+                <div className='flex items-center gap-2 px-1'>
+                  <Label className='text-[10px] uppercase tracking-wider font-bold text-muted-foreground'>
+                    Pressure
+                  </Label>
+                  <Button
+                    variant={currentDisablePressure ? 'secondary' : 'default'}
+                    size='sm'
+                    onClick={() => setDisablePressure(!currentDisablePressure)}
+                    className='rounded-lg h-7 px-2 text-[10px]'
+                  >
+                    {currentDisablePressure ? 'Off' : 'On'}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </Card>

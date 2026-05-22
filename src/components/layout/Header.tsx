@@ -48,7 +48,7 @@ function GoalProgressBar({
           className='h-2 w-2 rounded-full shrink-0'
           style={{ backgroundColor: ringColor }}
         />
-        <span className='text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate'>
+        <span className='text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate'>
           {label}
         </span>
       </div>
@@ -65,8 +65,8 @@ function GoalProgressBar({
         />
       </div>
       <div className='flex items-baseline gap-0.5 w-12 justify-end shrink-0'>
-        <span className='text-[12px] font-bold tabular-nums'>{current}</span>
-        <span className='text-[10px] text-muted-foreground/50 tabular-nums'>
+        <span className='text-xs font-bold tabular-nums'>{current}</span>
+        <span className='text-xs text-muted-foreground/60 tabular-nums'>
           /{goal}
         </span>
       </div>

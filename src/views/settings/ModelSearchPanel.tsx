@@ -529,82 +529,82 @@ function ModelSearchResultsTable({
             const nameLower = r.name?.toLowerCase();
             const isDeepSeek = Boolean(
               idLower?.startsWith('deepseek') ||
-                nameLower?.startsWith('deepseek') ||
-                nameLower === 'deepseek',
+              nameLower?.startsWith('deepseek') ||
+              nameLower === 'deepseek',
             );
 
             return (
-            <tr
-              key={r.id}
-              className='hover:bg-muted/40 transition-colors group'
-            >
-              <td className='px-4 py-2.5'>
-                <div className='flex items-center gap-1.5 min-w-0'>
-                  <div className='min-w-0'>
-                    <p
-                      className='font-medium text-sm truncate max-w-40'
-                      title={r.name}
-                    >
-                      {r.name}
-                    </p>
-                    <p
-                      className='text-xs text-muted-foreground truncate max-w-40'
-                      title={r.id}
-                    >
-                      {r.id}
-                    </p>
-                  </div>
-                  {isImageTarget && r.supportsImages && (
-                    <span className='shrink-0 text-[10px] font-semibold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none'>
-                      Vision
-                    </span>
-                  )}
-                </div>
-              </td>
-              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.tps(r.tpsP50)}
-              </td>
-              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.latency(r.latencyP50)}
-              </td>
-              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.price(r.promptPricePerToken, isDeepSeek)}
-              </td>
-              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.price(r.completionPricePerToken, isDeepSeek)}
-              </td>
-              <td
-                className={cn(
-                  'px-3 py-2.5 text-right tabular-nums text-sm transition-colors',
-                  sortKey === 'priceCombined'
-                    ? 'text-foreground font-medium'
-                    : 'text-muted-foreground',
-                )}
+              <tr
+                key={r.id}
+                className='hover:bg-muted/40 transition-colors group'
               >
-                {fmt.priceCombined(
-                  r.promptPricePerToken,
-                  r.completionPricePerToken,
-                  isDeepSeek,
-                )}
-              </td>
-              <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
-                {fmt.context(r.contextLength)}
-              </td>
-              <td className='px-3 py-2.5 text-right'>
-                <Button
-                  size='sm'
-                  variant='outline'
-                  className='h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity'
-                  onClick={() => {
-                    onSelect(r.id);
-                    onClose();
-                  }}
+                <td className='px-4 py-2.5'>
+                  <div className='flex items-center gap-1.5 min-w-0'>
+                    <div className='min-w-0'>
+                      <p
+                        className='font-medium text-sm truncate max-w-40'
+                        title={r.name}
+                      >
+                        {r.name}
+                      </p>
+                      <p
+                        className='text-xs text-muted-foreground truncate max-w-40'
+                        title={r.id}
+                      >
+                        {r.id}
+                      </p>
+                    </div>
+                    {isImageTarget && r.supportsImages && (
+                      <span className='shrink-0 text-[10px] font-semibold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none'>
+                        Vision
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
+                  {fmt.tps(r.tpsP50)}
+                </td>
+                <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
+                  {fmt.latency(r.latencyP50)}
+                </td>
+                <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
+                  {fmt.price(r.promptPricePerToken, isDeepSeek)}
+                </td>
+                <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
+                  {fmt.price(r.completionPricePerToken, isDeepSeek)}
+                </td>
+                <td
+                  className={cn(
+                    'px-3 py-2.5 text-right tabular-nums text-sm transition-colors',
+                    sortKey === 'priceCombined'
+                      ? 'text-foreground font-medium'
+                      : 'text-muted-foreground',
+                  )}
                 >
-                  Use
-                </Button>
-              </td>
-            </tr>
-          );
+                  {fmt.priceCombined(
+                    r.promptPricePerToken,
+                    r.completionPricePerToken,
+                    isDeepSeek,
+                  )}
+                </td>
+                <td className='px-3 py-2.5 text-right tabular-nums text-sm text-muted-foreground'>
+                  {fmt.context(r.contextLength)}
+                </td>
+                <td className='px-3 py-2.5 text-right'>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    className='h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity'
+                    onClick={() => {
+                      onSelect(r.id);
+                      onClose();
+                    }}
+                  >
+                    Use
+                  </Button>
+                </td>
+              </tr>
+            );
           })}
         </tbody>
       </table>

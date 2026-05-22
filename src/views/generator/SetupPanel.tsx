@@ -294,10 +294,10 @@ function SetupPanelImpl({
   const activeDifficulty = normalizeDifficulty(difficulty);
   const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
   const showBatchTimeline = batchProgress.length > 1;
-
   const activeProviderId = useAppStore((s) => s.activeProviderId);
+
   const displayModels = useMemo(() => {
-    const presets = getModelsForProvider(activeProviderId);
+    const presets = getModelsForProvider();
     const known = presets.filter((m) => m.id !== 'custom');
     if (model && model !== 'custom' && !known.some((m) => m.id === model)) {
       return [
@@ -306,7 +306,7 @@ function SetupPanelImpl({
       ];
     }
     return known;
-  }, [model, activeProviderId]);
+  }, [model]);
 
   const flatSelectedSubtopics = useMemo(
     () =>
@@ -392,8 +392,7 @@ function SetupPanelImpl({
   const generationDisabledReasons = useMemo(() => {
     const reasons: string[] = [];
     if (!hasApiKey) {
-      const name =
-        activeProviderId === 'deepseek' ? 'DeepSeek' : 'OpenRouter';
+      const name = activeProviderId === 'deepseek' ? 'DeepSeek' : 'OpenRouter';
       reasons.push(`${name} API key is missing`);
     }
     if (!model || model.trim().length === 0)
@@ -403,7 +402,14 @@ function SetupPanelImpl({
     if (questionCount > 20) reasons.push('Question count cannot exceed 20');
     if (isGenerating) reasons.push('Generation in progress');
     return reasons;
-  }, [hasApiKey, activeProviderId, model, selectedTopics.length, questionCount, isGenerating]);
+  }, [
+    hasApiKey,
+    activeProviderId,
+    model,
+    selectedTopics.length,
+    questionCount,
+    isGenerating,
+  ]);
 
   const isGenerationDisabled = generationDisabledReasons.length > 0;
 
@@ -738,8 +744,7 @@ function SetupPanelImpl({
                     API key missing
                   </p>
                   <p className='text-xs text-muted-foreground leading-relaxed'>
-                    An API key is required before generating
-                    questions.
+                    An API key is required before generating questions.
                   </p>
                   <Button
                     size='sm'
@@ -892,7 +897,11 @@ function SetupPanelImpl({
                       {displayModels.map((m) => {
                         const provider = getProviderLabel(m.id);
                         return (
-                          <SelectItem key={m.id} value={m.id} className='text-xs'>
+                          <SelectItem
+                            key={m.id}
+                            value={m.id}
+                            className='text-xs'
+                          >
                             <span className='flex items-center gap-2 min-w-0'>
                               <span className='truncate'>{m.name}</span>
                               {provider && (

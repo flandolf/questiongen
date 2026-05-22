@@ -299,13 +299,11 @@ function GenerationTokenStream({
   streamText,
   currentStage,
   isGenerating,
-  isDone,
   showRawLlmOutput,
 }: {
   streamText: string;
   currentStage: string;
   isGenerating: boolean;
-  isDone: boolean;
   showRawLlmOutput: boolean;
 }) {
   const streamRef = useRef<HTMLDivElement>(null);
@@ -321,9 +319,7 @@ function GenerationTokenStream({
     !(
       currentStage === 'generating' ||
       currentStage === 'regenerating-duplicates' ||
-      currentStage === 'parsing' ||
-      currentStage === 'regenerating-duplicates' ||
-      (isDone && streamText)
+      currentStage === 'parsing'
     )
   )
     return null;
@@ -453,17 +449,20 @@ export function GenerationTimeline({
             const actualTokens = generationStatus?.totalTokens;
             const showEstimate =
               isGenerating &&
+              !isDone &&
               (currentStage === 'generating' ||
                 currentStage === 'regenerating-duplicates' ||
                 currentStage === 'parsing') &&
               streamText.length > 0;
-            if (!actualTokens && !showEstimate) return null;
+            if ((!actualTokens || isDone) && !showEstimate) return null;
             const tokens = actualTokens ?? Math.round(streamText.length / 4);
             const isEstimate = !actualTokens;
             return (
               <span className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground ml-0.5'>
                 <Coins className='w-2.5 h-2.5' />
-                {isEstimate && <span className='text-muted-foreground/50'>~</span>}
+                {isEstimate && (
+                  <span className='text-muted-foreground/50'>~</span>
+                )}
                 {tokens.toLocaleString()} tok
               </span>
             );
@@ -510,7 +509,6 @@ export function GenerationTimeline({
         streamText={streamText}
         currentStage={currentStage}
         isGenerating={isGenerating}
-        isDone={isDone}
         showRawLlmOutput={showRawLlmOutput}
       />
 

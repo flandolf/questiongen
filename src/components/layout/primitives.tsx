@@ -65,7 +65,7 @@ interface SectionLabelProps {
 export function SectionLabel({ children }: SectionLabelProps) {
   return (
     <div className='flex items-center gap-3 pt-2'>
-      <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80'>
+      <span className='text-xs font-bold uppercase tracking-wider text-muted-foreground/80'>
         {children}
       </span>
       <div className='flex-1 border-t border-border/40' />
@@ -115,7 +115,7 @@ export function StatCard({
     >
       <div className='flex items-center gap-1.5 text-muted-foreground/80'>
         {icon && <span className='h-3 w-3'>{icon}</span>}
-        <span className='text-[10px] font-bold uppercase tracking-wider'>
+        <span className='text-xs font-bold uppercase tracking-wider'>
           {label}
         </span>
       </div>
@@ -123,7 +123,7 @@ export function StatCard({
         {value}
       </div>
       {subValue && (
-        <div className='text-[10px] font-normal text-muted-foreground/60'>
+        <div className='text-xs font-normal text-muted-foreground/60'>
           {subValue}
         </div>
       )}

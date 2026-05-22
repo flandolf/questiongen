@@ -1,6 +1,6 @@
 [package]
 name = "questiongen"
-version = "5.0.0"
+version = "5.1.0"
 description = "A tool to generate questions from text using AI models."
 authors = ["flandolf"]
 rust-version = "1.82.0"

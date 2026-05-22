@@ -10,9 +10,9 @@ mod generation;
 mod http_client;
 mod json_input;
 mod latex;
+mod llm;
 mod models;
 mod normalization;
-mod llm;
 mod openrouter_info;
 mod parsing;
 mod pdf;
@@ -30,8 +30,8 @@ use std::process::Command;
 
 static APP_HANDLE: OnceCell<tauri::AppHandle> = OnceCell::new();
 
-use models::*;
 use deepseek_info::{get_deepseek_balance, list_deepseek_models};
+use models::*;
 use openrouter_info::{get_credits, get_model_stats};
 use persistence::{
     export_data_file, export_data_file_to_directory, list_json_files_in_directory,

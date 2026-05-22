@@ -2,7 +2,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { useCallback, useState } from 'react';
 
 import { readBackendError } from '@/lib/app-utils';
-import type { DeepSeekBalanceInfo, DeepSeekModelList } from '@/views/settings/types';
+import type {
+  DeepSeekBalanceInfo,
+  DeepSeekModelList,
+} from '@/views/settings/types';
 
 export function useDeepSeekBalance(apiKey: string | undefined) {
   const [balance, setBalance] = useState<DeepSeekBalanceInfo | null>(null);

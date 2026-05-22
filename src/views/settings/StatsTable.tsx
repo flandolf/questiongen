@@ -16,7 +16,8 @@ import { fmt } from './formatters';
 import { Card, StatusBadge } from './SettingsUI';
 import type { ModelStats, StatsColumn } from './types';
 
-const isDeepSeek = (name?: string | null) => name?.toLowerCase().includes('deepseek');
+const isDeepSeek = (name?: string | null) =>
+  name?.toLowerCase().includes('deepseek');
 
 const STAT_ROWS: {
   icon: React.ReactNode;

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
 
+import { useAppSettings } from '@/AppContext';
 import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
 import type { SketchpadHandle } from '@/components/Sketchpad';
 import Sketchpad from '@/components/Sketchpad';
@@ -63,6 +64,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
   onSubmit,
   onSketchpadActiveChange,
 }: WrittenAnswerCardProps) {
+  const { showRawLlmOutput } = useAppSettings();
   const { activeTabByQuestionId, setActiveTabByQuestionId } = useAppStore();
   const activeTab = activeTabByQuestionId[questionId] || 'response';
   const setActiveTab = (tab: 'response' | 'upload' | 'sketchpad') =>
@@ -356,27 +358,32 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
               Tap again to confirm within 4 seconds.
             </p>
           )}
-        {localIsMarking && (markStreamText || !hasReceivedTokens) && (
-          <div className='mt-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs'>
-          {markStreamText.length > 0 && (
-            <div className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-blue-600/60 dark:text-blue-400/60 mb-1'>
-              <Coins className='w-2.5 h-2.5' />
-              <span className='text-blue-600/40 dark:text-blue-400/40'>~</span>
-              {Math.round(markStreamText.length / 4).toLocaleString()} tok
+        {localIsMarking &&
+          (markStreamText.length > 0 ||
+            (showRawLlmOutput && !hasReceivedTokens)) && (
+            <div className='mt-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs'>
+              {markStreamText.length > 0 && (
+                <div className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-blue-600/60 dark:text-blue-400/60 mb-1'>
+                  <Coins className='w-2.5 h-2.5' />
+                  <span className='text-blue-600/40 dark:text-blue-400/40'>
+                    ~
+                  </span>
+                  {Math.round(markStreamText.length / 4).toLocaleString()} tok
+                </div>
+              )}
+              {showRawLlmOutput &&
+                (markStreamText ? (
+                  <div className='font-mono text-blue-600 dark:text-blue-400 max-h-48 overflow-auto whitespace-pre-wrap break-all'>
+                    {markStreamText}
+                  </div>
+                ) : (
+                  <div className='flex items-center gap-2 text-blue-600/60 dark:text-blue-400/60 font-mono'>
+                    <div className='w-1.5 h-1.5 rounded-full bg-blue-500/50 animate-pulse' />
+                    Waiting for response…
+                  </div>
+                ))}
             </div>
           )}
-            {markStreamText ? (
-              <div className='font-mono text-blue-600 dark:text-blue-400 max-h-48 overflow-auto whitespace-pre-wrap break-all'>
-                {markStreamText}
-              </div>
-            ) : (
-              <div className='flex items-center gap-2 text-blue-600/60 dark:text-blue-400/60 font-mono'>
-                <div className='w-1.5 h-1.5 rounded-full bg-blue-500/50 animate-pulse' />
-                Waiting for response…
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </UnifiedWrittenResponseCard>
   );

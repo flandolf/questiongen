@@ -214,10 +214,7 @@ async fn call_openrouter_non_streaming(
                 serde_json::json!({"type": "enabled"}),
             );
             if let Some(ref effort) = config.reasoning_effort {
-                body_map.insert(
-                    "reasoning_effort".to_string(),
-                    serde_json::json!(effort),
-                );
+                body_map.insert("reasoning_effort".to_string(), serde_json::json!(effort));
             }
         } else {
             body_map.insert(
@@ -228,7 +225,10 @@ async fn call_openrouter_non_streaming(
     } else if config.reasoning_enabled {
         let mut reasoning_obj = serde_json::Map::new();
         if let Some(ref effort) = config.reasoning_effort {
-            reasoning_obj.insert("effort".to_string(), serde_json::Value::String(effort.clone()));
+            reasoning_obj.insert(
+                "effort".to_string(),
+                serde_json::Value::String(effort.clone()),
+            );
         }
         if config.reasoning_exclude {
             reasoning_obj.insert("exclude".to_string(), serde_json::Value::Bool(true));
@@ -274,12 +274,16 @@ async fn call_openrouter_non_streaming(
 
     let (prompt_tokens, completion_tokens, total_tokens, reasoning_tokens) = parsed
         .usage
-        .map(|u| (
-            u.prompt_tokens,
-            u.completion_tokens,
-            u.total_tokens,
-            u.completion_tokens_details.and_then(|d| d.reasoning_tokens).unwrap_or(0),
-        ))
+        .map(|u| {
+            (
+                u.prompt_tokens,
+                u.completion_tokens,
+                u.total_tokens,
+                u.completion_tokens_details
+                    .and_then(|d| d.reasoning_tokens)
+                    .unwrap_or(0),
+            )
+        })
         .unwrap_or((0, 0, 0, 0));
 
     Ok(OpenRouterResult {
@@ -364,10 +368,7 @@ async fn call_openrouter_streaming(
                 serde_json::json!({"type": "enabled"}),
             );
             if let Some(ref effort) = config.reasoning_effort {
-                body_map.insert(
-                    "reasoning_effort".to_string(),
-                    serde_json::json!(effort),
-                );
+                body_map.insert("reasoning_effort".to_string(), serde_json::json!(effort));
             }
         } else {
             body_map.insert(
@@ -378,7 +379,10 @@ async fn call_openrouter_streaming(
     } else if config.reasoning_enabled {
         let mut reasoning_obj = serde_json::Map::new();
         if let Some(ref effort) = config.reasoning_effort {
-            reasoning_obj.insert("effort".to_string(), serde_json::Value::String(effort.clone()));
+            reasoning_obj.insert(
+                "effort".to_string(),
+                serde_json::Value::String(effort.clone()),
+            );
         }
         if config.reasoning_exclude {
             reasoning_obj.insert("exclude".to_string(), serde_json::Value::Bool(true));
@@ -548,12 +552,16 @@ async fn call_openrouter_streaming(
     }
 
     let (pt, ct, tt, rt) = usage
-        .map(|u| (
-            u.prompt_tokens,
-            u.completion_tokens,
-            u.total_tokens,
-            u.completion_tokens_details.and_then(|d| d.reasoning_tokens).unwrap_or(0),
-        ))
+        .map(|u| {
+            (
+                u.prompt_tokens,
+                u.completion_tokens,
+                u.total_tokens,
+                u.completion_tokens_details
+                    .and_then(|d| d.reasoning_tokens)
+                    .unwrap_or(0),
+            )
+        })
         .unwrap_or((0, 0, 0, 0));
 
     Ok(OpenRouterResult {
@@ -741,12 +749,16 @@ pub async fn call_openrouter_chat_streaming(
     }
 
     let (pt, ct, tt, rt) = usage
-        .map(|u| (
-            u.prompt_tokens,
-            u.completion_tokens,
-            u.total_tokens,
-            u.completion_tokens_details.and_then(|d| d.reasoning_tokens).unwrap_or(0),
-        ))
+        .map(|u| {
+            (
+                u.prompt_tokens,
+                u.completion_tokens,
+                u.total_tokens,
+                u.completion_tokens_details
+                    .and_then(|d| d.reasoning_tokens)
+                    .unwrap_or(0),
+            )
+        })
         .unwrap_or((0, 0, 0, 0));
 
     Ok(OpenRouterResult {

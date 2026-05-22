@@ -9,5 +9,4 @@ export type TechMode = 'tech-free' | 'tech-active';
 
 export type QuestionMode = 'written' | 'multiple-choice';
 
-
 export type GenerationStrategy = 'multi-pass' | 'single-pass';
