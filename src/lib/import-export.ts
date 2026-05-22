@@ -156,7 +156,10 @@ export function exportAppState(s: ImportExportState): PersistedAppState {
   const snapshot = buildExportSnapshot(s, { preserveImages });
 
   // Strip API keys from top-level settings and all providers
-  const strippedProviders: Record<string, NonNullable<typeof snapshot.settings.providers>[string]> = {};
+  const strippedProviders: Record<
+    string,
+    NonNullable<typeof snapshot.settings.providers>[string]
+  > = {};
   if (snapshot.settings.providers) {
     for (const [id, provider] of Object.entries(snapshot.settings.providers)) {
       strippedProviders[id] = {
@@ -302,9 +305,14 @@ export function parseImportText(text: string): PersistedAppState {
   const normalized = normalizePersistedAppState(rawState);
 
   // Strip API keys from top-level settings and all providers
-  const strippedProviders: Record<string, NonNullable<typeof normalized.settings.providers>[string]> = {};
+  const strippedProviders: Record<
+    string,
+    NonNullable<typeof normalized.settings.providers>[string]
+  > = {};
   if (normalized.settings.providers) {
-    for (const [id, provider] of Object.entries(normalized.settings.providers)) {
+    for (const [id, provider] of Object.entries(
+      normalized.settings.providers,
+    )) {
       strippedProviders[id] = {
         ...provider,
         apiKey: '',
@@ -437,7 +445,8 @@ function mergeSettings(
     markingModel: imported.settings.markingModel,
     useSeparateMarkingModel: imported.settings.useSeparateMarkingModel,
     imageMarkingModel: imported.settings.imageMarkingModel,
-    useSeparateImageMarkingModel: imported.settings.useSeparateImageMarkingModel,
+    useSeparateImageMarkingModel:
+      imported.settings.useSeparateImageMarkingModel,
     debugMode: imported.settings.debugMode,
     questionTextSize: imported.settings.questionTextSize ?? 16,
     responseTextSize: imported.settings.responseTextSize ?? 16,
@@ -446,9 +455,11 @@ function mergeSettings(
     autoSyncIntervalMinutes: imported.settings.autoSyncIntervalMinutes ?? 0,
     syncApiKey: imported.settings.syncApiKey ?? false,
     localBackupFolderPath: imported.settings.localBackupFolderPath ?? '',
-    localBackupIntervalMinutes: imported.settings.localBackupIntervalMinutes ?? 0,
+    localBackupIntervalMinutes:
+      imported.settings.localBackupIntervalMinutes ?? 0,
     theme: imported.settings.theme ?? current.theme,
-    customThemeSeedColor: imported.settings.customThemeSeedColor ?? current.customThemeSeedColor,
+    customThemeSeedColor:
+      imported.settings.customThemeSeedColor ?? current.customThemeSeedColor,
     interfaceFont: imported.settings.interfaceFont ?? current.interfaceFont,
     headingFont: imported.settings.headingFont ?? current.headingFont,
     tutorPersona: imported.settings.tutorPersona ?? '',
@@ -458,7 +469,8 @@ function mergeSettings(
     modelReasoningEnabled: imported.settings.modelReasoningEnabled ?? false,
     modelReasoningEffort: imported.settings.modelReasoningEffort ?? 'medium',
     markingReasoningEnabled: imported.settings.markingReasoningEnabled ?? false,
-    markingReasoningEffort: imported.settings.markingReasoningEffort ?? 'medium',
+    markingReasoningEffort:
+      imported.settings.markingReasoningEffort ?? 'medium',
     shuffleSubtopics: imported.settings.shuffleSubtopics ?? false,
     shuffleQuestions: imported.settings.shuffleQuestions ?? false,
   };

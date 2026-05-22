@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dropzone } from '@/components/ui/dropzone';
@@ -92,6 +93,7 @@ const QuestionItem = ({
   draggingIndex,
   hasDuplicate,
 }: QuestionItemProps) => {
+  const { showRawLlmOutput } = useAppSettings();
   const pageIndices = useMemo(() => {
     const mappingStr = getPageRange(qIdx);
     if (!mappingStr) return [];
@@ -268,16 +270,16 @@ const QuestionItem = ({
           )}
         </Button>
       </div>
-        {isMarking && streamText.length > 0 && (
-          <span className='text-[10px] font-mono tabular-nums text-muted-foreground flex items-center gap-1'>
-            <Coins className='w-2.5 h-2.5' />
-            <span className='text-muted-foreground/50'>~</span>
-            {Math.round(streamText.length / 4).toLocaleString()} tok
-          </span>
-        )}
+      {isMarking && streamText.length > 0 && (
+        <span className='text-[10px] font-mono tabular-nums text-muted-foreground flex items-center gap-1'>
+          <Coins className='w-2.5 h-2.5' />
+          <span className='text-muted-foreground/50'>~</span>
+          {Math.round(streamText.length / 4).toLocaleString()} tok
+        </span>
+      )}
 
       <AnimatePresence mode='wait'>
-        {isMarking && streamText && (
+        {isMarking && streamText && showRawLlmOutput && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}

@@ -1,5 +1,5 @@
-use crate::models::{AppError, CommandResult};
 use crate::http_client::get_json;
+use crate::models::{AppError, CommandResult};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -223,10 +223,7 @@ fn catalogue_lookup(api_key: &str, model_id: &str) -> Option<(bool, bool)> {
 
 /// Fetch `GET /api/v1/models`, build model_id → supports_images/files maps, store
 /// them in the catalogue cache, and return the support values for `model_id`.
-async fn fetch_catalogue_and_lookup(
-    api_key: &str,
-    model_id: &str,
-) -> (bool, bool) {
+async fn fetch_catalogue_and_lookup(api_key: &str, model_id: &str) -> (bool, bool) {
     let url = format!("{OPENROUTER_BASE}/models");
 
     let resp = match get_json(&url, api_key).await {
@@ -398,11 +395,9 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
         if let Some(pp) = prompt_price {
             if is_deepseek_model {
                 if let Some(direct_ep) = direct_deepseek_endpoint {
-                    if std::ptr::eq(ep, direct_ep) {
-                        best_prompt_price = Some(pp);
-                        best_completion_price = completion_price;
-                    } else if !direct_deepseek_has_valid_prompt_price
-                        && best_prompt_price.is_none_or(|prev: f64| pp < prev)
+                    if std::ptr::eq(ep, direct_ep)
+                        || (!direct_deepseek_has_valid_prompt_price
+                            && best_prompt_price.is_none_or(|prev: f64| pp < prev))
                     {
                         best_prompt_price = Some(pp);
                         best_completion_price = completion_price;
@@ -465,11 +460,7 @@ pub async fn get_credits(api_key: String) -> CommandResult<CreditsInfo> {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
 
-    let response = get_json(
-        &format!("{OPENROUTER_BASE}/credits"),
-        api_key.trim(),
-    )
-    .await?;
+    let response = get_json(&format!("{OPENROUTER_BASE}/credits"), api_key.trim()).await?;
 
     if !response.status().is_success() {
         let status = response.status();

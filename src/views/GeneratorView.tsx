@@ -663,10 +663,12 @@ export function GeneratorView() {
       const key = event.payload.topic || 'default';
       delete streamBufferRef.current[key];
       setStreamText('', event.payload.topic);
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    }).catch(() => {});
+    })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {});
 
     return () => {
       cancelled = true;

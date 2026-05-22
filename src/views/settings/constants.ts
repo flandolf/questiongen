@@ -53,14 +53,16 @@ export function getProviderLabel(modelId: string): string {
   return '';
 }
 
-/** Get model presets for a given provider ID. */
-export function getModelsForProvider(providerId: string) {
-  if (providerId === 'deepseek') return DEEPSEEK_PRESET_MODELS;
+/** All model presets, regardless of active provider. Auth resolves API key by model ID pattern. */
+export function getModelsForProvider(
+  _providerId?: string,
+): typeof PRESET_MODELS {
   return PRESET_MODELS;
 }
 
-export function getImageModelsForProvider(providerId: string) {
-  if (providerId === 'deepseek') return DEEPSEEK_PRESET_IMAGE_MODELS;
+export function getImageModelsForProvider(
+  _providerId?: string,
+): typeof PRESET_IMAGE_MODELS {
   return PRESET_IMAGE_MODELS;
 }
 

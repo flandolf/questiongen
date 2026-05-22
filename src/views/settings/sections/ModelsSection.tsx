@@ -199,7 +199,6 @@ function LiveStatsSection({
   );
 }
 
-
 function ReasoningEffortSelect({
   value,
   onChange,
@@ -258,7 +257,11 @@ function ReasoningEffortField({
           className='overflow-hidden'
         >
           <FieldGroup
-            label={activeProviderId === 'deepseek' ? 'Thinking effort' : 'Reasoning effort'}
+            label={
+              activeProviderId === 'deepseek'
+                ? 'Thinking effort'
+                : 'Reasoning effort'
+            }
             htmlFor={id}
           >
             <ReasoningEffortSelect value={value} onChange={onChange} id={id} />
@@ -311,19 +314,19 @@ export function ModelsSection() {
   const activeProviderId = useAppStore((s) => s.activeProviderId);
   const stats = useModelStats(settings.apiKey);
 
-  // Dynamic DeepSeek model list
+  // Dynamic DeepSeek model list (fetched regardless of active provider)
   const deepseekApiKey = useAppStore((s) => s.providers['deepseek']?.apiKey);
   const deepseekModels = useDeepSeekModels(deepseekApiKey);
 
   useEffect(() => {
-    if (deepseekApiKey && activeProviderId === 'deepseek') {
+    if (deepseekApiKey) {
       void deepseekModels.fetch();
     }
-  }, [deepseekApiKey, activeProviderId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [deepseekApiKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const modelPresets = useMemo(() => {
-    const base = [...getModelsForProvider(activeProviderId)];
-    if (activeProviderId === 'deepseek' && deepseekModels.models?.data.length) {
+    const base = [...getModelsForProvider()];
+    if (deepseekModels.models?.data.length) {
       const seen = new Set(base.map((m) => m.id));
       for (const m of deepseekModels.models.data) {
         if (!seen.has(m.id)) {
@@ -336,11 +339,8 @@ export function ModelsSection() {
       }
     }
     return base;
-  }, [activeProviderId, deepseekModels.models]);
-  const imageModelPresets = useMemo(
-    () => getImageModelsForProvider(activeProviderId),
-    [activeProviderId],
-  );
+  }, [deepseekModels.models]);
+  const imageModelPresets = useMemo(() => getImageModelsForProvider(), []);
   const [localState, setLocalState] = useState({
     model: settings.model,
     markingModel: settings.markingModel,
@@ -546,7 +546,11 @@ export function ModelsSection() {
           id='model-reasoning'
           checked={localState.modelReasoningEnabled}
           onChange={(v) => updateSetting('modelReasoningEnabled', v)}
-          label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
+          label={
+            activeProviderId === 'deepseek'
+              ? 'Enable thinking mode'
+              : 'Enable extended reasoning'
+          }
           description='Allow model to use extended thinking for better quality'
         />
         <ReasoningEffortField
@@ -627,7 +631,11 @@ export function ModelsSection() {
                 id='marking-reasoning'
                 checked={localState.markingReasoningEnabled}
                 onChange={(v) => updateSetting('markingReasoningEnabled', v)}
-                label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
+                label={
+                  activeProviderId === 'deepseek'
+                    ? 'Enable thinking mode'
+                    : 'Enable extended reasoning'
+                }
                 description='Allow model to use extended thinking for marking answers'
               />
               <ReasoningEffortField
@@ -655,7 +663,10 @@ export function ModelsSection() {
                 value={customIds['marking'] || ''}
                 onChange={(v) => setCustomId('marking', v)}
                 onApply={() => {
-                  updateSetting('markingModel', (customIds['marking'] || '').trim());
+                  updateSetting(
+                    'markingModel',
+                    (customIds['marking'] || '').trim(),
+                  );
                   toggleCustom('marking', false);
                 }}
               />
@@ -712,7 +723,11 @@ export function ModelsSection() {
                 id='image-marking-reasoning'
                 checked={localState.markingReasoningEnabled}
                 onChange={(v) => updateSetting('markingReasoningEnabled', v)}
-                label={activeProviderId === 'deepseek' ? 'Enable thinking mode' : 'Enable extended reasoning'}
+                label={
+                  activeProviderId === 'deepseek'
+                    ? 'Enable thinking mode'
+                    : 'Enable extended reasoning'
+                }
                 description='Allow model to use extended thinking for marking handwritten answers'
               />
               <ReasoningEffortField
@@ -740,7 +755,10 @@ export function ModelsSection() {
                 value={customIds['imageMarking'] || ''}
                 onChange={(v) => setCustomId('imageMarking', v)}
                 onApply={() => {
-                  updateSetting('imageMarkingModel', (customIds['imageMarking'] || '').trim());
+                  updateSetting(
+                    'imageMarkingModel',
+                    (customIds['imageMarking'] || '').trim(),
+                  );
                   toggleCustom('imageMarking', false);
                 }}
               />

@@ -72,7 +72,10 @@ export const DEEPSEEK_PRESET_IMAGE_MODELS = [
 ];
 
 /** Determine which provider to use based on model ID. */
-export function getProviderForModel(modelId: string, providers: Record<string, ProviderState>): string | null {
+export function getProviderForModel(
+  modelId: string,
+  providers: Record<string, ProviderState>,
+): string | null {
   // DeepSeek models are plain IDs without provider prefix
   const deepseekModelIds = ['deepseek-v4-flash', 'deepseek-v4-pro'];
   if (deepseekModelIds.includes(modelId)) {

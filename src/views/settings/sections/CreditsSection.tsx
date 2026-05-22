@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
-import { AlertCircle, Calendar, CheckCircle2, DollarSign, RefreshCw } from 'lucide-react';
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  DollarSign,
+  RefreshCw,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -24,11 +30,7 @@ import {
   ErrorBanner,
 } from '../SettingsUI';
 
-function OpenRouterCreditsCard({
-  apiKey,
-}: {
-  apiKey: string;
-}) {
+function OpenRouterCreditsCard({ apiKey }: { apiKey: string }) {
   const [credits, setCredits] = useState<CreditsInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,15 +78,11 @@ function OpenRouterCreditsCard({
           disabled={loading || !apiKey}
           onClick={() => void fetchCredits(apiKey)}
         >
-          <RefreshCw
-            className={cn('h-3.5 w-3.5', loading && 'animate-spin')}
-          />
+          <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           Refresh
         </Button>
       </div>
-      {error && (
-        <ErrorBanner key='error-banner' message={error} />
-      )}
+      {error && <ErrorBanner key='error-banner' message={error} />}
       {!credits && !loading && !error && (
         <EmptyState
           key='empty-state'
@@ -190,15 +188,11 @@ function DeepSeekBalanceCard({
           disabled={loading || !apiKey}
           onClick={onRefresh}
         >
-          <RefreshCw
-            className={cn('h-3.5 w-3.5', loading && 'animate-spin')}
-          />
+          <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           Refresh
         </Button>
       </div>
-      {error && (
-        <ErrorBanner key='ds-error-banner' message={error} />
-      )}
+      {error && <ErrorBanner key='ds-error-banner' message={error} />}
       {!balance && !loading && !error && (
         <EmptyState
           key='ds-empty-state'
@@ -217,7 +211,10 @@ function DeepSeekBalanceCard({
         </div>
       )}
       {balance && !loading && (
-        <div key='ds-balance-display' className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+        <div
+          key='ds-balance-display'
+          className='grid grid-cols-1 sm:grid-cols-2 gap-3'
+        >
           {balance.balanceInfos.map((info) => (
             <div
               key={info.currency}
@@ -248,11 +245,15 @@ function DeepSeekBalanceCard({
               <div className='text-xs text-muted-foreground space-y-0.5'>
                 <div className='flex justify-between'>
                   <span>Granted</span>
-                  <span className='font-medium tabular-nums'>{info.grantedBalance}</span>
+                  <span className='font-medium tabular-nums'>
+                    {info.grantedBalance}
+                  </span>
                 </div>
                 <div className='flex justify-between'>
                   <span>Topped up</span>
-                  <span className='font-medium tabular-nums'>{info.toppedUpBalance}</span>
+                  <span className='font-medium tabular-nums'>
+                    {info.toppedUpBalance}
+                  </span>
                 </div>
               </div>
             </div>

@@ -1,31 +1,43 @@
 # Remove rustls + reqwest, Replace with hyper + native-tls
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:subagent-driven-development (recommended) or
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace reqwest+rustls HTTP stack with hyper+native-tls to fix Android TLS issues where rustls-platform-verifier's JNI-based cert store access fails.
+**Goal:** Replace reqwest+rustls HTTP stack with hyper+native-tls to fix Android
+TLS issues where rustls-platform-verifier's JNI-based cert store access fails.
 
-**Architecture:** Replace the shared `reqwest::Client` singleton in `llm.rs` with a custom `HttpClient` struct wrapping `hyper` 1.x + `hyper-tls` (native-tls). All four files that use HTTP (`llm.rs`, `deepseek_info.rs`, `openrouter_info.rs`, and indirectly `lib.rs`) switch to the new client. The Android JNI rustls init code (~60 lines) is deleted entirely. The new client handles JSON POST/GET with Bearer auth, SSE streaming, timeouts, and typed responses through a thin adapter layer.
+**Architecture:** Replace the shared `reqwest::Client` singleton in `llm.rs`
+with a custom `HttpClient` struct wrapping `hyper` 1.x + `hyper-tls`
+(native-tls). All four files that use HTTP (`llm.rs`, `deepseek_info.rs`,
+`openrouter_info.rs`, and indirectly `lib.rs`) switch to the new client. The
+Android JNI rustls init code (~60 lines) is deleted entirely. The new client
+handles JSON POST/GET with Bearer auth, SSE streaming, timeouts, and typed
+responses through a thin adapter layer.
 
-**Tech Stack:** `hyper` 1.x, `hyper-util`, `hyper-tls`, `native-tls`, `http-body-util`, `tokio-native-tls`, `bytes` — all async on tokio.
+**Tech Stack:** `hyper` 1.x, `hyper-util`, `hyper-tls`, `native-tls`,
+`http-body-util`, `tokio-native-tls`, `bytes` — all async on tokio.
 
 ---
 
 ## File Structure
 
-| File | Action | Responsibility |
-|------|--------|---------------|
-| `src-tauri/Cargo.toml` | **Modify** | Remove reqwest+rustls-platform-verifier, add hyper+native-tls deps |
-| `src-tauri/src/http_client.rs` | **Create** | New platform-agnostic HTTP client abstraction |
-| `src-tauri/src/llm.rs` | **Modify** | Replace `http_client()` singleton + all reqwest calls with new client |
-| `src-tauri/src/lib.rs` | **Modify** | Remove Android rustls init in setup + `ensure_android_rustls_verifier` calls |
-| `src-tauri/src/deepseek_info.rs` | **Modify** | Replace reqwest imports + calls with new client |
-| `src-tauri/src/openrouter_info.rs` | **Modify** | Replace reqwest imports + calls + `reqwest::Client` param with new client |
+| File                               | Action     | Responsibility                                                               |
+| ---------------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `src-tauri/Cargo.toml`             | **Modify** | Remove reqwest+rustls-platform-verifier, add hyper+native-tls deps           |
+| `src-tauri/src/http_client.rs`     | **Create** | New platform-agnostic HTTP client abstraction                                |
+| `src-tauri/src/llm.rs`             | **Modify** | Replace `http_client()` singleton + all reqwest calls with new client        |
+| `src-tauri/src/lib.rs`             | **Modify** | Remove Android rustls init in setup + `ensure_android_rustls_verifier` calls |
+| `src-tauri/src/deepseek_info.rs`   | **Modify** | Replace reqwest imports + calls with new client                              |
+| `src-tauri/src/openrouter_info.rs` | **Modify** | Replace reqwest imports + calls + `reqwest::Client` param with new client    |
 
 ---
 
 ### Task 1: Add dependencies and remove old ones
 
 **Files:**
+
 - Modify: `src-tauri/Cargo.toml`
 
 - [ ] **Step 1: Update Cargo.toml dependencies**
@@ -49,7 +61,8 @@ bytes = "1"
 
 - [ ] **Step 2: Verify Cargo.toml parses correctly**
 
-Run: `cd src-tauri && cargo verify-project 2>&1 || cargo metadata --no-deps 2>&1 | head -20`
+Run:
+`cd src-tauri && cargo verify-project 2>&1 || cargo metadata --no-deps 2>&1 | head -20`
 Expected: No parse errors.
 
 - [ ] **Step 3: Commit**
@@ -64,6 +77,7 @@ git commit -m "deps: replace reqwest+rustls with hyper+native-tls"
 ### Task 2: Create the new HTTP client abstraction
 
 **Files:**
+
 - Create: `src-tauri/src/http_client.rs`
 - Modify: `src-tauri/src/lib.rs` (add `mod http_client;`)
 
@@ -267,7 +281,8 @@ pub async fn send_request(
 
 - [ ] **Step 2: Register the module in `src-tauri/src/lib.rs`**
 
-Add `mod http_client;` alongside the other module declarations (after line 9). The module list should include `mod http_client;` before `mod json_input;`.
+Add `mod http_client;` alongside the other module declarations (after line 9).
+The module list should include `mod http_client;` before `mod json_input;`.
 
 ```rust
 // After the existing mod declarations, add:
@@ -276,8 +291,9 @@ mod http_client;
 
 - [ ] **Step 3: Build check**
 
-Run: `cd src-tauri && cargo check 2>&1 | tail -30`
-Expected: Compilation succeeds (warnings OK, but no errors). Note: existing code still references reqwest and will fail — we fix that in next tasks.
+Run: `cd src-tauri && cargo check 2>&1 | tail -30` Expected: Compilation
+succeeds (warnings OK, but no errors). Note: existing code still references
+reqwest and will fail — we fix that in next tasks.
 
 - [ ] **Step 4: Commit**
 
@@ -291,11 +307,13 @@ git commit -m "feat: add hyper+native-tls HTTP client module"
 ### Task 3: Update llm.rs — replace reqwest calls
 
 **Files:**
+
 - Modify: `src-tauri/src/llm.rs`
 
 - [ ] **Step 1: Replace imports at top of llm.rs (lines 1-6)**
 
-Delete lines 1-7 (the `use reqwest::...` and `use crate::constants` plus `use futures_util::StreamExt`):
+Delete lines 1-7 (the `use reqwest::...` and `use crate::constants` plus
+`use futures_util::StreamExt`):
 
 ```rust
 use crate::constants::{self, chat_completions_url};
@@ -304,9 +322,11 @@ use crate::models::{AbortSignal, AppError, CommandResult, OpenRouterResponse};
 use futures_util::StreamExt;
 ```
 
-(Keep `use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};` removed, and `use tauri::Emitter;` stays.)
+(Keep `use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};` removed, and
+`use tauri::Emitter;` stays.)
 
 The new imports block:
+
 ```rust
 use crate::constants::{self, chat_completions_url};
 use crate::http_client::{self, post_json, get_json, send_request, HttpClientResponse};
@@ -317,11 +337,15 @@ use tauri::Emitter;
 
 - [ ] **Step 2: Delete the old HTTP client functions (lines 7-66)**
 
-Delete the `http_client()` function, `build_http_client()`, and `ensure_android_rustls_verifier()` — everything from line 7 through line 66. The `OpenRouterRequestConfig` struct starts at line 68 (now line 69).
+Delete the `http_client()` function, `build_http_client()`, and
+`ensure_android_rustls_verifier()` — everything from line 7 through line 66. The
+`OpenRouterRequestConfig` struct starts at line 68 (now line 69).
 
 - [ ] **Step 3: Update `call_openrouter_non_streaming` (starts ~line 223)**
 
-Replace the request section. Find lines 282-306 (the `http_client().post(...)` through the response parsing). Replace from `let response = http_client()` through the `.json()` call with:
+Replace the request section. Find lines 282-306 (the `http_client().post(...)`
+through the response parsing). Replace from `let response = http_client()`
+through the `.json()` call with:
 
 ```rust
     let response = post_json(
@@ -352,7 +376,8 @@ Replace the request section. Find lines 282-306 (the `http_client().post(...)` t
 
 - [ ] **Step 4: Update `call_openrouter_streaming` (starts ~line 353)**
 
-Replace the request section. Find lines 411-431 (the `http_client().post(...)` through `response.bytes_stream()`). Replace with:
+Replace the request section. Find lines 411-431 (the `http_client().post(...)`
+through `response.bytes_stream()`). Replace with:
 
 ```rust
     let response = post_json(
@@ -391,12 +416,15 @@ Same pattern as step 4. Find lines 611-618, replace with:
     .await?;
 ```
 
-And then update the status check and stream extraction (same pattern as streaming above — check status, return error if non-success, then `let mut stream = response.byte_stream();`).
+And then update the status check and stream extraction (same pattern as
+streaming above — check status, return error if non-success, then
+`let mut stream = response.byte_stream();`).
 
 - [ ] **Step 6: Build check**
 
-Run: `cd src-tauri && cargo check 2>&1 | tail -40`
-Expected: Only errors from deepseek_info.rs and openrouter_info.rs (still using reqwest). llm.rs should compile clean.
+Run: `cd src-tauri && cargo check 2>&1 | tail -40` Expected: Only errors from
+deepseek_info.rs and openrouter_info.rs (still using reqwest). llm.rs should
+compile clean.
 
 - [ ] **Step 7: Commit**
 
@@ -410,23 +438,29 @@ git commit -m "refactor(llm): replace reqwest with hyper+native-tls HTTP client"
 ### Task 4: Update deepseek_info.rs
 
 **Files:**
+
 - Modify: `src-tauri/src/deepseek_info.rs`
 
 - [ ] **Step 1: Replace imports and update HTTP calls**
 
-The file is small (153 lines). Replace the entire file content because every HTTP call pattern changes.
+The file is small (153 lines). Replace the entire file content because every
+HTTP call pattern changes.
 
 Replace line 2-3:
+
 ```rust
 use crate::llm::http_client;
 use reqwest::header::AUTHORIZATION;
 ```
+
 with:
+
 ```rust
 use crate::http_client::{get_json, HttpClientResponse};
 ```
 
 Then in `get_deepseek_balance` (line 78-97), replace:
+
 ```rust
     let response = http_client()
         .get(format!("{DEEPSEEK_BASE}/user/balance"))
@@ -451,6 +485,7 @@ Then in `get_deepseek_balance` (line 78-97), replace:
 ```
 
 With:
+
 ```rust
     let response = get_json(
         &format!("{DEEPSEEK_BASE}/user/balance"),
@@ -474,6 +509,7 @@ With:
 ```
 
 And same pattern for `list_deepseek_models` (line 120-138):
+
 ```rust
     let response = get_json(
         &format!("{DEEPSEEK_BASE}/models"),
@@ -498,8 +534,8 @@ And same pattern for `list_deepseek_models` (line 120-138):
 
 - [ ] **Step 2: Build check**
 
-Run: `cd src-tauri && cargo check 2>&1 | tail -40`
-Expected: Only openrouter_info.rs errors remain.
+Run: `cd src-tauri && cargo check 2>&1 | tail -40` Expected: Only
+openrouter_info.rs errors remain.
 
 - [ ] **Step 3: Commit**
 
@@ -513,11 +549,13 @@ git commit -m "refactor(deepseek): replace reqwest with hyper+native-tls HTTP cl
 ### Task 5: Update openrouter_info.rs
 
 **Files:**
+
 - Modify: `src-tauri/src/openrouter_info.rs`
 
 - [ ] **Step 1: Replace imports (lines 1-9)**
 
 Replace:
+
 ```rust
 use crate::models::{AppError, CommandResult};
 use crate::llm::http_client;
@@ -526,6 +564,7 @@ use reqwest::header::AUTHORIZATION;
 ```
 
 With:
+
 ```rust
 use crate::models::{AppError, CommandResult};
 use crate::http_client::{get_json, HttpClientResponse};
@@ -534,7 +573,9 @@ use once_cell::sync::Lazy;
 
 - [ ] **Step 2: Update `fetch_catalogue_and_lookup` (lines 216-279)**
 
-The function takes `client: &reqwest::Client` — change it to operate via our `get_json` free function. Actually, this function does a GET request specifically. Replace the whole function body's HTTP section.
+The function takes `client: &reqwest::Client` — change it to operate via our
+`get_json` free function. Actually, this function does a GET request
+specifically. Replace the whole function body's HTTP section.
 
 Replace the function signature and body:
 
@@ -562,11 +603,14 @@ async fn fetch_catalogue_and_lookup(
     };
 ```
 
-And update the remainder (the JSON parsing part stays the same — it takes `resp.json().await`).
+And update the remainder (the JSON parsing part stays the same — it takes
+`resp.json().await`).
 
 - [ ] **Step 3: Update `get_model_stats` (starts line 295)**
 
-This is the big one. It currently uses `http_client()` directly and `catalogue_lookup` + `fetch_catalogue_and_lookup` which both take `reqwest::Client`. 
+This is the big one. It currently uses `http_client()` directly and
+`catalogue_lookup` + `fetch_catalogue_and_lookup` which both take
+`reqwest::Client`.
 
 Replace lines 316-343 (the TLS init + endpoints calls):
 
@@ -640,8 +684,8 @@ Replace the HTTP call section:
 
 - [ ] **Step 5: Build check**
 
-Run: `cd src-tauri && cargo check 2>&1 | tail -40`
-Expected: Only lib.rs errors remain (Android rustls init references).
+Run: `cd src-tauri && cargo check 2>&1 | tail -40` Expected: Only lib.rs errors
+remain (Android rustls init references).
 
 - [ ] **Step 6: Commit**
 
@@ -655,11 +699,14 @@ git commit -m "refactor(openrouter_info): replace reqwest with hyper+native-tls 
 ### Task 6: Update lib.rs — remove Android rustls init
 
 **Files:**
+
 - Modify: `src-tauri/src/lib.rs`
 
-- [ ] **Step 1: Remove the `ensure_android_rustls_verifier` call from setup (lines 469-480)**
+- [ ] **Step 1: Remove the `ensure_android_rustls_verifier` call from setup
+      (lines 469-480)**
 
 Replace:
+
 ```rust
         .setup(|app| {
             let _ = APP_HANDLE.set(app.handle().clone());
@@ -676,6 +723,7 @@ Replace:
 ```
 
 With:
+
 ```rust
         .setup(|app| {
             let _ = APP_HANDLE.set(app.handle().clone());
@@ -683,9 +731,12 @@ With:
         })
 ```
 
-- [ ] **Step 2: Remove the `#[cfg(target_os = "android")]` jni/ndk-context dependencies**
+- [ ] **Step 2: Remove the `#[cfg(target_os = "android")]` jni/ndk-context
+      dependencies**
 
-These are only needed for the JNI rustls init. Remove from Cargo.toml lines 39-41:
+These are only needed for the JNI rustls init. Remove from Cargo.toml lines
+39-41:
+
 ```toml
 # Remove:
 [target.'cfg(target_os = "android")'.dependencies]
@@ -695,8 +746,8 @@ ndk-context = "0.1"
 
 - [ ] **Step 3: Full build check**
 
-Run: `cd src-tauri && cargo check 2>&1 | tail -20`
-Expected: Clean build, no errors, no warnings about unused imports from reqwest/rustls.
+Run: `cd src-tauri && cargo check 2>&1 | tail -20` Expected: Clean build, no
+errors, no warnings about unused imports from reqwest/rustls.
 
 - [ ] **Step 4: Commit**
 
@@ -710,34 +761,36 @@ git commit -m "refactor(lib): remove Android rustls JNI init code"
 ### Task 7: Verify full compilation and desktop test
 
 **Files:**
+
 - None new
 
 - [ ] **Step 1: Full cargo check**
 
-Run: `cd src-tauri && cargo check 2>&1`
-Expected: Clean compilation for desktop target. No errors. No reqwest/rustls references.
+Run: `cd src-tauri && cargo check 2>&1` Expected: Clean compilation for desktop
+target. No errors. No reqwest/rustls references.
 
 - [ ] **Step 2: Run existing Rust tests**
 
-Run: `cd src-tauri && cargo test 2>&1`
-Expected: All existing tests pass (tests in generation.rs, cleanup.rs, etc. — these test logic, not HTTP).
+Run: `cd src-tauri && cargo test 2>&1` Expected: All existing tests pass (tests
+in generation.rs, cleanup.rs, etc. — these test logic, not HTTP).
 
 - [ ] **Step 3: Verify no remaining reqwest/rustls references**
 
-Run: `cd src-tauri && grep -r "reqwest\|rustls" src/ Cargo.toml --include="*.rs" --include="*.toml" 2>/dev/null`
+Run:
+`cd src-tauri && grep -r "reqwest\|rustls" src/ Cargo.toml --include="*.rs" --include="*.toml" 2>/dev/null`
 Expected: No output (zero matches).
 
 - [ ] **Step 4: Verify Android target compiles**
 
-Run: `cd src-tauri && rustup target list --installed | grep android`
-If no android target, install: `rustup target add aarch64-linux-android`
-Then: `cargo check --target aarch64-linux-android 2>&1 | tail -20`
-Expected: Compilation succeeds (may need NDK_HOME set; if so note this).
+Run: `cd src-tauri && rustup target list --installed | grep android` If no
+android target, install: `rustup target add aarch64-linux-android` Then:
+`cargo check --target aarch64-linux-android 2>&1 | tail -20` Expected:
+Compilation succeeds (may need NDK_HOME set; if so note this).
 
 - [ ] **Step 5: Desktop smoke test**
 
-Run: `cd src-tauri && cargo build 2>&1 | tail -10`
-Expected: Binary compiles successfully.
+Run: `cd src-tauri && cargo build 2>&1 | tail -10` Expected: Binary compiles
+successfully.
 
 - [ ] **Step 6: Commit**
 
@@ -750,23 +803,36 @@ git commit -m "verify: clean build with hyper+native-tls, no reqwest/rustls rema
 ## Self-Review
 
 **1. Spec coverage:**
+
 - [x] Remove reqwest dependency → Task 1 removes from Cargo.toml
 - [x] Remove rustls dependency → Task 1 removes from Cargo.toml
 - [x] Remove rustls-platform-verifier → Task 1 + Task 6
-- [x] Remove Android JNI TLS init → Task 3 deletes functions, Task 6 removes setup call
-- [x] Replace HTTP client for POST with JSON + Bearer auth → Task 2 creates `post_json()`, Tasks 3-5 use it
-- [x] Replace HTTP client for GET with Bearer auth → Task 2 creates `get_json()`, Tasks 4-5 use it
+- [x] Remove Android JNI TLS init → Task 3 deletes functions, Task 6 removes
+      setup call
+- [x] Replace HTTP client for POST with JSON + Bearer auth → Task 2 creates
+      `post_json()`, Tasks 3-5 use it
+- [x] Replace HTTP client for GET with Bearer auth → Task 2 creates
+      `get_json()`, Tasks 4-5 use it
 - [x] SSE streaming support → Task 2 creates `BodyByteStream`, Task 3 uses it
 - [x] Response JSON parsing → Task 2 creates `HttpClientResponse::json()`
-- [x] Timeout handling → Task 2 uses hyper-util client builder with pool timeouts; error detection in `send_request`
-- [x] Retry logic → Unchanged (retry logic is in `call_openrouter` and doesn't touch HTTP client directly)
-- [x] Works on desktop → native-tls uses platform TLS (Secure Transport/SChannel/OpenSSL)
-- [x] Works on Android → native-tls uses vendored OpenSSL which Tauri Android toolchain handles
+- [x] Timeout handling → Task 2 uses hyper-util client builder with pool
+      timeouts; error detection in `send_request`
+- [x] Retry logic → Unchanged (retry logic is in `call_openrouter` and doesn't
+      touch HTTP client directly)
+- [x] Works on desktop → native-tls uses platform TLS (Secure
+      Transport/SChannel/OpenSSL)
+- [x] Works on Android → native-tls uses vendored OpenSSL which Tauri Android
+      toolchain handles
 
-**2. Placeholder scan:** No TBDs, TODOs, or "implement later" markers. All steps contain explicit code.
+**2. Placeholder scan:** No TBDs, TODOs, or "implement later" markers. All steps
+contain explicit code.
 
 **3. Type consistency:**
-- `HttpClientResponse` has `.status()`, `.is_success()`, `.json()`, `.text()`, `.bytes()`, `.byte_stream()` — all used consistently across Tasks 3-5
-- `post_json(url, api_key, body)` → `CommandResult<HttpClientResponse>` — consistent
+
+- `HttpClientResponse` has `.status()`, `.is_success()`, `.json()`, `.text()`,
+  `.bytes()`, `.byte_stream()` — all used consistently across Tasks 3-5
+- `post_json(url, api_key, body)` → `CommandResult<HttpClientResponse>` —
+  consistent
 - `get_json(url, api_key)` → `CommandResult<HttpClientResponse>` — consistent
-- `BodyByteStream` implements `Stream<Item = Result<Bytes, AppError>>` — used in streaming code
+- `BodyByteStream` implements `Stream<Item = Result<Bytes, AppError>>` — used in
+  streaming code

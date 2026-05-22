@@ -1,4 +1,11 @@
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -13,8 +20,10 @@ import {
 } from '@/views/settings/SettingsUI';
 
 function getStatusIcon(status: ProviderState['keyStatus']) {
-  if (status === 'valid') return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-  if (status === 'invalid') return <AlertCircle className="w-4 h-4 text-red-500" />;
+  if (status === 'valid')
+    return <CheckCircle2 className='w-4 h-4 text-green-500' />;
+  if (status === 'invalid')
+    return <AlertCircle className='w-4 h-4 text-red-500' />;
   return null;
 }
 
@@ -25,7 +34,12 @@ interface ProviderCardProps {
   onRemove: (id: string) => void;
 }
 
-function ProviderCard({ provider, providerId, onKeyChange, onRemove }: ProviderCardProps) {
+function ProviderCard({
+  provider,
+  providerId,
+  onKeyChange,
+  onRemove,
+}: ProviderCardProps) {
   const [localKey, setLocalKey] = useState(provider.apiKey);
   const [showKey, setShowKey] = useState(false);
 
@@ -41,41 +55,45 @@ function ProviderCard({ provider, providerId, onKeyChange, onRemove }: ProviderC
   const isBuiltin = BUILTIN_PROVIDERS[providerId] != null;
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">{provider.config.name}</h3>
-        <div className="flex items-center gap-2">
+    <div className='rounded-lg border p-4 space-y-3'>
+      <div className='flex items-center justify-between'>
+        <h3 className='font-semibold'>{provider.config.name}</h3>
+        <div className='flex items-center gap-2'>
           {getStatusIcon(provider.keyStatus)}
           {!isBuiltin && (
             <Button
-              variant="ghost"
-              size="icon"
+              variant='ghost'
+              size='icon'
               onClick={() => onRemove(providerId)}
-              className="text-muted-foreground hover:text-destructive"
-              aria-label="Remove provider"
+              className='text-muted-foreground hover:text-destructive'
+              aria-label='Remove provider'
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className='w-4 h-4' />
             </Button>
           )}
         </div>
       </div>
-      <div className="text-xs text-muted-foreground font-mono">
+      <div className='text-xs text-muted-foreground font-mono'>
         {provider.config.baseUrl}
       </div>
-      <div className="relative">
+      <div className='relative'>
         <Input
           type={showKey ? 'text' : 'password'}
           value={localKey}
           onChange={(e) => handleKeyChange(e.target.value)}
           placeholder={providerId === 'deepseek' ? 'sk-...' : 'sk-or-v1-...'}
-          className="pr-10 font-mono text-sm"
+          className='pr-10 font-mono text-sm'
         />
         <button
-          type="button"
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          type='button'
+          className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
           onClick={() => setShowKey(!showKey)}
         >
-          {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {showKey ? (
+            <EyeOff className='w-4 h-4' />
+          ) : (
+            <Eye className='w-4 h-4' />
+          )}
         </button>
       </div>
     </div>
@@ -113,7 +131,7 @@ export function ApiSection() {
       />
 
       {/* Provider cards */}
-      <div className="grid gap-4">
+      <div className='grid gap-4'>
         {providerList.map((provider) => (
           <ProviderCard
             key={provider.config.id}
