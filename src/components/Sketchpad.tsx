@@ -227,7 +227,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
     });
     const [isHovering, setIsHovering] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+    const [isTouchDevice, setIsTouchDevice] = useState(false);
+    const [isCompact, setIsCompact] = useState(false);
+
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [recentColors, setRecentColors] = useState<string[]>([
       '#111827',
@@ -253,10 +255,21 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     }, []);
 
     useEffect(() => {
-      const checkMobile = () => setIsMobile(window.innerWidth < 768);
-      checkMobile();
-      window.addEventListener('resize', checkMobile);
-      return () => window.removeEventListener('resize', checkMobile);
+      if (typeof window === 'undefined') return;
+      const touchMql = window.matchMedia('(pointer: coarse)');
+      const checkDevice = () => {
+        const w = window.innerWidth;
+        const hasCoarsePointer = touchMql.matches;
+        setIsTouchDevice(hasCoarsePointer);
+        setIsCompact(w < 480);
+      };
+      checkDevice();
+      touchMql.addEventListener('change', checkDevice);
+      window.addEventListener('resize', checkDevice);
+      return () => {
+        touchMql.removeEventListener('change', checkDevice);
+        window.removeEventListener('resize', checkDevice);
+      };
     }, []);
     const [antiAlias] = useState(true);
     const [toolSettingsMap, setToolSettingsMap] = useState<ToolSettingsMap>(
@@ -2357,7 +2370,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     const canvasArea = (
       <div
         ref={containerRef}
-        className='relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none isolate'
+        className='relative flex-1 min-w-0 min-h-0 overflow-hidden bg-muted/30 touch-none isolate select-none'
+        style={{ overscrollBehavior: 'none', WebkitUserSelect: 'none' }}
       >
         <div
           ref={cursorPreviewRef}
@@ -2462,10 +2476,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     const settingsFooter = (
       <Card className='flex flex-row items-center gap-1 bg-card/85 backdrop-blur-md border border-border/50 rounded-xl p-1 shadow-lg transition-all hover:bg-card pointer-events-auto'>
-        {isMobile ? (
+        {isCompact ? (
           <div className='flex items-center gap-1'>
             <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-              <SelectTrigger className='h-8 w-28 border-none rounded-lg transition-all text-[11px] px-2'>
+              <SelectTrigger
+                className={cn(
+                  'border-none rounded-lg transition-all text-[11px] px-2',
+                  isTouchDevice ? 'h-9 w-32' : 'h-8 w-28',
+                )}
+              >
                 <SelectValue placeholder='Bg' />
               </SelectTrigger>
               <SelectContent className='rounded-lg'>
@@ -2473,7 +2492,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   <SelectItem value='lined'>Lined Paper</SelectItem>
                   <SelectItem value='white-grid'>Grid Paper</SelectItem>
                   <SelectItem value='dot-grid'>Dotted Paper</SelectItem>
-                  <SelectItem value='black-grid'>Dark Canvas</SelectItem>
+                  <SelectItem value='black-grid'>Dark Grid</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -2483,11 +2502,15 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 <Button
                   variant='ghost'
                   size='icon'
-                  className='rounded-lg h-8 w-8'
+                  className={cn(
+                    'rounded-lg',
+                    isTouchDevice ? 'h-9 w-9' : 'h-8 w-8',
+                  )}
                 >
-                  <Settings2 size={16} />
+                  <Settings2 size={isTouchDevice ? 18 : 16} />
                 </Button>
               </PopoverTrigger>
+
               <PopoverContent
                 side='top'
                 align='start'
@@ -2524,7 +2547,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                           variant={currentSize === size ? 'default' : 'ghost'}
                           size='sm'
                           onClick={() => setSize(size)}
-                          className='h-6 min-w-8 rounded-md px-1.5 text-[10px] tabular-nums'
+                          className={cn(
+                            'min-w-8 rounded-md px-1.5 text-[10px] tabular-nums',
+                            isTouchDevice ? 'h-7' : 'h-6',
+                          )}
                         >
                           {size}
                         </Button>
@@ -2566,12 +2592,16 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                         onClick={() =>
                           setDisablePressure(!currentDisablePressure)
                         }
-                        className='rounded-lg h-7 px-2.5 text-[10px]'
+                        className={cn(
+                          'rounded-lg text-[10px]',
+                          isTouchDevice ? 'h-8 px-3' : 'h-7 px-2.5',
+                        )}
                       >
                         {currentDisablePressure ? 'Off' : 'On'}
                       </Button>
                     </div>
                   )}
+
                   <Separator />
 
                   <div className='flex items-center justify-between'>
@@ -2582,7 +2612,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                       variant={penOnlyMode ? 'default' : 'secondary'}
                       size='sm'
                       onClick={() => setPenOnlyMode(!penOnlyMode)}
-                      className='rounded-lg h-7 px-2.5 text-[10px]'
+                      className={cn(
+                        'rounded-lg text-[10px]',
+                        isTouchDevice ? 'h-8 px-3' : 'h-7 px-2.5',
+                      )}
                     >
                       {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
                     </Button>
@@ -2594,7 +2627,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         ) : (
           <div className='flex flex-row items-center gap-1'>
             <Select onValueChange={(val) => setBg(val as BgType)} value={bg}>
-              <SelectTrigger className='h-8 w-28 border-none rounded-lg transition-all text-[11px] px-2'>
+              <SelectTrigger
+                className={cn(
+                  'border-none rounded-lg transition-all text-[11px] px-2',
+                  isTouchDevice ? 'h-9 w-32' : 'h-8 w-28',
+                )}
+              >
                 <SelectValue placeholder='Background' />
               </SelectTrigger>
               <SelectContent className='rounded-lg'>
@@ -2602,7 +2640,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   <SelectItem value='lined'>Lined Paper</SelectItem>
                   <SelectItem value='white-grid'>Grid Paper</SelectItem>
                   <SelectItem value='dot-grid'>Dotted Paper</SelectItem>
-                  <SelectItem value='black-grid'>Dark Canvas</SelectItem>
+                  <SelectItem value='black-grid'>Dark Grid</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
@@ -2611,7 +2649,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               variant={penOnlyMode ? 'default' : 'secondary'}
               size='sm'
               onClick={() => setPenOnlyMode(!penOnlyMode)}
-              className='rounded-lg h-8 px-2.5 text-[10px]'
+              className={cn(
+                'rounded-lg text-[10px]',
+                isTouchDevice ? 'h-9 px-3' : 'h-8 px-2.5',
+              )}
             >
               {penOnlyMode ? 'Stylus Only' : 'Touch + Stylus'}
             </Button>
@@ -2640,7 +2681,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                     variant={currentSize === size ? 'default' : 'ghost'}
                     size='sm'
                     onClick={() => setSize(size)}
-                    className='h-6 min-w-7 rounded-md px-1 text-[10px] tabular-nums'
+                    className={cn(
+                      'min-w-7 rounded-md px-1 text-[10px] tabular-nums',
+                      isTouchDevice ? 'h-7' : 'h-6',
+                    )}
                   >
                     {size}
                   </Button>
@@ -2674,7 +2718,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                     variant={currentDisablePressure ? 'secondary' : 'default'}
                     size='sm'
                     onClick={() => setDisablePressure(!currentDisablePressure)}
-                    className='rounded-lg h-7 px-2 text-[10px]'
+                    className={cn(
+                      'rounded-lg text-[10px]',
+                      isTouchDevice ? 'h-8 px-2.5' : 'h-7 px-2',
+                    )}
                   >
                     {currentDisablePressure ? 'Off' : 'On'}
                   </Button>
@@ -2717,9 +2764,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 variant='ghost'
                 size='icon'
                 onClick={onClose}
-                className='rounded-lg size-7 md:size-8'
+                className={cn(
+                  'rounded-lg',
+                  isTouchDevice ? 'size-9' : 'size-7 md:size-8',
+                )}
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={isTouchDevice ? 18 : 16} />
               </Button>
             )}
             <Tooltip>
@@ -2729,9 +2779,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   size='icon'
                   onClick={undo}
                   disabled={undoStack.current.length === 0}
-                  className='rounded-lg size-7 md:size-8 disabled:opacity-20'
+                  className={cn(
+                    'rounded-lg disabled:opacity-20',
+                    isTouchDevice ? 'size-9' : 'size-7 md:size-8',
+                  )}
                 >
-                  <Undo2 size={16} />
+                  <Undo2 size={isTouchDevice ? 18 : 16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Undo</TooltipContent>
@@ -2743,9 +2796,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   size='icon'
                   onClick={redo}
                   disabled={redoStack.current.length === 0}
-                  className='rounded-lg size-7 md:size-8 disabled:opacity-20'
+                  className={cn(
+                    'rounded-lg disabled:opacity-20',
+                    isTouchDevice ? 'size-9' : 'size-7 md:size-8',
+                  )}
                 >
-                  <Redo2 size={16} />
+                  <Redo2 size={isTouchDevice ? 18 : 16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Redo</TooltipContent>
@@ -2762,7 +2818,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                       size='icon'
                       onClick={() => switchTool(tool)}
                       className={cn(
-                        'rounded-lg transition-all size-7 md:size-8',
+                        'rounded-lg transition-all',
+                        isTouchDevice ? 'size-9' : 'size-7 md:size-8',
                         isActive && 'shadow-md shadow-primary/20 scale-105',
                       )}
                     >
@@ -2771,7 +2828,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                           className?: string;
                         }>,
                         {
-                          className: cn('size-4'),
+                          className: cn(isTouchDevice ? 'size-5' : 'size-4'),
                         },
                       )}
                     </Button>
@@ -2782,7 +2839,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             })}
           </div>
 
-          <div className='flex items-center gap-1 px-1 shrink-0'>
+          <div className='flex items-center gap-1.5 px-1 shrink-0'>
             {QUICK_COLORS.map((c) => (
               <button
                 key={c.value}
@@ -2791,7 +2848,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   addRecentColor(c.value);
                 }}
                 className={cn(
-                  'size-5 md:size-6 rounded-full border transition-all',
+                  isTouchDevice ? 'size-7' : 'size-5 md:size-6',
+                  'rounded-full border transition-all',
                   currentColor === c.value
                     ? 'border-primary shadow-sm scale-105'
                     : 'border-transparent hover:border-border',
@@ -2800,6 +2858,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 title={c.label}
               />
             ))}
+
             <ColorPicker
               value={currentColor}
               onChange={(nextColor) => {
@@ -2808,7 +2867,10 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
               }}
               swatches={Array.from(new Set([currentColor, ...recentColors]))}
               label='More colors'
-              triggerClassName='size-5 md:size-6 p-0 rounded-full border border-border/50 hover:bg-muted/50'
+              triggerClassName={cn(
+                isTouchDevice ? 'size-7' : 'size-5 md:size-6',
+                'p-0 rounded-full border border-border/50 hover:bg-muted/50',
+              )}
               contentClassName='w-[90vw] max-w-80'
               hideLabel
             />
@@ -2820,9 +2882,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                   variant='ghost'
                   size='icon'
                   onClick={() => setShowClearConfirm(true)}
-                  className='text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg size-7 md:size-8'
+                  className={cn(
+                    'text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg',
+                    isTouchDevice ? 'size-9' : 'size-7 md:size-8',
+                  )}
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={isTouchDevice ? 18 : 16} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Clear canvas</TooltipContent>
@@ -2833,15 +2898,22 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
     );
 
     const zoomIndicator = (
-      <Card className='absolute bottom-6 right-6 flex flex-row items-center gap-0.5 bg-card/80 backdrop-blur-md border border-border/50 rounded-xl p-1 shadow-lg z-50'>
+      <Card
+        className={cn(
+          'absolute flex flex-row items-center gap-0.5 bg-card/80 backdrop-blur-md border border-border/50 rounded-xl p-1 shadow-lg z-50',
+          isTouchDevice
+            ? 'top-2 right-2 md:top-3 md:right-3'
+            : 'bottom-6 right-6',
+        )}
+      >
         <Button
           variant='ghost'
           size='icon-sm'
           type='button'
           onClick={() => zoomByKeyboardStep(-1)}
-          className='rounded-lg size-7'
+          className={cn('rounded-lg', isTouchDevice ? 'size-8' : 'size-7')}
         >
-          <ZoomOut size={14} />
+          <ZoomOut size={isTouchDevice ? 16 : 14} />
         </Button>
         <Badge
           variant='secondary'
@@ -2856,9 +2928,9 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
           size='icon-sm'
           type='button'
           onClick={() => zoomByKeyboardStep(1)}
-          className='rounded-lg size-7'
+          className={cn('rounded-lg', isTouchDevice ? 'size-8' : 'size-7')}
         >
-          <ZoomIn size={14} />
+          <ZoomIn size={isTouchDevice ? 16 : 14} />
         </Button>
         <TooltipProvider>
           <Tooltip>
@@ -2868,9 +2940,12 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
                 size='icon-sm'
                 type='button'
                 onClick={resetViewport}
-                className='rounded-lg size-7'
+                className={cn(
+                  'rounded-lg',
+                  isTouchDevice ? 'size-8' : 'size-7',
+                )}
               >
-                <Maximize2 size={13} />
+                <Maximize2 size={isTouchDevice ? 15 : 13} />
               </Button>
             </TooltipTrigger>
             <TooltipContent side='left'>Fit to screen (Ctrl+0)</TooltipContent>
@@ -2883,13 +2958,26 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
 
     if (embedded) {
       return (
-        <div className='flex flex-col flex-1 min-h-[70vh] bg-muted/20 relative overflow-hidden font-sans border border-border rounded-2xl shadow-inner'>
+        <div className='flex flex-col flex-1 min-h-[60vh] sm:min-h-[70vh] bg-muted/20 relative overflow-hidden font-sans border border-border rounded-2xl shadow-inner'>
           {topNavigationBar}
           {canvasArea}
           {zoomIndicator}
-          <div className='absolute bottom-4 left-4 md:bottom-6 md:left-6 z-50'>
+          <div
+            className={cn(
+              'absolute z-50',
+              isTouchDevice
+                ? 'bottom-2 left-2'
+                : 'bottom-4 left-4 md:bottom-6 md:left-6',
+            )}
+            style={
+              isAndroid
+                ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }
+                : undefined
+            }
+          >
             {settingsFooter}
           </div>
+
           <AlertDialog
             open={showClearConfirm}
             onOpenChange={setShowClearConfirm}
@@ -2944,7 +3032,19 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             {topNavigationBar}
             {canvasArea}
             {zoomIndicator}
-            <div className='absolute bottom-4 left-4 md:bottom-6 md:left-6 z-50 pointer-events-auto'>
+            <div
+              className={cn(
+                'absolute z-50 pointer-events-auto',
+                isTouchDevice
+                  ? 'bottom-2 left-2'
+                  : 'bottom-4 left-4 md:bottom-6 md:left-6',
+              )}
+              style={
+                isAndroid
+                  ? { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }
+                  : undefined
+              }
+            >
               {settingsFooter}
             </div>
           </div>

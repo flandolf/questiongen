@@ -287,39 +287,6 @@ pub fn detect_scaffold_pattern(text: &str) -> String {
     }
 }
 
-/// Analyze if scaffold patterns or verb diversity needs improvement.
-pub fn analyze_batch_quality_issues(metrics: &[QuestionQualityMetrics]) -> (bool, String) {
-    if metrics.is_empty() {
-        return (false, String::new());
-    }
-
-    // Check if too many questions are single-part (need more multi-part variety)
-    let single_part_count = metrics
-        .iter()
-        .filter(|m| m.scaffold_pattern == "single-part")
-        .count();
-    let single_part_ratio = single_part_count as f32 / metrics.len() as f32;
-
-    // Check if verb diversity is low (need more varied command verbs)
-    let avg_verb_diversity =
-        metrics.iter().map(|m| m.verb_diversity).sum::<f32>() / metrics.len() as f32;
-
-    let mut issues = Vec::new();
-
-    if single_part_ratio > 0.6 {
-        issues.push("Most questions are single-part (lacking multi-part structure for depth).");
-    }
-    if avg_verb_diversity < 2.0 {
-        issues.push("Questions lack varied command verbs (low cognitive diversity).");
-    }
-
-    if issues.is_empty() {
-        (false, String::new())
-    } else {
-        (true, issues.join(" "))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

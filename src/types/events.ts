@@ -5,7 +5,6 @@ export type GenerationStatusStage =
   | 'allocating_subtopics'
   | 'preparing'
   | 'generating'
-  | 'regenerating-duplicates'
   | 'parsing'
   | 'completed'
   | 'failed';

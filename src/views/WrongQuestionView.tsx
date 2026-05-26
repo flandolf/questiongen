@@ -545,7 +545,7 @@ function ReattemptView({
     return `wrong-${mode}-${entry.id}`;
   }, [entry]);
 
-  const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
+  const [, setWrittenSketchpadActive] = useState(false);
 
   // Session timer
   const [startedAt] = useState(() => Date.now());
@@ -920,7 +920,6 @@ function ReattemptView({
             ) : (
               <QuestionSplitLayout
                 mode='written'
-                sketchpadActive={writtenSketchpadActive}
                 leftSlot={
                   <MarkdownMath content={entry.question.promptMarkdown} />
                 }
@@ -952,7 +951,6 @@ function ReattemptView({
           ) : (
             <QuestionSplitLayout
               mode='mc'
-              sketchpadActive={mcSketchpadActive}
               leftSlot={
                 <div className='space-y-5'>
                   <div className='p-6 bg-muted/20 rounded-md space-y-2'>

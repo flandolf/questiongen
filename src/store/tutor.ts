@@ -9,11 +9,18 @@ export interface TutorMessage {
   role: 'user' | 'assistant';
   content: string | TutorApiContentPart[];
   createdAt: number;
+  feedback?: 'up' | 'down';
 }
 
 export interface TutorSession {
   questionId: string;
   messages: TutorMessage[];
+  /** Alternate branches keyed by branch ID. Active messages are the current branch. */
+  branches: Record<string, TutorMessage[]>;
+  /** Message index in the parent where this branch forked from. */
+  branchParentIndex: number;
+  /** ID of the active branch, or null for the main branch. */
+  activeBranchId: string | null;
   modelOverride?: string;
   personaOverride?: string;
 }
@@ -36,11 +43,25 @@ export interface TutorActions {
   setIsCompact: (isCompact: boolean) => void;
   toggleCompact: () => void;
   addMessage: (questionId: string, message: TutorMessage) => void;
+  editMessage: (
+    questionId: string,
+    messageId: string,
+    content: string | TutorApiContentPart[],
+  ) => void;
+  setMessageFeedback: (
+    questionId: string,
+    messageId: string,
+    feedback: 'up' | 'down' | null,
+  ) => void;
   updateSessionOverrides: (
     questionId: string,
     overrides: { model?: string; persona?: string },
   ) => void;
   removeLastMessage: (questionId: string) => void;
+  /** Saves the last assistant+user pair into a branch and removes them from active messages. */
+  createBranch: (questionId: string) => string;
+  /** Switches the active branch. Pass null to return to the main branch. */
+  switchBranch: (questionId: string, branchId: string | null) => void;
   clearSession: (questionId: string) => void;
   clearAllSessions: () => void;
   setIsGenerating: (isGenerating: boolean) => void;
@@ -48,6 +69,16 @@ export interface TutorActions {
   appendStreamedContent: (chunk: string) => void;
   updateMetrics: (tokens: number, cost: number) => void;
   incrementErrorCount: () => void;
+}
+
+function defaultSession(questionId: string): TutorSession {
+  return {
+    questionId,
+    messages: [],
+    branches: {},
+    branchParentIndex: 0,
+    activeBranchId: null,
+  };
 }
 
 export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
@@ -68,10 +99,7 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
 
   addMessage: (questionId, message) =>
     set((state) => {
-      const session = state.sessions[questionId] || {
-        questionId,
-        messages: [],
-      };
+      const session = state.sessions[questionId] || defaultSession(questionId);
       return {
         totalMessagesCount: state.totalMessagesCount + 1,
         sessions: {
@@ -84,12 +112,45 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
       };
     }),
 
+  editMessage: (questionId, messageId, content) =>
+    set((state) => {
+      const session = state.sessions[questionId];
+      if (!session) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [questionId]: {
+            ...session,
+            messages: session.messages.map((m) =>
+              m.id === messageId ? { ...m, content } : m,
+            ),
+          },
+        },
+      };
+    }),
+
+  setMessageFeedback: (questionId, messageId, feedback) =>
+    set((state) => {
+      const session = state.sessions[questionId];
+      if (!session) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [questionId]: {
+            ...session,
+            messages: session.messages.map((m) =>
+              m.id === messageId
+                ? { ...m, feedback: feedback ?? undefined }
+                : m,
+            ),
+          },
+        },
+      };
+    }),
+
   updateSessionOverrides: (questionId, overrides) =>
     set((state) => {
-      const session = state.sessions[questionId] || {
-        questionId,
-        messages: [],
-      };
+      const session = state.sessions[questionId] || defaultSession(questionId);
       return {
         sessions: {
           ...state.sessions,
@@ -113,6 +174,79 @@ export const useTutorStore = create<TutorState & TutorActions>()((set) => ({
           [questionId]: {
             ...session,
             messages: session.messages.slice(0, -1),
+          },
+        },
+      };
+    }),
+
+  createBranch: (questionId) => {
+    const branchId = crypto.randomUUID();
+    set((state) => {
+      const session = state.sessions[questionId];
+      if (!session || session.messages.length < 2) return state;
+      const forkIndex = session.messages.length - 2;
+      const branchedMessages = session.messages.slice(forkIndex);
+      const remainingMessages = session.messages.slice(0, forkIndex);
+      return {
+        sessions: {
+          ...state.sessions,
+          [questionId]: {
+            ...session,
+            messages: remainingMessages,
+            branches: {
+              ...session.branches,
+              [branchId]: branchedMessages,
+            },
+            branchParentIndex: forkIndex,
+            activeBranchId: null,
+          },
+        },
+      };
+    });
+    return branchId;
+  },
+
+  switchBranch: (questionId, branchId) =>
+    set((state) => {
+      const session = state.sessions[questionId];
+      if (!session) return state;
+      if (branchId === null) {
+        if (!session.activeBranchId) return state;
+        const branches = { ...session.branches };
+        const mainMessages = branches['__main__'] || [];
+        delete branches['__main__'];
+        return {
+          sessions: {
+            ...state.sessions,
+            [questionId]: {
+              ...session,
+              messages:
+                mainMessages.length > 0 ? mainMessages : session.messages,
+              branches,
+              activeBranchId: null,
+            },
+          },
+        };
+      }
+      const targetBranch = session.branches[branchId];
+      if (!targetBranch) return state;
+      const updatedBranches = { ...session.branches };
+      if (session.activeBranchId && session.branches[session.activeBranchId]) {
+        updatedBranches[session.activeBranchId] = session.messages;
+      } else if (
+        session.activeBranchId === null &&
+        session.messages.length > 0
+      ) {
+        updatedBranches['__main__'] = session.messages;
+      }
+      return {
+        sessions: {
+          ...state.sessions,
+          [questionId]: {
+            ...session,
+            messages: targetBranch,
+            branches: updatedBranches,
+            activeBranchId: branchId,
           },
         },
       };

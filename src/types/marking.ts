@@ -3,17 +3,28 @@ export type MarkingCriterion = {
   achievedMarks: number;
   maxMarks: number;
   rationale: string;
+  markType?: 'M' | 'A' | 'C';
+};
+
+export type ExemplarAnnotation = {
+  part: string;
+  marksEarned: number;
+  marksAvailable: number;
+  note: string;
 };
 
 export type MarkAnswerResponse = {
   verdict: string;
   achievedMarks: number;
   maxMarks: number;
+  partialReason?: string;
   vcaaMarkingScheme: MarkingCriterion[];
   comparisonToSolutionMarkdown: string;
   feedbackMarkdown: string;
   workedSolutionMarkdown: string;
   exemplarResponseMarkdown?: string;
+  indicativeContentMarkdown?: string;
+  exemplarAnnotations?: ExemplarAnnotation[];
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;

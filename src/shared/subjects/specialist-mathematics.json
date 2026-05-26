@@ -6,6 +6,8 @@
     "2025-SpecialistMaths1-report.pdf",
     "2025-SpecialistMaths2-report.pdf"
   ],
+  "markingSchemeStyle": "criterion-per-mark",
+  "markingGuidance": "SPECIALIST MATHEMATICS MARKING: Award marks for rigorous formal proof with all logical steps justified. Credit correct use of complex number forms (Cartesian, polar, exponential) and vector notation. For induction proofs, require clear base case, inductive hypothesis, and inductive step. For integration, credit correct choice and application of technique (substitution, parts, partial fractions). For differential equations, credit correct separation of variables or integrating factor method. Require exact values unless approximation is specifically requested. For vector questions, credit correct use of dot/cross product and geometric interpretation. Follow-through marks apply for consequential errors but not for fundamentally incorrect approaches.",
   "examGuidance": "Specialist Mathematics demands high precision. For tech-free (Exam 1): focus on exact value arithmetic, formal proofs (induction, contradiction), and manual integration techniques (substitution, parts). For tech-active (Exam 2): emphasize 3D vector visualizations, complex path sketching on the Argand plane, and statistical inference. Always require formal notation: $\\text{cis } \\theta$, vector notation (bold or $\\vec{v}$), $\\mathbf{i}, \\mathbf{j}, \\mathbf{k}$ basis vectors, and correct set notation for domains/regions. Justify all non-trivial steps in multi-part modelling questions.",
   "out_of_scope": [
     "Integration of $e^{-x^2}$",

@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 
 import { useMultipleChoiceSession, useWrittenSession } from '@/AppContext';
+import type { DateRange } from '@/lib/useDateFilter';
+import {
+  computePreviousPeriod,
+  filterAttemptsByDate,
+} from '@/lib/useDateFilter';
 import { useAppStore } from '@/store';
 
 import type {
@@ -251,14 +256,14 @@ function computeQualityRows(
     .sort((a, b) => a.topic.localeCompare(b.topic));
 }
 
-export function useAnalyticsData() {
+export function useAnalyticsData(dateRange?: DateRange) {
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const [topicFilter, setTopicFilter] = useState<string>(ALL_TOPICS);
 
   const writtenAttempts = useMemo<AttemptRow[]>(() => {
-    return questionHistory.map((entry: QuestionHistoryEntry) => {
+    const mapped = questionHistory.map((entry: QuestionHistoryEntry) => {
       const attemptKind = entry.analytics?.attemptKind;
       const uploadedAnswer = entry.uploadedAnswer || '';
       const fallbackWordCount = uploadedAnswer.trim()
@@ -288,10 +293,12 @@ export function useAnalyticsData() {
         generationDurationMs: entry.generationTelemetry?.durationMs,
       };
     });
-  }, [questionHistory]);
+    if (!dateRange) return mapped;
+    return filterAttemptsByDate(mapped, dateRange);
+  }, [questionHistory, dateRange]);
 
   const mcAttempts = useMemo<AttemptRow[]>(() => {
-    return mcHistory.map((entry: McHistoryEntry) => {
+    const mapped = mcHistory.map((entry: McHistoryEntry) => {
       const maxMarks = entry.maxMarks ?? 1;
       const achievedMarks =
         entry.awardedMarks ?? (entry.correct ? maxMarks : 0);
@@ -319,7 +326,9 @@ export function useAnalyticsData() {
         generationDurationMs: entry.generationTelemetry?.durationMs,
       };
     });
-  }, [mcHistory]);
+    if (!dateRange) return mapped;
+    return filterAttemptsByDate(mapped, dateRange);
+  }, [mcHistory, dateRange]);
 
   const allAttempts = useMemo(() => {
     return [...writtenAttempts, ...mcAttempts].sort(
@@ -622,7 +631,10 @@ export function useAnalyticsData() {
   }, [writtenAttempts]);
 
   const recentCriterionWeakPoints = useMemo<CriterionWeakPointRow[]>(() => {
-    const recentEntries = [...questionHistory]
+    const filteredQH = dateRange
+      ? filterAttemptsByDate(questionHistory, dateRange)
+      : questionHistory;
+    const recentEntries = [...filteredQH]
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .slice(0, RECENT_WRITTEN_CRITERIA_WINDOW);
 
@@ -701,7 +713,7 @@ export function useAnalyticsData() {
           b.attempts - a.attempts,
       )
       .slice(0, 6);
-  }, [questionHistory]);
+  }, [questionHistory, dateRange]);
 
   const mcTopicAccuracy = useMemo(() => {
     const bucketByTopic = new Map<string, AnalyticsBucket>();
@@ -803,12 +815,15 @@ export function useAnalyticsData() {
       .sort((a, b) => b.accuracy - a.accuracy || b.attempts - a.attempts);
   }, [writtenAttempts]);
 
-  const qualityRows = useMemo<QualityRow[]>(
-    () =>
-      // Now computeQualityRows is a stable reference from the module scope
-      computeQualityRows(questionHistory, mcHistory, generationHistory),
-    [mcHistory, questionHistory, generationHistory],
-  );
+  const qualityRows = useMemo<QualityRow[]>(() => {
+    const filteredQH = dateRange
+      ? filterAttemptsByDate(questionHistory, dateRange)
+      : questionHistory;
+    const filteredMC = dateRange
+      ? filterAttemptsByDate(mcHistory, dateRange)
+      : mcHistory;
+    return computeQualityRows(filteredQH, filteredMC, generationHistory);
+  }, [mcHistory, questionHistory, generationHistory, dateRange]);
 
   const lowestScoringWritten = useMemo(() => {
     return [...writtenAttempts]
@@ -892,6 +907,31 @@ export function useAnalyticsData() {
     };
   }, [allAttempts]);
 
+  const periodComparison = useMemo(() => {
+    if (!dateRange?.startDate) return null;
+    const prevRange = computePreviousPeriod(dateRange);
+    if (!prevRange) return null;
+
+    const sortedAll = [...writtenAttempts, ...mcAttempts].sort(
+      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
+    );
+    const prevAttempts = filterAttemptsByDate(sortedAll, prevRange);
+    if (prevAttempts.length === 0) return null;
+
+    return {
+      prevRange,
+      currentPeriodAccuracy: calcOverall(allAttempts),
+      previousPeriodAccuracy: calcOverall(prevAttempts),
+      currentFirstAttemptAccuracy: calcFirstAttempt(allAttempts),
+      previousFirstAttemptAccuracy: calcFirstAttempt(prevAttempts),
+      currentWrittenAvg: calcWrittenAvg(allAttempts),
+      previousWrittenAvg: calcWrittenAvg(prevAttempts),
+      currentMcAccuracy: calcMc(allAttempts),
+      previousMcAccuracy: calcMc(prevAttempts),
+      previousAttemptsCount: prevAttempts.length,
+    };
+  }, [dateRange, allAttempts, writtenAttempts, mcAttempts]);
+
   return {
     allAttempts,
     writtenAttempts,
@@ -920,5 +960,6 @@ export function useAnalyticsData() {
     recentMcAccuracy,
     earlyFirstAttemptAccuracy,
     recentFirstAttemptAccuracy,
+    periodComparison,
   };
 }

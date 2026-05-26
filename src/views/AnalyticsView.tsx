@@ -29,12 +29,14 @@ import {
 } from 'recharts';
 
 import { useMultipleChoiceSession, useWrittenSession } from '@/AppContext';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { EmptyState } from '@/components/EmptyState';
 import { PageContainer, PageHeader } from '@/components/layout/primitives';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
 import type { ChartConfig } from '@/components/ui/chart';
 import { formatDurationMs, formatPercent } from '@/lib/app-utils';
+import { useDateFilter } from '@/lib/useDateFilter';
 import { getDayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
 
@@ -374,6 +376,7 @@ export function AnalyticsView() {
   const { questionHistory } = useWrittenSession();
   const { mcHistory } = useMultipleChoiceSession();
   const generationHistory = useAppStore((s) => s.generationHistory);
+  const { range, setPreset, isActive: dateFilterActive } = useDateFilter();
 
   const {
     allAttempts,
@@ -398,7 +401,8 @@ export function AnalyticsView() {
     recentMcAccuracy,
     earlyFirstAttemptAccuracy,
     recentFirstAttemptAccuracy,
-  } = useAnalyticsData();
+    periodComparison,
+  } = useAnalyticsData(dateFilterActive ? range : undefined);
 
   const dailyStats = useDailyStats(
     questionHistory,
@@ -518,20 +522,44 @@ export function AnalyticsView() {
           ? 'danger'
           : 'default';
 
-  const firstAttemptDelta =
-    recentFirstAttemptAccuracy != null && earlyFirstAttemptAccuracy != null
+  const usePeriodComparison = dateFilterActive && periodComparison !== null;
+
+  const firstAttemptDelta = usePeriodComparison
+    ? periodComparison &&
+      periodComparison.currentFirstAttemptAccuracy != null &&
+      periodComparison.previousFirstAttemptAccuracy != null
+      ? periodComparison.currentFirstAttemptAccuracy -
+        periodComparison.previousFirstAttemptAccuracy
+      : null
+    : recentFirstAttemptAccuracy != null && earlyFirstAttemptAccuracy != null
       ? recentFirstAttemptAccuracy - earlyFirstAttemptAccuracy
       : null;
-  const overallDelta =
-    recentOverallAccuracy != null && earlyOverallAccuracy != null
+  const overallDelta = usePeriodComparison
+    ? periodComparison &&
+      periodComparison.currentPeriodAccuracy != null &&
+      periodComparison.previousPeriodAccuracy != null
+      ? periodComparison.currentPeriodAccuracy -
+        periodComparison.previousPeriodAccuracy
+      : null
+    : recentOverallAccuracy != null && earlyOverallAccuracy != null
       ? recentOverallAccuracy - earlyOverallAccuracy
       : null;
-  const writtenDelta =
-    recentWrittenAvg != null && earlyWrittenAvg != null
+  const writtenDelta = usePeriodComparison
+    ? periodComparison &&
+      periodComparison.currentWrittenAvg != null &&
+      periodComparison.previousWrittenAvg != null
+      ? periodComparison.currentWrittenAvg - periodComparison.previousWrittenAvg
+      : null
+    : recentWrittenAvg != null && earlyWrittenAvg != null
       ? recentWrittenAvg - earlyWrittenAvg
       : null;
-  const mcDelta =
-    recentMcAccuracy != null && earlyMcAccuracy != null
+  const mcDelta = usePeriodComparison
+    ? periodComparison &&
+      periodComparison.currentMcAccuracy != null &&
+      periodComparison.previousMcAccuracy != null
+      ? periodComparison.currentMcAccuracy - periodComparison.previousMcAccuracy
+      : null
+    : recentMcAccuracy != null && earlyMcAccuracy != null
       ? recentMcAccuracy - earlyMcAccuracy
       : null;
 
@@ -584,33 +612,60 @@ export function AnalyticsView() {
         description='In-depth performance insights and trends.'
       />
 
+      {/* Date Range Filter */}
+      <div className='flex flex-wrap items-center gap-3'>
+        <DateRangeFilter active={range.preset} onChange={setPreset} />
+        {dateFilterActive && periodComparison && (
+          <span className='text-xs text-muted-foreground/60'>
+            vs {periodComparison.previousAttemptsCount} attempts in prior{' '}
+            {range.label}
+          </span>
+        )}
+      </div>
+
       {/* KPI Grid */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
         <Kpi
           label='Overall Accuracy'
           value={formatPercent(overallPct)}
-          detail={`${summary.totalCorrect} / ${summary.totalAttempts}`}
+          detail={
+            dateFilterActive
+              ? `${summary.totalCorrect} / ${summary.totalAttempts} in ${range.label}`
+              : `${summary.totalCorrect} / ${summary.totalAttempts}`
+          }
           accent={toAccent(overallPct)}
           delta={overallDelta}
         />
         <Kpi
           label='First Attempt'
           value={formatPercent(firstAttemptPct)}
-          detail={`${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal}`}
+          detail={
+            dateFilterActive
+              ? `${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal} in ${range.label}`
+              : `${summary.firstAttemptCorrect} / ${summary.firstAttemptTotal}`
+          }
           accent={toAccent(firstAttemptPct)}
           delta={firstAttemptDelta}
         />
         <Kpi
           label='Written Average'
           value={formatPercent(writtenPct)}
-          detail={`${summary.writtenAttempts} attempts`}
+          detail={
+            dateFilterActive
+              ? `${summary.writtenAttempts} attempts in ${range.label}`
+              : `${summary.writtenAttempts} attempts`
+          }
           accent={toAccent(writtenPct)}
           delta={writtenDelta}
         />
         <Kpi
           label='Multiple Choice'
           value={formatPercent(mcPct)}
-          detail={`${summary.mcCorrect} / ${summary.mcAttempts}`}
+          detail={
+            dateFilterActive
+              ? `${summary.mcCorrect} / ${summary.mcAttempts} in ${range.label}`
+              : `${summary.mcCorrect} / ${summary.mcAttempts}`
+          }
           accent={toAccent(mcPct)}
           delta={mcDelta}
         />
@@ -620,7 +675,11 @@ export function AnalyticsView() {
       <Card className='p-6'>
         <SectionHeading
           title='Performance Trends'
-          description='Accuracy progression over recent attempts.'
+          description={
+            dateFilterActive
+              ? `Accuracy progression within ${range.label}.`
+              : 'Accuracy progression over recent attempts.'
+          }
         />
         <div className='h-87.5 mt-4 min-h-0'>
           <ChartContainer
@@ -868,7 +927,11 @@ export function AnalyticsView() {
           <Card className='p-6'>
             <SectionHeading
               title='Needs Improvement'
-              description='Lowest scoring written attempts.'
+              description={
+                dateFilterActive
+                  ? `Lowest scoring written attempts in ${range.label}.`
+                  : 'Lowest scoring written attempts.'
+              }
             />
             <div className='mt-4'>
               {lowestScoringWritten.length === 0 ? (

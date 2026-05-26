@@ -6,6 +6,8 @@
     "2025-MathematicalMethods1-report.pdf",
     "2025-MathematicalMethods2-report.pdf"
   ],
+  "markingSchemeStyle": "criterion-per-mark",
+  "markingGuidance": "MATHEMATICAL METHODS MARKING: Award marks for correct algebraic manipulation with all steps shown. Credit appropriate use of calculus rules and correct differentiation/integration. For 'show that' questions, every algebraic step must be shown — a bare final result earns zero. For graphs/sketches, require correct shape with key features labelled (intercepts, stationary points, asymptotes with equations). Accept equivalent algebraic forms. Follow-through marks apply for consequential errors. For probability questions, credit correct identification of distributions and parameters before computation. In tech-free questions, require exact values, not decimal approximations.",
   "examGuidance": "Use formal mathematical notation and VCE command verbs (solve, sketch, find, justify, show that). For tech-free (Exam 1): require exact arithmetic, manual algebraic manipulation, and clear logical steps. For tech-active (Exam 2): assume access to CAS for solving, differentiating, and integrating complex functions; round as specified (usually 2 or 3 decimal places). State domains for functions and give exact coordinates for key graphical features (intercepts, stationary points, endpoints). Include constants of integration (+c) for indefinite integrals. Use function notation $f(x)$ and $f'(x)$ consistently. Ensure sketches show asymptotes with equations and appropriate curvature.",
   "out_of_scope": [
     "Complex numbers",

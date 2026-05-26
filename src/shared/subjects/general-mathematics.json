@@ -6,6 +6,8 @@
     "2025-GeneralMaths1-Report.pdf",
     "2025-GeneralMaths2-Report.pdf"
   ],
+  "markingSchemeStyle": "criterion-per-mark",
+  "markingGuidance": "GENERAL MATHEMATICS MARKING: Award marks for correct methodology and working shown, not just final answers. Credit appropriate use of formulas with variables defined. Require correct rounding (typically 2 decimal places for money, appropriate sig figs for measurements). For data analysis questions, credit correct interpretation of statistical measures and distinction between correlation and causation. For networks/matrices questions, credit systematic application of algorithms over guesswork. Accept equivalent forms of answers where mathematically valid. Follow-through marks apply for consequential errors.",
   "examGuidance": "General Mathematics questions should be set in practical, real-world contexts. Use VCE command verbs (calculate, solve, interpret, justify) and apply questions to everyday financial, statistical, geometric and network situations. For technology-active items, assume access to CAS or approved calculator with numerical, graphical, financial and statistical functionality. For Units 1 and 2, all assessment is school-based; for Units 3 and 4, align tasks to the VCAA examination formats. Round answers to the number of decimal places or significant figures specified (typically 2 decimal places for money). Always define variables and state units in solutions. For statistical questions, emphasize the difference between correlation and causation.",
   "out_of_scope": [
     "Calculus (differentiation and integration)",
