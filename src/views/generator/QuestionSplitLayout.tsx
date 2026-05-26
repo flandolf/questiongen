@@ -7,7 +7,6 @@ interface QuestionSplitLayoutProps {
   leftSlot: ReactNode;
   leftBelowSlot?: ReactNode;
   rightSlot: ReactNode;
-  sketchpadActive?: boolean;
   mode: 'written' | 'mc';
   className?: string;
 }
@@ -20,7 +19,6 @@ export function QuestionSplitLayout({
   leftSlot,
   leftBelowSlot,
   rightSlot,
-  sketchpadActive,
   mode,
   className,
 }: QuestionSplitLayoutProps) {
@@ -140,10 +138,7 @@ export function QuestionSplitLayout({
       {/* Large screens: three-column flex layout with draggable handle */}
       <div
         ref={containerRef}
-        className={cn(
-          'hidden lg:flex w-full stagger-reveal',
-          sketchpadActive ? 'gap-0' : 'gap-8',
-        )}
+        className='hidden lg:flex w-full gap-0 stagger-reveal'
         style={{ alignItems: 'stretch' }}
       >
         <div
@@ -157,23 +152,21 @@ export function QuestionSplitLayout({
           {leftBelowSlot}
         </div>
 
-        {sketchpadActive && (
-          <div
-            role='separator'
-            aria-orientation='vertical'
-            aria-label='Resize question and sketchpad'
-            aria-valuemin={MIN_PCT}
-            aria-valuemax={MAX_PCT}
-            aria-valuenow={Math.round(leftPct)}
-            tabIndex={0}
-            onKeyDown={handleKeyDown}
-            onPointerDown={handlePointerDown}
-            className='flex items-center justify-center px-1 shrink-0'
-            style={{ cursor: 'col-resize', touchAction: 'none' }}
-          >
-            <div className='h-10 w-1 rounded-full bg-border/40 hover:bg-border hover:scale-110 active:scale-95 transition-all duration-150' />
-          </div>
-        )}
+        <div
+          role='separator'
+          aria-orientation='vertical'
+          aria-label='Resize question and answer panel'
+          aria-valuemin={MIN_PCT}
+          aria-valuemax={MAX_PCT}
+          aria-valuenow={Math.round(leftPct)}
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
+          onPointerDown={handlePointerDown}
+          className='flex items-center justify-center px-1 shrink-0'
+          style={{ cursor: 'col-resize', touchAction: 'none' }}
+        >
+          <div className='h-10 w-1 rounded-full bg-border/40 hover:bg-border hover:scale-110 active:scale-95 transition-all duration-150' />
+        </div>
 
         <div className='min-w-0 flex-1 space-y-5'>{rightSlot}</div>
       </div>

@@ -6,10 +6,6 @@ pub fn chat_completions_url(base_url: &str) -> String {
     format!("{base}/chat/completions")
 }
 
-// ─── Topic name constants (used in marking logic) ─────────────────────────────
-pub const PHYSICAL_EDUCATION_TOPIC: &str = "Physical Education";
-pub const CHEMISTRY_TOPIC: &str = "Chemistry";
-
 // ─── Generation limits ────────────────────────────────────────────────────────
 
 pub const MAX_QUESTION_COUNT: usize = 20;
@@ -86,8 +82,3 @@ VCAA WRITTEN STYLE:
 /// Injected into MC question-generation prompts for distractor quality.
 pub const MC_STYLE_RULES: &str = "\
 VCAA MC STYLE: 4 options (A-D), parallel style. NO labels inside text. Distractors target specific misconceptions. No 'all/none of the above'. Explain correct and each wrong option with misconception rationale.";
-
-/// Chemistry-specific LaTeX guidance.
-pub const CHEMISTRY_LATEX_GUIDANCE: &str =
-    " Render every chemical formula/ionic species in LaTeX: $\\text{H}_2\\text{O}$, \
-$\\text{CO}_2$, $\\text{Fe}^{3+}$, $\\text{SO}_4^{2-}$. ";

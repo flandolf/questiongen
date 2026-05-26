@@ -53,11 +53,14 @@ pub fn marking_schema_guidance_text() -> &'static str {
      - \"verdict\" (string): one of \"Correct\", \"Incorrect\", \"Partial\"\n\
      - \"achievedMarks\" (integer): marks awarded\n\
      - \"maxMarks\" (integer): maximum marks\n\
-     - \"vcaaMarkingScheme\" (array): each item has \"criterion\" (string), \"achievedMarks\" (integer), \"maxMarks\" (integer), \"rationale\" (string)\n\
+     - \"partialReason\" (string): when verdict is \"Partial\", one of \"MostlyCorrect\", \"PartialUnderstanding\", \"MethodError\", \"Incomplete\"\n\
+     - \"vcaaMarkingScheme\" (array): each item has \"criterion\" (string), \"achievedMarks\" (integer), \"maxMarks\" (integer), \"rationale\" (string), \"markType\" (string: \"M\"/\"A\"/\"C\")\n\
      - \"comparisonToSolutionMarkdown\" (string): how the answer compares to the solution\n\
-     - \"feedbackMarkdown\" (string): use ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers\n\
+     - \"feedbackMarkdown\" (string): use ## What a high-scoring response looks like, ## Common errors, ## How to improve headers\n\
      - \"workedSolutionMarkdown\" (string): every step a student needs for full marks\n\
      - \"exemplarResponseMarkdown\" (string): an ideal student answer\n\
+     - \"indicativeContentMarkdown\" (string): key points a good answer should include, VCAA marking scheme style\n\
+     - \"exemplarAnnotations\" (array): for each part, \"part\" (string), \"marksEarned\" (integer), \"marksAvailable\" (integer), \"note\" (string)\n\
      - \"mcOptionExplanations\" (array): for MC, each with \"option\" (string), \"isCorrect\" (boolean), \"explanation\" (string)"
 }
 
@@ -113,8 +116,8 @@ pub fn mc_system() -> String {
 
 pub fn marking_system(
     max_marks: u8,
-    chem_note: &str,
-    phys_ed_note: &str,
+    marking_guidance: &str,
+    marking_scheme_style: &str,
     marker_style: Option<&str>,
     custom_marker_style: Option<&str>,
 ) -> String {
@@ -122,6 +125,7 @@ pub fn marking_system(
     let worked_words = (max_marks as usize * 200).clamp(500, 2000);
     let comparison_words = (max_marks as usize * 60).clamp(200, 800);
     let feedback_words = (max_marks as usize * 50).clamp(200, 600);
+    let indicative_words = (max_marks as usize * 80).clamp(200, 1000);
     let rationale_words = (max_marks as usize * 30).clamp(100, 400);
 
     // Determine the marker identity/rules based on style
@@ -149,33 +153,51 @@ pub fn marking_system(
             "Strict VCE marker",
             "MARKING RULES:\n\
              1. Criterion-based (steps, not just answers).\n\
-             2. Award for method even if arithmetic slips.\n\
-             3. 'show that' needs full algebraic steps.\n\
-             5. MC: justify correct and explain all 3 distractors.",
+             2. Award method marks (M) even if arithmetic slips.\n\
+             3. 'show that' needs full algebraic steps — no marks for bare final result.\n\
+             4. Consequential marking: an error in an earlier part does NOT penalise later parts if the method is otherwise correct.",
         ),
+    };
+
+    // Scheme style instructions
+    let scheme_instructions = if marking_scheme_style == "rubric-bands" {
+        "SCHEME STYLE (RUBRIC BANDS): Use performance level descriptors, not atomic per-mark criteria. For vcaaMarkingScheme, produce a single entry describing the band the response falls into: the criterion is the band name and description; achievedMarks/maxMarks reflect the band allocation. Rationale explains why the response matches this band."
+    } else {
+        "SCHEME STYLE (CRITERION PER MARK): Produce one criterion per mark (or group closely related marks where natural). Each criterion must classify its markType: 'M' for method/approach, 'A' for answer/result, 'C' for communication/explanation/justification."
+    };
+
+    let guidance_block = if marking_guidance.is_empty() {
+        String::new()
+    } else {
+        format!("\n{marking_guidance}\n")
     };
 
     format!(
         "IDENTITY: {identity}.\n\n\
          {rules}\n\n\
+         {scheme_instructions}\n\n\
          {hygiene}\n\
          {latex_rules}\n\
          {mermaid_rules}\n\
-         {chem_note}{phys_ed_note}\n\n\
+         {guidance_block}\n\
          REPORTS: PDFs are PRIMARY authority for criteria.\n\n\
-         LIMITS: Verdict ('Correct'/'Incorrect'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), Feedback (≤{feedback_words}), Worked Solution (≤{worked_words} words).\n\n\
-         FEEDBACK STYLE: Use ONLY ## Strengths, ## Areas for Improvement, ## Common Pitfalls headers.",
+         LIMITS: Verdict ('Correct'/'Incorrect'/'Partial'), Rationale (≤{rationale_words} words), Comparison (≤{comparison_words}), IndicativeContent (≤{indicative_words}), Feedback (≤{feedback_words}), WorkedSolution (≤{worked_words} words).\n\n\
+         FEEDBACK STYLE: Write feedback in VCAA examiners' report style. Use ONLY these headers:\n\
+         ## What a high-scoring response looks like\n\
+         ## Common errors\n\
+         ## How to improve",
         identity = identity,
         rules = rules,
+        scheme_instructions = scheme_instructions,
         rationale_words = rationale_words,
         comparison_words = comparison_words,
+        indicative_words = indicative_words,
         feedback_words = feedback_words,
         worked_words = worked_words,
         hygiene = constants::GLOBAL_HYGIENE_RULES,
         latex_rules = constants::LATEX_RULES,
         mermaid_rules = constants::MERMAID_RULES,
-        chem_note = chem_note,
-        phys_ed_note = phys_ed_note
+        guidance_block = guidance_block,
     )
 }
 
@@ -220,7 +242,10 @@ pub fn subject_specific_guidance(topics: &[String]) -> String {
             "\nVCE PHYSICAL EDUCATION RULES:\n\
             - Focus on biomechanical principles, energy system interplay, and training program design/evaluation.\n\
             - Use highly specific sporting contexts. Demand analysis of physiological data (e.g. lactate curves, VO2 max graphs).\n\
-            - Avoid formula derivations; focus on verbal justification and application of principles.",
+            - DO NOT generate questions that require mathematical calculations, formula derivations, or numerical problem-solving.\n\
+            - Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', 'F = ma', 'VO₂max', '1RM') — but do NOT ask students to derive, rearrange, chain equations, or perform multi-step calculations.\n\
+            - All questions must be answerable through verbal justification, qualitative analysis, and application of principles — NOT through mathematical working.\n\
+            - Question parts and mark schemes must reflect qualitative depth (explain, analyze, evaluate, justify), not calculation steps.",
         );
     }
     if biology_flag {
@@ -522,27 +547,6 @@ pub fn similarity_note(enabled: bool, prior: Option<&[String]>) -> String {
     )
 }
 
-pub fn adaptive_quality_note(metrics: &[crate::quality::QuestionQualityMetrics]) -> String {
-    let (has_issues, issues_desc) = crate::quality::analyze_batch_quality_issues(metrics);
-    if !has_issues {
-        return String::new();
-    }
-
-    format!(
-        "\n\nADAPTIVE QUALITY GUIDANCE:\n\
-         Previous generation showed these patterns: {}\n\
-         For this retry: ensure {}\n\
-         Use varied command verbs (define, derive, analyze, evaluate, justify, compare, etc.).\n\
-         Vary scaffolding: mix single-part questions with multi-part (a), (b), (c) structures.",
-        issues_desc,
-        if issues_desc.contains("single-part") {
-            "at least 50% of questions include multi-part structure"
-        } else {
-            "strong variety in question structure"
-        }
-    )
-}
-
 pub fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
     if topics
         .iter()
@@ -671,7 +675,11 @@ pub fn marking_prompt(
          - Do not credit vague restatements of the question as explanation.\n\
          - For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n\
          - For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n\
-         - Produce one criterion per mark (or group closely related marks where natural).\n\
+         - CONSEQUENTIAL MARKING: if an error in an earlier part propagates to a later part but the later part's method is otherwise correct, award FULL marks for the later part. Penalise each error only once.\n\
+         - Classify each vcaaMarkingScheme criterion with markType: 'M' (method/approach), 'A' (answer/result), or 'C' (communication/explanation/justification).\n\
+         - When verdict is 'Partial', set partialReason to one of: 'MostlyCorrect', 'PartialUnderstanding', 'MethodError', 'Incomplete'.\n\
+         - Provide indicativeContentMarkdown: list the key points a good answer should include, in VCAA marking scheme bullet-point style. Include multiple valid approaches where they exist.\n\
+         - Provide exemplarAnnotations: for each part (a)/(b)/(c), annotate why it earned its marks (part, marksEarned, marksAvailable, note).\n\
          - The workedSolution must show every step a student would need to write to receive full marks.{report_preamble}",
         topic = topic,
         subtopic = subtopic,
@@ -1023,3 +1031,63 @@ Generate 5-10 subtopics, with focus_area getting priority coverage.",
         focus_priority = focus_priority
     )
 }
+
+    #[test]
+    fn marking_system_injects_rubric_band_instructions() {
+        let rubric_sys = marking_system(5, "", "rubric-bands", None, None);
+        assert!(rubric_sys.contains("SCHEME STYLE (RUBRIC BANDS)"));
+        assert!(rubric_sys.contains("performance level descriptors"));
+        assert!(!rubric_sys.contains("SCHEME STYLE (CRITERION PER MARK)"));
+    }
+
+    #[test]
+    fn marking_system_injects_criterion_per_mark_instructions() {
+        let crit_sys = marking_system(5, "", "criterion-per-mark", None, None);
+        assert!(crit_sys.contains("SCHEME STYLE (CRITERION PER MARK)"));
+        assert!(crit_sys.contains("markType"));
+        assert!(!crit_sys.contains("rubric-bands"));
+    }
+
+    #[test]
+    fn marking_system_uses_examiner_report_feedback_headers() {
+        let sys = marking_system(5, "", "criterion-per-mark", None, None);
+        assert!(sys.contains("## What a high-scoring response looks like"));
+        assert!(sys.contains("## Common errors"));
+        assert!(sys.contains("## How to improve"));
+        assert!(!sys.contains("## Strengths"));
+        assert!(!sys.contains("## Areas for Improvement"));
+    }
+
+    #[test]
+    fn marking_prompt_includes_consequential_marking() {
+        let prompt = marking_prompt(
+            "Chemistry", "Stoichiometry", "Balance the equation", 3,
+            "2H2 + O2 -> 2H2O", "", "",
+        );
+        assert!(prompt.contains("CONSEQUENTIAL MARKING"));
+        assert!(prompt.contains("Penalise each error only once"));
+    }
+
+    #[test]
+    fn marking_prompt_includes_mark_type_instruction() {
+        let prompt = marking_prompt(
+            "Mathematical Methods", "Differentiation", "Find f'(x)", 3,
+            "f'(x) = 2x", "", "",
+        );
+        assert!(prompt.contains("markType"));
+        assert!(prompt.contains("'M' (method/approach)"));
+        assert!(prompt.contains("'A' (answer/result)"));
+        assert!(prompt.contains("'C' (communication/explanation/justification)"));
+    }
+
+    #[test]
+    fn marking_prompt_includes_partial_reason_instruction() {
+        let prompt = marking_prompt(
+            "Biology", "Genetics", "Explain", 4, "Answer text", "", "",
+        );
+        assert!(prompt.contains("partialReason"));
+        assert!(prompt.contains("MostlyCorrect"));
+        assert!(prompt.contains("PartialUnderstanding"));
+        assert!(prompt.contains("MethodError"));
+        assert!(prompt.contains("Incomplete"));
+    }

@@ -133,7 +133,7 @@ pub fn marking_format(model: &str) -> serde_json::Value {
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
-        "required": ["verdict", "achievedMarks", "maxMarks", "vcaaMarkingScheme", "comparisonToSolutionMarkdown", "feedbackMarkdown", "workedSolutionMarkdown", "exemplarResponseMarkdown", "mcOptionExplanations"],
+        "required": ["verdict", "achievedMarks", "maxMarks", "vcaaMarkingScheme", "comparisonToSolutionMarkdown", "feedbackMarkdown", "workedSolutionMarkdown", "exemplarResponseMarkdown", "indicativeContentMarkdown", "mcOptionExplanations"],
         "properties": {
             "verdict": {
                 "type": "string",
@@ -146,6 +146,10 @@ pub fn marking_format(model: &str) -> serde_json::Value {
             "maxMarks": {
                 "type": "integer",
                 "minimum": 1
+            },
+            "partialReason": {
+                "type": "string",
+                "description": "Required when verdict is Partial. One of: MostlyCorrect, PartialUnderstanding, MethodError, Incomplete."
             },
             "vcaaMarkingScheme": {
                 "type": "array",
@@ -170,6 +174,11 @@ pub fn marking_format(model: &str) -> serde_json::Value {
                         "rationale": {
                             "type": "string",
                             "minLength": 1
+                        },
+                        "markType": {
+                            "type": "string",
+                            "enum": ["M", "A", "C"],
+                            "description": "M = method mark, A = answer mark, C = communication/explanation mark"
                         }
                     }
                 }
@@ -185,6 +194,24 @@ pub fn marking_format(model: &str) -> serde_json::Value {
             },
             "exemplarResponseMarkdown": {
                 "type": "string"
+            },
+            "indicativeContentMarkdown": {
+                "type": "string",
+                "description": "VCAA-style indicative content: key points a good answer should include, in bullet-point style."
+            },
+            "exemplarAnnotations": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["part", "marksEarned", "marksAvailable", "note"],
+                    "properties": {
+                        "part": { "type": "string" },
+                        "marksEarned": { "type": "integer", "minimum": 0 },
+                        "marksAvailable": { "type": "integer", "minimum": 0 },
+                        "note": { "type": "string" }
+                    }
+                }
             },
             "mcOptionExplanations": {
                 "type": "array",

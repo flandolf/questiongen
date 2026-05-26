@@ -275,8 +275,7 @@ export function GenerationSettingsSection() {
                     <TooltipContent>
                       <p className='max-w-xs text-sm'>
                         When enabled, the AI strictly varies question styles and
-                        contexts to ensure a diverse set of questions, and
-                        automatically regenerates repetitive outputs.
+                        contexts to ensure a diverse set of questions.
                       </p>
                     </TooltipContent>
                   </Tooltip>

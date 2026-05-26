@@ -4,22 +4,29 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
+  ArrowLeft,
+  ArrowRight,
   Brain,
   Check,
   ChevronDown,
   ClipboardCheck,
   Copy,
   Download,
+  Eye,
   FileText,
   Info,
   Loader2,
   Maximize2,
   MessageSquarePlus,
   Minimize2,
+  Pencil,
   PencilRuler,
   RefreshCcw,
   Send,
   Sparkles,
+  StopCircle,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   X,
 } from 'lucide-react';
@@ -50,7 +57,12 @@ import { useAppStore } from '@/store';
 import { getLatestSketch } from '@/store/sketchpad-sync';
 import { useTutorStore } from '@/store/tutor';
 import type { StudentAnswerImage } from '@/types';
-import { PRESET_IMAGE_MODELS, PRESET_MODELS } from '@/views/settings/constants';
+import { getModelCredentials } from '@/types/provider';
+import {
+  getProviderLabel,
+  PRESET_IMAGE_MODELS,
+  PRESET_MODELS,
+} from '@/views/settings/constants';
 
 interface TutorPanelProps {
   questionId: string;
@@ -90,6 +102,8 @@ const TutorHeader = ({
   activePersona,
   questionId,
   isCompact,
+  showContext,
+  onToggleContext,
   setIsOpen,
   toggleCompact,
   updateSessionOverrides,
@@ -104,6 +118,8 @@ const TutorHeader = ({
   activePersona: string;
   questionId: string;
   isCompact: boolean;
+  showContext: boolean;
+  onToggleContext: () => void;
   setIsOpen: (open: boolean) => void;
   toggleCompact: () => void;
   updateSessionOverrides: (
@@ -162,15 +178,30 @@ const TutorHeader = ({
                           (m, i, self) =>
                             self.findIndex((t) => t.id === m.id) === i,
                         )
-                        .map((m) => (
-                          <SelectItem
-                            key={m.id}
-                            value={m.id}
-                            className='text-xs'
-                          >
-                            {m.name}
-                          </SelectItem>
-                        ))}
+                        .map((m) => {
+                          const provider =
+                            m.id !== 'custom' ? getProviderLabel(m.id) : '';
+                          return (
+                            <SelectItem
+                              key={m.id}
+                              value={m.id}
+                              className='text-xs'
+                            >
+                              {m.id === 'custom' ? (
+                                m.name
+                              ) : (
+                                <span className='flex items-center gap-2 min-w-0'>
+                                  <span className='truncate'>{m.name}</span>
+                                  {provider && (
+                                    <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
+                                      {provider}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -308,6 +339,19 @@ const TutorHeader = ({
           <Minimize2 className='h-4 w-4' />
         )}
       </Button>
+      <Button
+        variant='ghost'
+        size='icon'
+        className={cn(
+          'rounded-full hover:bg-muted transition-all active:scale-90',
+          showContext && 'text-primary',
+          isCompact ? 'h-7 w-7' : 'h-8 w-8',
+        )}
+        onClick={onToggleContext}
+        title={showContext ? 'Hide Context' : 'Show Context'}
+      >
+        <Eye className='h-4 w-4' />
+      </Button>
       {!isCompact && (
         <Button
           variant='ghost'
@@ -338,14 +382,124 @@ const TutorHeader = ({
   </div>
 );
 
+const MsgUserActions = ({
+  msgId,
+  textContent,
+  onEdit,
+}: {
+  msgId: string;
+  textContent: string;
+  onEdit: (id: string, content: string) => void;
+}) => (
+  <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 mr-1 mt-0.5'>
+    <button
+      onClick={() => onEdit(msgId, textContent)}
+      className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+      title='Edit message'
+    >
+      <Pencil className='h-3.5 w-3.5' />
+    </button>
+  </div>
+);
+
+const MsgAssistantActions = ({
+  msg,
+  textContent,
+  copiedId,
+  isLastAssistant,
+  onCopy,
+  onFeedback,
+  onRegenerate,
+}: {
+  msg: { id: string; feedback?: 'up' | 'down' | null };
+  textContent: string;
+  copiedId: string | null;
+  isLastAssistant?: boolean;
+  onCopy: (id: string, content: string, type?: 'text' | 'md') => void;
+  onFeedback: (id: string, feedback: 'up' | 'down') => void;
+  onRegenerate: () => void;
+}) => (
+  <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 ml-1 mt-0.5'>
+    <button
+      onClick={() => onCopy(msg.id, textContent, 'text')}
+      className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+      title='Copy plain text'
+    >
+      {copiedId === `${msg.id}-text` ? (
+        <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
+      ) : (
+        <Copy className='h-3.5 w-3.5' />
+      )}
+    </button>
+    <button
+      onClick={() => onCopy(msg.id, textContent, 'md')}
+      className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+      title='Copy Markdown source'
+    >
+      {copiedId === `${msg.id}-md` ? (
+        <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
+      ) : (
+        <FileText className='h-3.5 w-3.5' />
+      )}
+    </button>
+    <button
+      onClick={() => onFeedback(msg.id, 'up')}
+      className={cn(
+        'p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90',
+        msg.feedback === 'up' && 'text-primary hover:text-primary',
+      )}
+      title='Helpful response'
+    >
+      <ThumbsUp
+        className={cn(
+          'h-3.5 w-3.5',
+          msg.feedback === 'up' && 'fill-current text-primary',
+        )}
+      />
+    </button>
+    <button
+      onClick={() => onFeedback(msg.id, 'down')}
+      className={cn(
+        'p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90',
+        msg.feedback === 'down' && 'text-destructive hover:text-destructive',
+      )}
+      title='Needs improvement'
+    >
+      <ThumbsDown
+        className={cn(
+          'h-3.5 w-3.5',
+          msg.feedback === 'down' && 'fill-current text-destructive',
+        )}
+      />
+    </button>
+    {isLastAssistant && (
+      <button
+        onClick={() => onRegenerate()}
+        className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
+        title='Regenerate response'
+      >
+        <RefreshCcw className='h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors' />
+      </button>
+    )}
+  </div>
+);
+
 const MessageItem = ({
   msg,
   copiedId,
   isCompact,
   handleCopyMessage,
   handleRegenerate,
+  handleEditMessage,
+  handleFeedback,
+  isLastAssistant,
 }: {
-  msg: { id: string; role: string; content: string | TutorApiContentPart[] };
+  msg: {
+    id: string;
+    role: string;
+    content: string | TutorApiContentPart[];
+    feedback?: 'up' | 'down' | null;
+  };
   copiedId: string | null;
   isCompact: boolean;
   handleCopyMessage: (
@@ -354,6 +508,9 @@ const MessageItem = ({
     type?: 'text' | 'md',
   ) => void;
   handleRegenerate: () => void;
+  handleEditMessage: (id: string, content: string) => void;
+  handleFeedback: (id: string, feedback: 'up' | 'down') => void;
+  isLastAssistant?: boolean;
 }) => {
   const textContent = useMemo(() => {
     if (typeof msg.content === 'string') return msg.content;
@@ -397,18 +554,18 @@ const MessageItem = ({
       <div
         className={cn(
           'rounded-2xl leading-relaxed min-w-0 overflow-hidden transition-all duration-300 border',
-          isCompact ? 'px-4 py-2.5 text-[12px]' : 'px-5 py-3.5 text-[13px]',
+          isCompact ? 'px-4 py-2.5 text-[13px]' : 'px-5 py-3.5 text-sm',
           msg.role === 'user'
             ? 'bg-primary/5 border-primary/20 text-foreground rounded-tr-none'
-            : 'bg-card/40 border-border/30 backdrop-blur-md rounded-tl-none shadow-sm',
+            : 'bg-card/60 border-border/50 backdrop-blur-md rounded-tl-none shadow-sm',
         )}
       >
         <div
           className={cn(
-            'min-w-0 [&_.katex-display]:my-4 [&_.katex-display]:overflow-x-auto [&_.katex-display]:max-w-full [&_.math-display]:overflow-x-auto [&_.math-display]:max-w-full tracking-tight',
+            'min-w-0 [&_.katex-display]:my-4 [&_.katex-display]:overflow-x-auto [&_.katex-display]:max-w-full [&_.math-display]:overflow-x-auto [&_.math-display]:max-w-full',
             msg.role === 'user'
-              ? 'text-foreground/90 [&_.math-inline]:text-primary [&_.math-display]:text-primary'
-              : 'prose-sm leading-relaxed text-foreground/80',
+              ? 'text-foreground [&_.math-inline]:text-primary [&_.math-display]:text-primary'
+              : 'leading-relaxed text-foreground/85',
           )}
         >
           <MarkdownMath content={textContent} />
@@ -438,38 +595,24 @@ const MessageItem = ({
         </div>
       </div>
 
+      {msg.role === 'user' && (
+        <MsgUserActions
+          msgId={msg.id}
+          textContent={textContent}
+          onEdit={handleEditMessage}
+        />
+      )}
+
       {msg.role === 'assistant' && (
-        <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 ml-1 mt-0.5'>
-          <button
-            onClick={() => handleCopyMessage(msg.id, textContent, 'text')}
-            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
-            title='Copy plain text'
-          >
-            {copiedId === `${msg.id}-text` ? (
-              <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
-            ) : (
-              <Copy className='h-3.5 w-3.5' />
-            )}
-          </button>
-          <button
-            onClick={() => handleCopyMessage(msg.id, textContent, 'md')}
-            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
-            title='Copy Markdown source'
-          >
-            {copiedId === `${msg.id}-md` ? (
-              <ClipboardCheck className='h-3.5 w-3.5 text-primary' />
-            ) : (
-              <FileText className='h-3.5 w-3.5' />
-            )}
-          </button>
-          <button
-            onClick={() => handleRegenerate()}
-            className='p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-all hover:text-foreground active:scale-90'
-            title='Regenerate response'
-          >
-            <RefreshCcw className='h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors' />
-          </button>
-        </div>
+        <MsgAssistantActions
+          msg={msg}
+          textContent={textContent}
+          copiedId={copiedId}
+          isLastAssistant={isLastAssistant}
+          onCopy={handleCopyMessage}
+          onFeedback={handleFeedback}
+          onRegenerate={handleRegenerate}
+        />
       )}
     </div>
   );
@@ -477,37 +620,137 @@ const MessageItem = ({
 
 const TutorEmptyState = ({
   onSuggestion,
+  hasStudentAnswer = false,
 }: {
   isCompact: boolean;
+  hasStudentAnswer?: boolean;
   onSuggestion: (s: string) => void;
+}) => {
+  const description = hasStudentAnswer
+    ? 'The tutor can evaluate your response, pinpoint what needs correction, and guide your next revision for this VCE problem.'
+    : 'The tutor can explain the core concept, walk you through the method, and offer strategic hints for this VCE problem.';
+
+  const suggestions = hasStudentAnswer
+    ? [
+        { text: 'Check my answer', icon: Check },
+        { text: 'Explain where I went wrong', icon: Activity },
+        { text: 'Give me a hint', icon: Sparkles },
+      ]
+    : [
+        { text: 'Explain the concept', icon: Brain },
+        { text: 'Walk me through this', icon: Activity },
+        { text: 'Give me a strategy hint', icon: PencilRuler },
+      ];
+
+  return (
+    <div className='flex flex-col items-center justify-center text-center space-y-8 px-8 max-w-sm mx-auto'>
+      <div className='space-y-8 pt-12'>
+        <p className='font-bold'>Tutor Chat</p>
+        <p className='text-[11px] text-muted-foreground/80 leading-relaxed font-medium'>
+          {description}
+        </p>
+      </div>
+      <div className='flex flex-col gap-2 w-full pt-2'>
+        {suggestions.map((suggestion) => (
+          <button
+            aria-label={`Send suggestion: ${suggestion.text}`}
+            key={suggestion.text}
+            onClick={() => onSuggestion(suggestion.text)}
+            className='text-[9px] font-bold px-4 py-2.5 rounded-xl text-muted-foreground border border-border/40 hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-between group'
+          >
+            <span className='tracking-widest'>
+              {suggestion.text.toUpperCase()}
+            </span>
+            <suggestion.icon className='h-3 w-3 opacity-40 group-hover:opacity-100 transition-opacity' />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TutorContextPanel = ({
+  activePersona,
+  contextPrompt,
+  studentAnswer,
+  image,
+  isCompact,
+}: {
+  activePersona: string;
+  contextPrompt: string;
+  studentAnswer?: string;
+  image?: { dataUrl?: string };
+  isCompact: boolean;
+}) => {
+  const sections = [
+    {
+      label: 'Tutor Persona',
+      value: activePersona.trim() || 'None',
+    },
+    {
+      label: 'Question Context',
+      value: contextPrompt.trim() || 'None',
+    },
+    {
+      label: 'Student Answer',
+      value: studentAnswer?.trim() || 'None',
+    },
+    {
+      label: 'Attachments',
+      value: image?.dataUrl ? '1 image attached' : 'None',
+    },
+  ];
+
+  return (
+    <div
+      className={cn(
+        'border-b border-border/30 bg-muted/10 px-6 py-4 space-y-3 text-xs',
+        isCompact && 'px-4 py-3',
+      )}
+    >
+      <h4 className='text-[10px] uppercase tracking-widest text-muted-foreground font-bold'>
+        What the AI Sees
+      </h4>
+      <div className='space-y-2'>
+        {sections.map((section) => (
+          <div key={section.label} className='space-y-1 min-w-0'>
+            <p className='text-[9px] uppercase tracking-[0.14em] text-muted-foreground/70 font-semibold'>
+              {section.label}
+            </p>
+            <p className='text-[11px] text-muted-foreground/90 font-medium truncate'>
+              {section.value}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const FOLLOW_UP_SUGGESTIONS = [
+  'Can you explain that differently?',
+  'Give me a simpler example',
+  "What's the key concept here?",
+] as const;
+
+const TutorFollowUpSuggestions = ({
+  onSuggestion,
+  isCompact,
+}: {
+  onSuggestion: (s: string) => void;
+  isCompact: boolean;
 }) => (
-  <div className='flex flex-col items-center justify-center text-center space-y-8 px-8 max-w-sm mx-auto'>
-    <div className='space-y-8 pt-12'>
-      <p className='font-bold'>Tutor Chat</p>
-      <p className='text-[11px] text-muted-foreground/80 leading-relaxed font-medium'>
-        The tutor is prepared to analyze your methodology, provide conceptual
-        clarification, or offer strategic hints for this VCE problem.
-      </p>
-    </div>
-    <div className='flex flex-col gap-2 w-full pt-2'>
-      {[
-        { text: 'Conceptual hint', icon: Sparkles },
-        { text: 'Methodology check', icon: Activity },
-        { text: 'Analyze steps', icon: PencilRuler },
-      ].map((suggestion) => (
-        <button
-          aria-label={`Send suggestion: ${suggestion.text}`}
-          key={suggestion.text}
-          onClick={() => onSuggestion(suggestion.text)}
-          className='text-[9px] font-bold px-4 py-2.5 rounded-xl text-muted-foreground border border-border/40 hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-between group'
-        >
-          <span className='tracking-widest'>
-            {suggestion.text.toUpperCase()}
-          </span>
-          <suggestion.icon className='h-3 w-3 opacity-40 group-hover:opacity-100 transition-opacity' />
-        </button>
-      ))}
-    </div>
+  <div className={cn('pt-2 flex flex-wrap gap-2', isCompact && 'gap-1.5')}>
+    {FOLLOW_UP_SUGGESTIONS.map((suggestion) => (
+      <button
+        key={suggestion}
+        type='button'
+        onClick={() => onSuggestion(suggestion)}
+        className='text-[10px] px-3 py-1.5 rounded-full border border-border/30 hover:border-primary/30 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all'
+      >
+        {suggestion}
+      </button>
+    ))}
   </div>
 );
 
@@ -674,6 +917,12 @@ const TutorChatArea = ({
   messages,
   isGenerating,
   isCompact,
+  activePersona,
+  contextPrompt,
+  studentAnswer,
+  image,
+  showContext,
+  onToggleContext: _onToggleContext,
   streamedContent,
   sketchStatus,
   copiedId,
@@ -682,6 +931,8 @@ const TutorChatArea = ({
   messagesEndRef,
   handleCopyMessage,
   handleRegenerate,
+  handleEditMessage,
+  handleFeedback,
   handleSend,
   scrollToBottom,
   setShowScrollButton,
@@ -694,6 +945,12 @@ const TutorChatArea = ({
   }[];
   isGenerating: boolean;
   isCompact: boolean;
+  activePersona: string;
+  contextPrompt: string;
+  studentAnswer?: string;
+  image?: { dataUrl?: string };
+  showContext: boolean;
+  onToggleContext: () => void;
   streamedContent: string;
   sketchStatus: string;
   copiedId: string | null;
@@ -706,19 +963,32 @@ const TutorChatArea = ({
     type?: 'text' | 'md',
   ) => void;
   handleRegenerate: () => void;
+  handleEditMessage: (id: string, content: string) => void;
+  handleFeedback: (id: string, feedback: 'up' | 'down') => void;
   handleSend: (content: string) => void;
   scrollToBottom: () => void;
   setShowScrollButton: (show: boolean) => void;
 }) => (
   <ScrollArea
     ref={scrollAreaRef}
-    className='flex-1 min-h-0 bg-muted/5 relative'
+    className='flex-1 min-h-0 bg-background/20 relative'
   >
     <div className='flex flex-col min-h-full'>
+      {showContext && (
+        <TutorContextPanel
+          activePersona={activePersona}
+          contextPrompt={contextPrompt}
+          studentAnswer={studentAnswer}
+          image={image}
+          isCompact={isCompact}
+        />
+      )}
+
       {messages.length === 0 && !isGenerating ? (
         <div className='flex-1 flex flex-col items-center justify-center p-6'>
           <TutorEmptyState
             isCompact={isCompact}
+            hasStudentAnswer={Boolean(studentAnswer?.trim())}
             onSuggestion={(s) => void handleSend(s)}
           />
         </div>
@@ -732,6 +1002,8 @@ const TutorChatArea = ({
             copiedId={copiedId}
             handleCopyMessage={handleCopyMessage}
             handleRegenerate={handleRegenerate}
+            handleEditMessage={handleEditMessage}
+            handleFeedback={handleFeedback}
           />
 
           <TutorStreamingChunk
@@ -740,6 +1012,13 @@ const TutorChatArea = ({
             streamedContent={streamedContent}
             sketchStatus={sketchStatus}
           />
+
+          {messages.length > 0 && !isGenerating && (
+            <TutorFollowUpSuggestions
+              onSuggestion={(s) => void handleSend(s)}
+              isCompact={isCompact}
+            />
+          )}
         </div>
       )}
       <div ref={messagesEndRef} />
@@ -777,12 +1056,12 @@ const TutorStreamingChunk = ({
     >
       <div
         className={cn(
-          'rounded-2xl leading-relaxed bg-card/40 border border-border/30 backdrop-blur-md rounded-tl-none shadow-sm min-w-16 overflow-hidden transition-all duration-300',
-          isCompact ? 'px-4 py-2.5 text-[12px]' : 'px-5 py-3.5 text-[13px]',
+          'rounded-2xl leading-relaxed bg-card/60 border border-border/50 backdrop-blur-md rounded-tl-none shadow-sm min-w-16 overflow-hidden transition-all duration-300',
+          isCompact ? 'px-4 py-2.5 text-[13px]' : 'px-5 py-3.5 text-sm',
         )}
       >
         {streamedContent ? (
-          <div className='prose-sm leading-relaxed text-foreground/80 tracking-tight'>
+          <div className='leading-relaxed text-foreground/85'>
             <MarkdownMath content={streamedContent + ' ▋'} isStreaming />
           </div>
         ) : (
@@ -823,12 +1102,15 @@ const TutorMessageList = ({
   copiedId,
   handleCopyMessage,
   handleRegenerate,
+  handleEditMessage,
+  handleFeedback,
 }: {
   messages: {
     id: string;
     role: string;
     content: string | TutorApiContentPart[];
     createdAt: number;
+    feedback?: 'up' | 'down' | null;
   }[];
   isCompact: boolean;
   isGenerating: boolean;
@@ -839,21 +1121,36 @@ const TutorMessageList = ({
     type?: 'text' | 'md',
   ) => void;
   handleRegenerate: () => void;
-}) => (
-  <>
-    {messages.map((m, _i) => (
-      <React.Fragment key={m.id}>
-        <MessageItem
-          msg={m}
-          copiedId={copiedId}
-          isCompact={isCompact}
-          handleCopyMessage={handleCopyMessage}
-          handleRegenerate={handleRegenerate}
-        />
-      </React.Fragment>
-    ))}
-  </>
-);
+  handleEditMessage: (id: string, content: string) => void;
+  handleFeedback: (id: string, feedback: 'up' | 'down') => void;
+}) => {
+  let lastAssistantId: string | null = null;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'assistant') {
+      lastAssistantId = messages[i].id;
+      break;
+    }
+  }
+
+  return (
+    <>
+      {messages.map((m) => (
+        <React.Fragment key={m.id}>
+          <MessageItem
+            msg={m}
+            copiedId={copiedId}
+            isCompact={isCompact}
+            handleCopyMessage={handleCopyMessage}
+            handleRegenerate={handleRegenerate}
+            handleEditMessage={handleEditMessage}
+            handleFeedback={handleFeedback}
+            isLastAssistant={m.role === 'assistant' && m.id === lastAssistantId}
+          />
+        </React.Fragment>
+      ))}
+    </>
+  );
+};
 
 const TutorInputArea = ({
   isCompact,
@@ -865,6 +1162,7 @@ const TutorInputArea = ({
   setInputValue,
   setIncludeSketch,
   handleSend,
+  handleStop,
   handleKeyDown,
   handleDiagnosticRequest,
 }: {
@@ -883,12 +1181,13 @@ const TutorInputArea = ({
   setInputValue: (val: string) => void;
   setIncludeSketch: (inc: boolean) => void;
   handleSend: () => void;
+  handleStop: () => void;
   handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
   handleDiagnosticRequest: () => void;
 }) => (
   <div
     className={cn(
-      'border-t border-border/40 bg-muted/5 shrink-0 backdrop-blur-3xl transition-all',
+      'border-t border-border/50 bg-card/30 shrink-0 backdrop-blur-3xl transition-all',
       isCompact ? 'p-3' : 'p-5',
     )}
   >
@@ -904,7 +1203,7 @@ const TutorInputArea = ({
             isCompact ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl',
             includeSketch
               ? 'bg-primary/10 text-primary border-primary/30 shadow-[0_0_15px_-5px_rgba(var(--primary),0.3)] opacity-100'
-              : 'opacity-50 hover:opacity-100 hover:bg-muted grayscale-[0.5] hover:grayscale-0',
+              : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted',
           )}
           onClick={() => setIncludeSketch(!includeSketch)}
           disabled={isGenerating}
@@ -926,7 +1225,7 @@ const TutorInputArea = ({
           className={cn(
             'shrink-0 transition-all active:scale-95 border border-transparent',
             isCompact ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl',
-            'opacity-50 hover:opacity-100 hover:bg-muted grayscale-[0.5] hover:grayscale-0',
+            'text-muted-foreground/70 hover:text-foreground hover:bg-muted',
           )}
           onClick={handleDiagnosticRequest}
           title='Check my working for errors'
@@ -942,30 +1241,43 @@ const TutorInputArea = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={'Type your message here...'}
+            placeholder={'Ask a question or request feedback...'}
             className={cn(
-              'resize-none pr-12 focus-visible:ring-primary/20 bg-background/40 border-border/30 backdrop-blur-sm transition-all overflow-hidden',
+              'resize-none pr-12 focus-visible:ring-primary/20 bg-background/60 border-border/50 backdrop-blur-sm transition-all overflow-hidden placeholder:text-muted-foreground/50',
               isCompact
-                ? 'text-[11px] py-2.5 rounded-xl min-h-10 h-10'
-                : 'text-xs py-3 rounded-2xl min-h-11 h-11',
-              'group-hover:border-border/60 group-hover:bg-background/60 focus:bg-background/80',
+                ? 'text-xs py-2.5 rounded-xl min-h-10 h-10'
+                : 'text-sm py-3 rounded-2xl min-h-11 h-11',
+              'group-hover:border-border/70 group-hover:bg-background/80 focus:bg-background/90',
             )}
           />
           <div className='absolute right-2 bottom-1.5 flex items-center gap-1.5'>
-            <Button
-              size='icon'
-              variant='ghost'
-              className={cn(
-                'transition-all duration-300 active:scale-95 hover:bg-primary/10 hover:text-primary',
-                isCompact ? 'h-7 w-7 rounded-lg' : 'h-8 w-8 rounded-xl',
-                (!inputValue.trim() || isGenerating) &&
-                  'opacity-20 cursor-not-allowed',
-              )}
-              onClick={() => void handleSend()}
-              disabled={!inputValue.trim() || isGenerating}
-            >
-              <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-            </Button>
+            {isGenerating ? (
+              <Button
+                size='icon'
+                variant='ghost'
+                className={cn(
+                  'transition-all duration-300 active:scale-95 text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive',
+                  isCompact ? 'h-7 w-7 rounded-lg' : 'h-8 w-8 rounded-xl',
+                )}
+                onClick={handleStop}
+              >
+                <StopCircle className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+              </Button>
+            ) : (
+              <Button
+                size='icon'
+                variant='ghost'
+                className={cn(
+                  'transition-all duration-300 active:scale-95 hover:bg-primary/10 hover:text-primary',
+                  isCompact ? 'h-7 w-7 rounded-lg' : 'h-8 w-8 rounded-xl',
+                  !inputValue.trim() && 'opacity-20 cursor-not-allowed',
+                )}
+                onClick={() => void handleSend()}
+                disabled={!inputValue.trim()}
+              >
+                <Send className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1071,6 +1383,85 @@ const TutorScrollButton = ({
   </AnimatePresence>
 );
 
+const TutorBranchNav = ({
+  branches,
+  activeBranchId,
+  onSwitchBranch,
+  isCompact,
+}: {
+  branches: Record<string, unknown>;
+  activeBranchId: string | null;
+  onSwitchBranch: (branchId: string | null) => void;
+  isCompact: boolean;
+}) => {
+  const branchIds = Object.keys(branches);
+  const totalBranches = branchIds.length;
+
+  if (totalBranches === 0) return null;
+
+  const allBranchIds = ['__main__', ...branchIds];
+  const currentBranchId = activeBranchId ?? '__main__';
+  const currentIndex = allBranchIds.indexOf(currentBranchId);
+  const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+
+  const switchToIndex = (index: number) => {
+    const targetBranchId = allBranchIds[index];
+    onSwitchBranch(targetBranchId === '__main__' ? null : targetBranchId);
+  };
+
+  const prevBranch = () => {
+    const prevIndex =
+      (safeCurrentIndex - 1 + allBranchIds.length) % allBranchIds.length;
+    switchToIndex(prevIndex);
+  };
+
+  const nextBranch = () => {
+    const nextIndex = (safeCurrentIndex + 1) % allBranchIds.length;
+    switchToIndex(nextIndex);
+  };
+
+  const currentBranchIndex = activeBranchId
+    ? Math.max(0, branchIds.indexOf(activeBranchId))
+    : -1;
+
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-center gap-2 border-t border-border/30 bg-muted/10',
+        isCompact ? 'px-3 py-1.5' : 'px-4 py-2',
+      )}
+    >
+      <button
+        type='button'
+        onClick={prevBranch}
+        className='p-1 hover:bg-muted rounded'
+      >
+        <ArrowLeft className='h-3 w-3' />
+      </button>
+      <span className='text-[10px] text-muted-foreground font-mono'>
+        {activeBranchId
+          ? `Branch ${currentBranchIndex + 1} of ${totalBranches}`
+          : `Main · ${totalBranches} branch${totalBranches > 1 ? 'es' : ''}`}
+      </span>
+      <button
+        type='button'
+        onClick={nextBranch}
+        className='p-1 hover:bg-muted rounded'
+      >
+        <ArrowRight className='h-3 w-3' />
+      </button>
+      {activeBranchId && (
+        <button
+          type='button'
+          onClick={() => onSwitchBranch(null)}
+          className='text-[9px] text-primary hover:underline ml-1'
+        >
+          Back to main
+        </button>
+      )}
+    </div>
+  );
+};
 export function TutorPanel({
   questionId,
   contextPrompt,
@@ -1087,9 +1478,11 @@ export function TutorPanel({
     toggleCompact,
     sessions,
     addMessage,
-    removeLastMessage,
+    setMessageFeedback,
+    createBranch,
     updateSessionOverrides,
     clearSession,
+    switchBranch,
     isGenerating,
     setIsGenerating,
     streamedContent,
@@ -1108,9 +1501,11 @@ export function TutorPanel({
       toggleCompact: s.toggleCompact,
       sessions: s.sessions,
       addMessage: s.addMessage,
-      removeLastMessage: s.removeLastMessage,
+      setMessageFeedback: s.setMessageFeedback,
+      createBranch: s.createBranch,
       updateSessionOverrides: s.updateSessionOverrides,
       clearSession: s.clearSession,
+      switchBranch: s.switchBranch,
       isGenerating: s.isGenerating,
       setIsGenerating: s.setIsGenerating,
       streamedContent: s.streamedContent,
@@ -1125,10 +1520,8 @@ export function TutorPanel({
 
   const effectiveSessionKey = sketchSessionKey || questionId;
 
-  const { apiKey, tutorModel, tutorPersona } = useAppSettings();
-  const baseUrl = useAppStore(
-    (s) => s.providers[s.activeProviderId]?.config.baseUrl,
-  );
+  const { tutorModel, tutorPersona } = useAppSettings();
+  const providers = useAppStore((s) => s.providers);
   const [inputValue, setInputValue] = useState('');
   const [includeSketch, setIncludeSketch] = useState(false);
   const [sketchStatus, setSketchStatus] = useState<
@@ -1138,6 +1531,7 @@ export function TutorPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showContext, setShowContext] = useState(false);
   const [dynamicPanelWidth, setDynamicPanelWidth] = useState<number | null>(
     null,
   );
@@ -1150,14 +1544,17 @@ export function TutorPanel({
   const activeModel = session?.modelOverride || tutorModel;
   const activePersona = session?.personaOverride || tutorPersona;
 
-  // Helper to get friendly model name
+  // Helper to get friendly model name with provider badge
   const modelName = useMemo(() => {
     if (!activeModel) return '';
     const preset = [...PRESET_MODELS, ...PRESET_IMAGE_MODELS].find(
       (m) => m.id === activeModel,
     );
-    if (preset) return preset.name;
-    return activeModel.split('/').pop() || activeModel;
+    const name = preset
+      ? preset.name
+      : activeModel.split('/').pop() || activeModel;
+    const provider = getProviderLabel(activeModel);
+    return provider ? `${name}  ·  ${provider}` : name;
   }, [activeModel]);
 
   // Keyboard shortcuts (Cmd+Shift+T to toggle, Cmd+Shift+M for compact)
@@ -1196,6 +1593,21 @@ export function TutorPanel({
         toast.error('Failed to copy message');
       }
     })();
+  };
+
+  const handleEditMessage = (_id: string, content: string) => {
+    setInputValue(content);
+  };
+
+  const handleFeedback = (id: string, feedback: 'up' | 'down') => {
+    const currentFeedback = messages.find(
+      (message) => message.id === id,
+    )?.feedback;
+    setMessageFeedback(
+      questionId,
+      id,
+      currentFeedback === feedback ? null : feedback,
+    );
   };
 
   const handleExportTranscript = () => {
@@ -1351,6 +1763,18 @@ export function TutorPanel({
       const { effectiveUserContent, currentRequestParts } =
         buildTutorRequestDetails(input, sketchpadDataUrl, appendUserMessage);
 
+      // Resolve API credentials based on the model ID (not the active provider)
+      const credentials = getModelCredentials(activeModel, providers);
+      if (!credentials) {
+        toast.error(
+          'No valid API credentials configured for the selected model',
+        );
+        setIsGenerating(false);
+        setSketchStatus('idle');
+        setStreamedContent('');
+        return;
+      }
+
       const result = await performTutorChat({
         activeModel,
         activePersona,
@@ -1360,8 +1784,8 @@ export function TutorPanel({
         messages: historyMessages,
         image,
         sketchpadDataUrl,
-        apiKey,
-        baseUrl,
+        apiKey: credentials.apiKey,
+        baseUrl: credentials.baseUrl,
         isDiagnostic,
         currentRequestParts,
         appendUserMessage,
@@ -1667,10 +2091,11 @@ export function TutorPanel({
       return;
     }
 
-    removeLastMessage(questionId);
+    // Save the last user+assistant pair into a branch before regenerating
+    createBranch(questionId);
     void submitTutorChat({
       input: previousMessage.content,
-      historyMessages: messages.slice(0, -1),
+      historyMessages: messages.slice(0, -2),
       storeUserMessage: false,
       appendUserMessage: false,
     });
@@ -1682,11 +2107,19 @@ export function TutorPanel({
     void handleSend();
   };
 
+  const handleStop = () => {
+    void invoke('abort_generation');
+  };
+
   const handleDiagnosticRequest = () => {
     void handleSend(
       'Please analyze my working and point out any errors.',
       true,
     );
+  };
+
+  const toggleContextVisibility = () => {
+    setShowContext((prev) => !prev);
   };
 
   return (
@@ -1728,6 +2161,8 @@ export function TutorPanel({
           activePersona={activePersona}
           questionId={questionId}
           isCompact={isCompact}
+          showContext={showContext}
+          onToggleContext={toggleContextVisibility}
           setIsOpen={setIsOpen}
           toggleCompact={toggleCompact}
           updateSessionOverrides={updateSessionOverrides}
@@ -1740,6 +2175,12 @@ export function TutorPanel({
           messages={messages}
           isGenerating={isGenerating}
           isCompact={isCompact}
+          activePersona={activePersona}
+          contextPrompt={contextPrompt}
+          studentAnswer={studentAnswer}
+          image={image}
+          showContext={showContext}
+          onToggleContext={toggleContextVisibility}
           streamedContent={streamedContent}
           sketchStatus={sketchStatus}
           copiedId={copiedId}
@@ -1748,11 +2189,19 @@ export function TutorPanel({
           messagesEndRef={messagesEndRef}
           handleCopyMessage={handleCopyMessage}
           handleRegenerate={() => void handleRegenerate()}
+          handleEditMessage={handleEditMessage}
+          handleFeedback={handleFeedback}
           handleSend={(content) => void handleSend(content)}
           scrollToBottom={scrollToBottom}
           setShowScrollButton={setShowScrollButton}
         />
 
+        <TutorBranchNav
+          branches={session?.branches ?? {}}
+          activeBranchId={session?.activeBranchId ?? null}
+          onSwitchBranch={(branchId) => switchBranch(questionId, branchId)}
+          isCompact={isCompact}
+        />
         <TutorInputArea
           isCompact={isCompact}
           isGenerating={isGenerating}
@@ -1768,6 +2217,7 @@ export function TutorPanel({
           }}
           handleKeyDown={handleKeyDown}
           handleDiagnosticRequest={handleDiagnosticRequest}
+          handleStop={handleStop}
         />
       </div>
     </>

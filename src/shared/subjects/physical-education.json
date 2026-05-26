@@ -3,116 +3,162 @@
   "icon": "Dumbbell",
   "examPdfs": ["2025-PhysicalEducation.pdf"],
   "reportPdfs": ["2025-PhysEd-report.pdf"],
-  "examGuidance": "VCAA Physical Education questions focus on qualitative analysis, evaluation, and justification. While simple formulas (F=ma, VO2 max) are used, responses should be in prose (paragraphs/bullet points). Use VCE command verbs: define, identify, explain, apply, analyze, evaluate, and justify. Connect physiological and biomechanical principles to specific sporting scenarios. Data interpretation (graphs/tables) is common. Focus on yield, rate, and duration for energy systems, and avoid in-depth biochemical pathways or advanced anatomy beyond what's in the Study Design. Ensure distinction between chronic adaptations and acute responses. Ensure student responses are accompanied with sufficient real-life sporting examples.",
+  "markingSchemeStyle": "rubric-bands",
+  "markingGuidance": "PHYSICAL EDUCATION MARKING (RUBRIC BANDS): Use performance level descriptors, not atomic per-mark criteria. Assign the response to one band based on overall quality:\n- THOROUGH (full marks): Comprehensive understanding, precise terminology, well-justified with multiple specific sporting examples. Critical analysis that weighs alternatives.\n- CLEAR (~75%): Mostly correct with minor gaps in detail or justification. Some specific examples provided. Sound understanding of key principles.\n- ADEQUATE (~50%): Basic understanding shown. Some errors or superficial treatment. Generic examples rather than specific sporting contexts.\n- LIMITED (~25%): Superficial treatment, major gaps, largely irrelevant, or relies on rote recall without application.\n- NOT SHOWN (0): No meaningful attempt or fundamentally incorrect.\nPrioritise quality of application and specific sporting examples over exact textbook wording. Award marks for depth of analysis, evaluation, and justification — not for rote recall of definitions. Accept multiple valid interpretations where justified. Write all responses in clear prose. Simple named formulas are acceptable where the Study Design requires them (e.g., 'Fitt's principle', 'F = ma', 'VO₂max', '1RM') — mention by name, then explain application in words.",
+  "examGuidance": "VCAA Physical Education (2025–2029 study design) questions focus on qualitative analysis, evaluation, and justification. While simple formulas (F=ma, VO2 max) are used, responses should be in prose (paragraphs/bullet points). Use VCE command verbs: define, identify, explain, apply, analyze, evaluate, and justify. Connect physiological and biomechanical principles to specific sporting scenarios. Data interpretation (graphs/tables) is common. Focus on yield, rate, and duration for energy systems, and avoid in-depth biochemical pathways or advanced anatomy beyond what's in the Study Design. Ensure clear distinction between chronic adaptations and acute responses. Students must reference practical activities and primary data in responses. The interdisciplinary approach connecting skill acquisition, biomechanics, energy production, and training is central to Units 3 & 4. Ensure student responses are accompanied with sufficient real-life sporting examples.",
   "out_of_scope": [
-    "In-depth anatomy (naming every bone/muscle)",
-    "Coaching strategies for elite professional teams (focus on community/VCAA contexts)",
-    "Biochemical pathways of ATP resynthesis (focus on yield/rate/duration)",
-    "Physics of movement beyond basic biomechanical principles",
-    "Sports medicine/injury rehabilitation protocols",
-    "Names of all 206 bones or 600+ muscles"
+    "In-depth anatomy (naming every bone/muscle beyond major muscles and bones)",
+    "Coaching strategies for elite professional teams (focus on community/school/VCAA contexts)",
+    "Biochemical pathways of ATP resynthesis (focus on fuels, yield, rate, and duration)",
+    "Physics of movement beyond basic biomechanical principles in the Study Design",
+    "Sports medicine/injury rehabilitation protocols (focus on prevention and basic management)",
+    "Names of all 206 bones or 600+ muscles",
+    "Clinical psychology or mental health diagnosis (focus on psychological skills for performance)",
+    "Detailed nutritional biochemistry (focus on carbohydrate, protein, hydration for performance)"
   ],
   "subtopics": [
     {
       "name": "Skeletal System: Structure and Functions",
       "technique_notes": {
-        "core_concepts": "Axial vs appendicular skeleton. Functions: support, protection, movement, mineral storage, and blood cell production.",
-        "exam_style_guidelines": "Link skeletal structure (e.g., long bones) to movement efficiency and lever systems.",
-        "anti_prompts": ["Do not ask for a full list of all bones."]
+        "core_concepts": "Axial vs appendicular skeleton. Functions: support, protection, movement, mineral storage, and blood cell production. Major bones of the human body.",
+        "exam_style_guidelines": "Link skeletal structure (e.g., long bones) to movement efficiency and lever systems. Identify bones relevant to specific sport movements.",
+        "anti_prompts": [
+          "Do not ask for a full list of all bones.",
+          "Focus on bones directly involved in producing movement."
+        ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
       "name": "Classification of Joints",
       "technique_notes": {
-        "core_concepts": "Fibrous (immovable), cartilaginous (slightly movable), and synovial (freely movable) joints.",
-        "exam_style_guidelines": "Focus on synovial joints as the primary drivers of athletic movement.",
-        "anti_prompts": ["Do not confuse joint stability with joint mobility."]
-      },
-      "group": "unit1-human-body-in-motion"
-    },
-    {
-      "name": "Synovial Joints: Types and Movements",
-      "technique_notes": {
-        "core_concepts": "Types: Hinge, Ball and Socket, Pivot, Saddle, Condyloid, Gliding. Movement terms: Flexion, Extension, Abduction, Adduction, Rotation, Circumduction.",
-        "exam_style_guidelines": "Identify the joint type and possible planes of movement for specific sport actions (e.g., shoulder in a swim stroke).",
+        "core_concepts": "Fibrous (immovable), cartilaginous (slightly movable), and synovial (freely movable) joints. Relationship between joint structure and function.",
+        "exam_style_guidelines": "Focus on synovial joints as the primary drivers of athletic movement. Link joint classification to the type and range of movement possible.",
         "anti_prompts": [
-          "Ensure movement terms are used correctly relative to the anatomical position."
+          "Do not confuse joint stability with joint mobility.",
+          "Avoid treating all synovial joints as having the same movement capacity."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Muscular System: Types and Functions",
+      "name": "Synovial Joints: Types and Joint Actions",
       "technique_notes": {
-        "core_concepts": "Skeletal, Smooth, and Cardiac muscle. Functions: movement, posture, and heat production.",
-        "exam_style_guidelines": "Focus on skeletal muscle and its voluntary control in physical activity.",
+        "core_concepts": "Types: Hinge, Ball and Socket, Pivot, Saddle, Condyloid, Gliding. Movement terms: Flexion, Extension, Abduction, Adduction, Rotation, Circumduction, Pronation, Supination, Dorsiflexion, Plantarflexion. Planes of movement: sagittal, frontal, transverse.",
+        "exam_style_guidelines": "Identify the joint type, joint action, and plane of movement for specific sport actions (e.g., shoulder in a swim stroke, knee in a soccer kick). Use anatomical position as the reference point.",
         "anti_prompts": [
-          "Avoid detailed biochemical pathways of contraction in Unit 1."
+          "Ensure movement terms are used correctly relative to the anatomical position.",
+          "Do not confuse the plane of movement with the joint action."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Muscle Actions and Pairings",
+      "name": "Muscular System: Major Muscles and Fibre Types",
       "technique_notes": {
-        "core_concepts": "Agonist (prime mover), Antagonist (relaxed), Stabiliser. Reciprocal inhibition.",
-        "exam_style_guidelines": "Identify the roles of muscles in a specific phase of movement (e.g., bicep/tricep in a curl).",
+        "core_concepts": "Major skeletal muscles of the human body. Skeletal, Smooth, and Cardiac muscle. Characteristics and functions of muscle fibres: slow twitch (Type I) and fast twitch (Type II). Fibre arrangement (fusiform, pennate) and its relationship to force production and range of motion.",
+        "exam_style_guidelines": "Identify major muscles used in specific movements. Link fibre type to athletic performance (e.g., marathon runner vs sprinter). Explain how fibre arrangement influences a muscle's capacity for force vs speed.",
         "anti_prompts": [
-          "Do not forget the role of stabilisers in maintaining form."
+          "Avoid detailed biochemical pathways of contraction.",
+          "Do not confuse fibre type with fibre arrangement.",
+          "Fast twitch fibres fatigue quickly but produce high force — link to sport specificity."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Muscle Contraction Types",
+      "name": "Muscle Actions and Reciprocal Inhibition",
       "technique_notes": {
-        "core_concepts": "Isotonic (Concentric and Eccentric), Isometric (static), and Isokinetic (constant speed).",
-        "exam_style_guidelines": "Apply contraction types to phases of an exercise (e.g., lowering a weight is eccentric isotonic).",
+        "core_concepts": "Agonist (prime mover), Antagonist (relaxed), Stabiliser (fixator). Reciprocal inhibition: when the agonist contracts, the antagonist relaxes to allow movement.",
+        "exam_style_guidelines": "Identify the roles of specific muscles in each phase of a movement (e.g., bicep as agonist, tricep as antagonist in a bicep curl). Explain how reciprocal inhibition enables smooth, coordinated movement.",
         "anti_prompts": [
-          "Distinguish clearly between concentric and eccentric."
+          "Do not forget the role of stabilisers in maintaining joint position and form.",
+          "A muscle's role changes depending on the phase of movement — identify the specific phase."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Neuromuscular System and Motor Units",
+      "name": "Types of Muscular Contractions",
       "technique_notes": {
-        "core_concepts": "The motor unit (neuron + fibers). All-or-nothing principle. Motor unit recruitment for force production.",
-        "exam_style_guidelines": "Explain how increasing recruitment leads to greater force in sports like weightlifting or sprinting.",
+        "core_concepts": "Isotonic: Concentric (muscle shortens) and Eccentric (muscle lengthens under tension). Isometric (static, no change in length). Isokinetic (constant speed, requires specialised equipment).",
+        "exam_style_guidelines": "Apply contraction types to specific phases of an exercise (e.g., lowering a weight is eccentric, lifting is concentric). Explain how eccentric contractions produce greater force and contribute to muscle damage and adaptation.",
         "anti_prompts": [
-          "Link recruitment to the size principle where relevant."
+          "Distinguish clearly between concentric (shortening) and eccentric (lengthening under load).",
+          "Isometric does not mean 'no force' — force is produced but no movement occurs."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Cardiovascular System: Structure and Heart Function",
+      "name": "Neuromuscular System: Motor Units and Force Production",
       "technique_notes": {
-        "core_concepts": "Heart (Atria/Ventricles), Blood vessels (Arteries, Veins, Capillaries). Cardiac Cycle.",
-        "exam_style_guidelines": "Trace the path of blood through the heart and lungs. Link structure to efficient oxygen transport.",
-        "anti_prompts": ["Do not confuse pulmonary and systemic circulation."]
-      },
-      "group": "unit1-human-body-in-motion"
-    },
-    {
-      "name": "Respiratory System: Structure and Mechanics",
-      "technique_notes": {
-        "core_concepts": "Nasal cavity, Pharynx, Larynx, Trachea, Bronchi, Alveoli. Diaphragm and Intercostal muscles.",
-        "exam_style_guidelines": "Explain the mechanics of inspiration and expiration using pressure changes.",
+        "core_concepts": "The motor unit: a motor neuron and all muscle fibres it innervates. All-or-nothing principle: all fibres in a motor unit contract maximally or not at all. Motor unit recruitment and the size principle: smaller (slow twitch) units recruited first, larger (fast twitch) units recruited as force demand increases.",
+        "exam_style_guidelines": "Explain how increasing motor unit recruitment leads to greater force production in sports like weightlifting or sprinting. Link the size principle to the order of fibre type activation and fatigue patterns.",
         "anti_prompts": [
-          "Ensure students link mechanics to volume/pressure relationships."
+          "Link recruitment to the size principle — smaller motor units are recruited before larger ones.",
+          "Do not confuse the all-or-nothing principle (applies to a motor unit) with graded force production (achieved through recruitment of more/larger units)."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Gas Exchange and Pulmonary Diffusion",
+      "name": "Musculoskeletal Injuries: Causes, Prevention and Physical Aids",
       "technique_notes": {
-        "core_concepts": "Diffusion of O2 and CO2 across the alveolar-capillary membrane and at the muscle site.",
-        "exam_style_guidelines": "Explain the role of concentration gradients (partial pressure) in driving gas exchange.",
+        "core_concepts": "Causes of potential acute and chronic injuries and illnesses: overtraining syndrome, arthritis, osteoporosis, strains, sprains. Physiological strategies to prevent injuries: warm up, cool down, and rehabilitation. Physical aids: protective equipment, taping, and braces.",
+        "exam_style_guidelines": "Explain how a specific warm-up or cool-down protocol reduces injury risk. Evaluate the role of protective equipment in specific sports. Distinguish between acute injuries (sudden onset) and chronic conditions (develop over time).",
         "anti_prompts": [
-          "Pulmonary diffusion is an acute response *and* a chronic adaptation site."
+          "Warm up increases blood flow, muscle temperature, and enzyme activity — link to injury prevention, not just performance.",
+          "Do not focus on detailed rehabilitation protocols; keep to prevention and basic management."
+        ]
+      },
+      "group": "unit1-human-body-in-motion"
+    },
+    {
+      "name": "Cardiovascular System: Structure and Function",
+      "technique_notes": {
+        "core_concepts": "Heart chambers (Atria, Ventricles). Blood vessels (Arteries, Arterioles, Capillaries, Venules, Veins). Blood flow through the heart, lungs (pulmonary circuit) and body (systemic circuit). Cardiac cycle: systole and diastole.",
+        "exam_style_guidelines": "Trace the path of blood through the heart and lungs. Link vessel structure (e.g., thick muscular walls of arteries) to function. Explain how the cardiovascular system delivers oxygen and removes waste products.",
+        "anti_prompts": [
+          "Do not confuse pulmonary circulation (heart to lungs) and systemic circulation (heart to body).",
+          "Arteries carry blood away from the heart; veins return it — focus on function, not just oxygen content."
+        ]
+      },
+      "group": "unit1-human-body-in-motion"
+    },
+    {
+      "name": "Respiratory System: Structure and Mechanics of Breathing",
+      "technique_notes": {
+        "core_concepts": "Structures: Nasal cavity, Pharynx, Larynx, Trachea, Bronchi, Bronchioles, Alveoli. Mechanics: Diaphragm and Intercostal muscles. Inspiration (active — diaphragm contracts, volume increases, pressure decreases) and Expiration (passive at rest — elastic recoil).",
+        "exam_style_guidelines": "Explain the mechanics of inspiration and expiration using volume and pressure relationships. Link the structure of alveoli (large surface area, thin walls) to efficient gas exchange.",
+        "anti_prompts": [
+          "Ensure students link breathing mechanics to volume/pressure relationships (Boyle's law: increased volume → decreased pressure → air flows in).",
+          "Expiration at rest is passive; during exercise it becomes active with accessory muscle involvement."
+        ]
+      },
+      "group": "unit1-human-body-in-motion"
+    },
+    {
+      "name": "Gaseous Exchange at Alveoli and Muscles",
+      "technique_notes": {
+        "core_concepts": "Diffusion of O2 and CO2 across two sites: the alveolar-capillary membrane (external respiration) and the capillary-muscle interface (internal respiration). Driven by partial pressure (concentration) gradients.",
+        "exam_style_guidelines": "Explain the role of concentration gradients (partial pressure differences) in driving gas exchange at both sites. At the alveoli: O2 diffuses into blood, CO2 diffuses out. At the muscle: O2 diffuses into muscle, CO2 diffuses into blood.",
+        "anti_prompts": [
+          "Gaseous exchange occurs at TWO distinct sites — do not only describe the alveolar-capillary interface.",
+          "Partial pressure gradients, not percentage composition, drive diffusion.",
+          "Pulmonary diffusion is both an acute response and a site of chronic adaptation."
+        ]
+      },
+      "group": "unit1-human-body-in-motion"
+    },
+    {
+      "name": "Thermoregulation During Exercise",
+      "technique_notes": {
+        "core_concepts": "The role of the cardiovascular system in thermoregulation. Vasodilation: increased blood flow to skin to dissipate heat. Vasoconstriction: reduced blood flow to skin to conserve heat. Blood redistribution (shunting) to working muscles and skin during exercise.",
+        "exam_style_guidelines": "Explain how vasodilation of skin arterioles increases heat loss during exercise. Link thermoregulation to cardiovascular drift (HR increase to maintain cardiac output as blood pools in skin).",
+        "anti_prompts": [
+          "Thermoregulation competes with oxygen delivery — blood shunted to skin for cooling is not available to working muscles.",
+          "Do not forget that vasoconstriction to non-essential organs (e.g., digestive system) occurs alongside vasodilation to skin and muscles."
         ]
       },
       "group": "unit1-human-body-in-motion"
@@ -120,10 +166,11 @@
     {
       "name": "Acute Cardiovascular Responses to Exercise",
       "technique_notes": {
-        "core_concepts": "Increased Heart Rate (HR), Stroke Volume (SV), Cardiac Output (Q), and Blood Pressure. Blood redistribution (shunting).",
-        "exam_style_guidelines": "Explain how these responses meet the increased oxygen demand of working muscles.",
+        "core_concepts": "Increased Heart Rate (HR), Stroke Volume (SV), Cardiac Output (Q = HR × SV), and Systolic Blood Pressure. Blood redistribution (shunting) from organs to working muscles. Cardiovascular drift during prolonged exercise.",
+        "exam_style_guidelines": "Explain how these acute responses meet the increased oxygen demand of working muscles. Describe the relationship between HR, SV, and Q at rest, submaximal, and maximal intensities. SV plateaus at ~40–60% VO2 max.",
         "anti_prompts": [
-          "Submaximal Q remains constant after training, but SV and HR change - don't confuse acute vs chronic here."
+          "Submaximal cardiac output remains constant after training, but SV increases and HR decreases — do not confuse acute responses with chronic adaptations.",
+          "Venous return increases during exercise due to the muscle pump and respiratory pump — link to increased SV via Starling's law."
         ]
       },
       "group": "unit1-human-body-in-motion"
@@ -131,54 +178,100 @@
     {
       "name": "Acute Respiratory Responses to Exercise",
       "technique_notes": {
-        "core_concepts": "Increased Tidal Volume (TV), Respiratory Frequency (Rf), and Ventilation (V).",
-        "exam_style_guidelines": "Describe the change from rest to sub-maximal and maximal exercise intensity.",
+        "core_concepts": "Increased Tidal Volume (TV), Respiratory Frequency (Rf), and Ventilation (V = TV × Rf). Increased oxygen uptake (VO2). Increased diffusion at alveoli and muscles.",
+        "exam_style_guidelines": "Describe the change from rest to submaximal and maximal exercise intensity. Explain how increased ventilation meets increased oxygen demand and CO2 removal needs.",
         "anti_prompts": [
-          "Ventilation increases linearly with intensity until the ventilatory threshold."
+          "Ventilation increases linearly with exercise intensity until the ventilatory threshold (LT2), after which it increases exponentially.",
+          "During exercise, both TV and Rf increase, but at higher intensities Rf contributes more to increased V."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Legal and Illegal Performance Enhancement",
+      "name": "Chronic Adaptations to Aerobic Exercise",
       "technique_notes": {
-        "core_concepts": "Ethical considerations. Legal (e.g., training, nutrition) vs Illegal (e.g., steroids, EPO). Anti-doping codes (WADA).",
-        "exam_style_guidelines": "Evaluate the impact of a specific method on health and fairness using ethical frameworks.",
+        "core_concepts": "Impacts of regular aerobic exercise on the cardiovascular system: increased stroke volume (cardiac hypertrophy), increased blood volume and haemoglobin, increased capillarisation of muscles, decreased resting and submaximal heart rate. Respiratory adaptations: increased pulmonary diffusion, increased alveolar surface area, increased ventilatory efficiency.",
+        "exam_style_guidelines": "Explain how increased SV (from cardiac hypertrophy) leads to lower resting and submaximal HR while cardiac output remains unchanged at submaximal intensities. Link increased capillarisation to improved oxygen delivery and waste removal.",
         "anti_prompts": [
-          "Do not just list drugs; focus on the ethical justification for banning them."
+          "Cardiac output at rest and during submaximal exercise remains unchanged after training — it is the composition (↑SV, ↓HR) that changes.",
+          "Chronic adaptations take weeks to months; distinguish clearly from acute responses that occur during a single exercise bout."
         ]
       },
       "group": "unit1-human-body-in-motion"
     },
     {
-      "name": "Defining Physical Activity, Sport, and Exercise",
+      "name": "Performance Enhancement: Musculoskeletal System",
       "technique_notes": {
-        "core_concepts": "Differences in structure, rules, and intent. Sedentary behavior vs physical inactivity.",
-        "exam_style_guidelines": "Classify activities from scenarios. Use the 4 dimensions (FID) and 4 domains (Leisure, Household, Occupational, Transport).",
+        "core_concepts": "Permitted substances and methods: training, nutritional supplements, creatine supplementation. Prohibited substances and methods: anabolic steroids, growth hormones, and related hormones. Potential physiological benefits and harms of each.",
+        "exam_style_guidelines": "Evaluate the impact of a specific method on the musculoskeletal system, including both performance benefits and health risks. Distinguish between permitted nutritional strategies and prohibited pharmacological methods.",
         "anti_prompts": [
-          "Do not use 'exercise' and 'physical activity' interchangeably."
+          "Focus on the physiological effects on the musculoskeletal system — not just general health effects.",
+          "Creatine enhances the ATP-CP system; steroids increase protein synthesis and muscle mass — be specific about mechanisms.",
+          "Do not just list substances; evaluate the ethical and health implications."
+        ]
+      },
+      "group": "unit1-human-body-in-motion"
+    },
+    {
+      "name": "Performance Enhancement: Cardiorespiratory System and Ethics",
+      "technique_notes": {
+        "core_concepts": "Permitted: altitude training (natural and simulated). Prohibited: erythropoietin (EPO), beta-blockers, gene doping, blood doping. Ethical and sociocultural considerations: fairness, health risks, role modelling, WADA anti-doping codes.",
+        "exam_style_guidelines": "Explain how altitude training and EPO both increase red blood cell count but differ in ethical status and health risks. Evaluate the ethical and sociocultural considerations of using prohibited substances and methods in sport.",
+        "anti_prompts": [
+          "Altitude training is permitted; EPO is prohibited — both increase haematocrit but differ in health risks and fairness.",
+          "Do not just list drugs; focus on the ethical justification for banning them using frameworks of fairness, health, and the spirit of sport.",
+          "Gene doping and blood doping are distinct prohibited methods — do not conflate them."
+        ]
+      },
+      "group": "unit1-human-body-in-motion"
+    },
+    {
+      "name": "Types of Physical Activity, Sport and Exercise",
+      "technique_notes": {
+        "core_concepts": "Types: play, games, sports (formal and informal), transportation, chores, exercise, and recreational activities. Distinction between physical activity, sport, and exercise based on structure, rules, and intent. Sedentary behaviour vs physical inactivity. Dimensions (FID) and domains (Leisure, Household, Occupational, Transport).",
+        "exam_style_guidelines": "Classify activities from given scenarios. Use the 4 domains to categorise physical activity. Distinguish between 'exercise' (planned, structured, repetitive) and broader 'physical activity' (any bodily movement).",
+        "anti_prompts": [
+          "Do not use 'exercise' and 'physical activity' interchangeably.",
+          "Sedentary behaviour (sitting/lying, low energy expenditure) is distinct from physical inactivity (not meeting guidelines)."
         ]
       },
       "group": "unit2-physical-activity-society"
     },
     {
-      "name": "National Physical Activity Guidelines (NPAG)",
+      "name": "Physical, Social, Mental, Emotional and Spiritual Benefits of Physical Activity",
       "technique_notes": {
-        "core_concepts": "Guidelines for different age groups (Youth, Adult, Older Adult). Requirements for duration, intensity, and muscle strengthening.",
-        "exam_style_guidelines": "Evaluate a person's physical activity level against the specific age-appropriate guideline.",
+        "core_concepts": "Physical benefits: improved cardiovascular health, muscular strength, body composition, bone density. Social benefits: social interaction, community connection, teamwork. Mental and emotional benefits: reduced stress and anxiety, improved mood, self-esteem and confidence. Spiritual benefits: sense of purpose, connection to nature, personal fulfilment.",
+        "exam_style_guidelines": "Link specific types of physical activity to their multidimensional benefits. Use evidence to explain how regular participation enhances health and wellbeing across all dimensions.",
         "anti_prompts": [
-          "Ensure the correct intensity (Moderate vs Vigorous) is identified."
+          "Benefits should span multiple dimensions — do not only list physical benefits.",
+          "The same activity can provide different benefits to different individuals — consider the subjective experience.",
+          "Spiritual benefits are about personal meaning and connection, not necessarily religious context."
         ]
       },
       "group": "unit2-physical-activity-society"
     },
     {
-      "name": "Subjective vs Objective Measurement",
+      "name": "Physical Activity and Sedentary Behaviour Guidelines",
       "technique_notes": {
-        "core_concepts": "Subjective: Diaries, logs, surveys. Objective: Accelerometers, pedometers, heart rate monitors, direct observation.",
-        "exam_style_guidelines": "Compare methods based on accuracy, cost, and respondent burden. Select the best method for a specific population.",
+        "core_concepts": "Australian Physical Activity and Sedentary Behaviour Guidelines for different age groups: Early Childhood (0–5), Children and Youth (5–17), Adults (18–64), Older Adults (65+). Requirements for duration, intensity (moderate vs vigorous), frequency, and muscle-strengthening activities. Sedentary behaviour limits including screen time.",
+        "exam_style_guidelines": "Evaluate an individual's physical activity and sedentary behaviour against the age-appropriate guideline. Recommend specific changes to help someone meet the guidelines.",
         "anti_prompts": [
-          "Subjective methods are prone to social desirability bias."
+          "Ensure the correct intensity (Moderate vs Vigorous) is identified for the target age group.",
+          "Guidelines vary by age group — do not apply adult guidelines to children or vice versa.",
+          "Sedentary behaviour guidelines include limits on screen time — address both activity and inactivity."
+        ]
+      },
+      "group": "unit2-physical-activity-society"
+    },
+    {
+      "name": "Subjective and Objective Assessment Methods",
+      "technique_notes": {
+        "core_concepts": "Subjective methods: recall surveys, diaries/logs, questionnaires, self-report. Objective methods: accelerometers, pedometers, heart rate monitors, direct observation, digital tools and wearable technology. Considerations: accuracy, reliability, cost, respondent burden, social desirability bias.",
+        "exam_style_guidelines": "Compare methods based on their strengths and limitations for a given population and purpose. Select and justify the most appropriate method(s) for a specific assessment scenario. Combine subjective and objective methods for triangulation.",
+        "anti_prompts": [
+          "Subjective methods are prone to recall error and social desirability bias — always note this limitation.",
+          "Objective methods measure different things (pedometers count steps; accelerometers measure intensity) — do not treat them as interchangeable.",
+          "Wearable technology is objective but may have limitations in accuracy for certain activities."
         ]
       },
       "group": "unit2-physical-activity-society"
@@ -186,10 +279,12 @@
     {
       "name": "The Social-Ecological Model",
       "technique_notes": {
-        "core_concepts": "Levels of influence: Individual, Social Environment, Physical Environment, Policy.",
-        "exam_style_guidelines": "Identify factors at each level that influence participation in a given scenario. Critique an intervention using the model.",
+        "core_concepts": "Four levels of influence on physical activity behaviour: Individual (knowledge, attitudes, skills), Social Environment (family, peers, culture, social norms), Physical Environment (access to facilities, parks, transport, safety), Policy (government regulations, school policies, workplace programs).",
+        "exam_style_guidelines": "Identify factors at each level that influence participation in a given scenario. Critique or create an intervention using the model, explaining why effective interventions target multiple levels simultaneously.",
         "anti_prompts": [
-          "interventions must target multiple levels to be effective."
+          "Interventions must target multiple levels to be effective — do not propose single-level solutions.",
+          "Distinguish between the Social Environment (interpersonal) and Physical Environment (built/natural) levels.",
+          "Use the model as an analysis framework, not just a descriptive list."
         ]
       },
       "group": "unit2-physical-activity-society"
@@ -197,61 +292,130 @@
     {
       "name": "Enablers and Barriers to Participation",
       "technique_notes": {
-        "core_concepts": "Demographic, social, cultural, and environmental factors.",
-        "exam_style_guidelines": "Analyze how factors like SES, gender, or geographic location act as enablers or barriers.",
+        "core_concepts": "Sociocultural enablers and barriers: gender, family, peers, socioeconomic status (SES), community and cultural norms, geographic location (rural vs urban). Demographic, social, cultural, and environmental factors that promote or hinder physical activity.",
+        "exam_style_guidelines": "Analyze how specific factors act as enablers or barriers for particular population groups. A single factor can be both an enabler and barrier depending on context (e.g., family support vs pressure). Link analysis to the social-ecological model.",
         "anti_prompts": [
-          "Avoid generic barriers; link to the specific context of the population."
+          "Avoid generic statements (e.g., 'cost is a barrier'); link barriers to the specific context and population.",
+          "SES is multifaceted — consider income, education, occupation, and how each affects participation differently.",
+          "Do not treat all population groups as homogeneous; within-group variation exists."
         ]
       },
       "group": "unit2-physical-activity-society"
     },
     {
-      "name": "Youth Participation Patterns and Trends",
+      "name": "Prevalence, Trends and Youth Participation",
       "technique_notes": {
-        "core_concepts": "Declining participation in late adolescence. Influence of technology and urbanisation.",
-        "exam_style_guidelines": "Interpret data tables showing participation trends across different sports and age groups.",
-        "anti_prompts": ["N/A"]
+        "core_concepts": "Prevalence and trends of physical activity, physical inactivity, and sedentary behaviour across the lifespan. Declining participation in late adolescence. Influence of technology, urbanisation, and changing leisure patterns. Population-level data from sources like AusPlay and Active Lives.",
+        "exam_style_guidelines": "Interpret data tables and graphs showing participation trends across different sports, age groups, genders, and socioeconomic backgrounds. Explain trends using sociocultural factors and the social-ecological model.",
+        "anti_prompts": [
+          "Trends show declining PA in adolescence, especially among females — link to specific barriers.",
+          "Interpret data rather than just describing it — identify patterns, anomalies, and implications.",
+          "Technology can both reduce PA (screen time) and enable it (fitness apps, active gaming) — consider both sides."
+        ]
       },
       "group": "unit2-physical-activity-society"
     },
     {
+      "name": "Health-Related Fitness Components",
+      "technique_notes": {
+        "core_concepts": "Health-related fitness components: aerobic power (VO2 max), muscular strength, muscular endurance, flexibility. Factors affecting each component: genetics, age, gender, training status, body composition.",
+        "exam_style_guidelines": "Explain how each fitness component contributes to overall health and physical function. Identify factors that influence an individual's capacity in each component. Link health-related fitness to the physical activity guidelines.",
+        "anti_prompts": [
+          "Health-related fitness components are distinct from skill-related components (agility, balance, coordination, speed, power, reaction time).",
+          "Aerobic power and muscular endurance are related but distinct — do not conflate them.",
+          "Flexibility is joint-specific; do not assume general flexibility across all joints."
+        ]
+      },
+      "group": "unit2-physical-activity-society"
+    },
+    {
+      "name": "Functional Movement Assessment and Personalised Planning",
+      "technique_notes": {
+        "core_concepts": "Functional Movement Assessment (FMA): physiological, psychological, and sociocultural considerations. Pre-participation health screening and informed consent. Assessment reliability, validity, and accuracy. Personalised plan design using self-management skills to promote physical activity and reduce sedentary behaviour. Adherence strategies.",
+        "exam_style_guidelines": "Justify an appropriate FMA for a targeted individual or group considering their specific context. Design a sustainable personalised plan that adheres to PA and sedentary behaviour guidelines. Evaluate strengths and limitations of a program design using primary data.",
+        "anti_prompts": [
+          "FMA must consider physiological, psychological, AND sociocultural factors — do not reduce it to a fitness test.",
+          "A personalised plan requires self-management skills like goal setting, self-monitoring, and problem solving.",
+          "Informed consent and pre-participation screening are ethical and safety requirements — do not skip them."
+        ]
+      },
+      "group": "unit2-physical-activity-society"
+    },
+    {
+      "name": "Contemporary Issues: Intrapersonal Factors in Sport",
+      "technique_notes": {
+        "core_concepts": "Intrapersonal (within-individual) issues affecting access, inclusion, participation and performance: hormonal considerations for physical activity prescription across the menstrual cycle; injuries such as concussion and knee injuries (ACL) and safety; psychological skills including sleep and accompanying strategies; mental fitness including the role of physical activity and the responsibility of elite sport pathways.",
+        "exam_style_guidelines": "Explain how hormonal variations can inform physical activity prescription for female athletes. Evaluate the role of psychological skills and sleep in performance and recovery. Analyze the tension between elite sport demands and mental fitness responsibilities.",
+        "anti_prompts": [
+          "Intrapersonal issues originate within the individual — distinguish from interpersonal (between people) and structural issues.",
+          "Sleep is a psychological/recovery strategy, not just a lifestyle factor — link to performance and mental health.",
+          "Mental fitness in elite pathways includes the duty of care owed by sporting organisations to athletes."
+        ]
+      },
+      "group": "unit2-contemporary-issues"
+    },
+    {
+      "name": "Contemporary Issues: Interpersonal and Societal Factors in Sport",
+      "technique_notes": {
+        "core_concepts": "Interpersonal issues: geographic location (rural and urban access); coaching (styles, planning/program design, ethical behaviour and safeguarding); sports technology and the impacts of media on beliefs and behaviour. Institutional and structural inclusion and equity: Aboriginal and Torres Strait Islander Peoples; cultural diversity; physical and intellectual diversity; gender and sexual diversity. Gender equity: pay gap; representation in coaching positions and decision-making bodies at local, national and global levels.",
+        "exam_style_guidelines": "Analyze how a contemporary issue (e.g., gender pay gap, media representation of disability sport, technology in officiating) affects access, inclusion, participation and performance. Propose ethical strategies to enhance equity and inclusion. Consider historical, current and future implications of the selected issue at local, national and/or global levels.",
+        "anti_prompts": [
+          "Coaching ethics include safeguarding athletes from abuse and harassment — this is a critical interpersonal issue.",
+          "Sports technology can both enhance (e.g., assistive devices, performance analysis) and create inequity (e.g., cost barriers) — analyze both sides.",
+          "Gender equity extends beyond the pay gap to include representation in coaching, administration, and media coverage.",
+          "When discussing Aboriginal and Torres Strait Islander inclusion, go beyond participation numbers to consider culturally safe environments."
+        ]
+      },
+      "group": "unit2-contemporary-issues"
+    },
+    {
       "name": "Movement Skill Classification",
       "technique_notes": {
-        "core_concepts": "Gross/Fine, Open/Closed, Discrete/Serial/Continuous. Multi-continuum analysis.",
-        "exam_style_guidelines": "Justify classification using environmental predictability and muscle group size. Use the VCAA pattern: define -> classify -> justify -> link to performance.",
-        "anti_prompts": ["Do not confuse open/closed with skill complexity."]
+        "core_concepts": "Fundamental movement skills and sport-specific skills. Classification continua: Gross vs Fine (muscle group size), Open vs Closed (environmental predictability), Discrete vs Serial vs Continuous (beginning and end definition). Multi-continuum analysis. The link between motor skill development, participation and performance.",
+        "exam_style_guidelines": "Justify classification using environmental predictability, muscle group size, and task organisation. Use the VCAA pattern: define -> classify -> justify -> link to performance implications. Explain how motor skill development affects lifelong participation.",
+        "anti_prompts": [
+          "Do not confuse open/closed (environmental predictability) with skill complexity.",
+          "A skill can be classified on ALL three continua simultaneously — always consider the multi-continuum approach.",
+          "Fundamental movement skills are the foundation for sport-specific skills — link development to participation."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
     {
       "name": "Stages of Learning",
       "technique_notes": {
-        "core_concepts": "Cognitive, Associative, and Autonomous. Characteristics: error rate, consistency, attentional focus.",
-        "exam_style_guidelines": "Identify stage -> justify with evidence -> recommend appropriate coaching strategy (e.g., feedback frequency).",
+        "core_concepts": "Three stages: Cognitive (beginner — high error, high attentional demand, trial and error), Associative (intermediate — refining, fewer errors, detecting own errors), Autonomous (advanced — automatic, low attentional demand, consistent). Characteristics: error rate, consistency, attentional focus, feedback needs.",
+        "exam_style_guidelines": "Identify the learner's stage from a scenario or data, justify using stage characteristics, and recommend coaching strategies (e.g., feedback type and frequency, practice structure) appropriate for that stage.",
         "anti_prompts": [
-          "Avoid recommending feedback types unsuitable for the stage."
+          "Avoid recommending feedback types or practice structures unsuitable for the learner's stage (e.g., detailed KP feedback for a cognitive learner).",
+          "The three stages exist on a continuum — learners may display characteristics of adjacent stages.",
+          "Do not confuse the stages of learning with types of practice or feedback."
         ]
       },
       "group": "unit3-skill-acquisition"
     },
     {
-      "name": "Learning Approaches: Direct vs Constraint-Based",
+      "name": "Theories and Approaches to Skill Acquisition",
       "technique_notes": {
-        "core_concepts": "Direct (coach-led) vs Constraint-based (implicit, environmental manipulation). Task, Individual, and Environmental constraints.",
-        "exam_style_guidelines": "Evaluate how manipulating a task constraint (e.g., ball size) facilitates the emergence of a specific movement pattern.",
+        "core_concepts": "Linear (traditional, coach-led progression through stages) vs Non-linear (dynamic systems, emergent behaviour) theories of skill acquisition. Direct (coach-led instruction, prescriptive) vs Constraint-based (implicit learning, manipulating task, individual, and environmental constraints) coaching approaches.",
+        "exam_style_guidelines": "Evaluate how manipulating a task constraint (e.g., equipment size, playing area, rules) facilitates the emergence of a specific movement pattern without explicit instruction. Compare the effectiveness of direct vs constraint-based coaching for different learner stages and contexts.",
         "anti_prompts": [
-          "Ensure 'implicit learning' is connected to associative/autonomous stages."
+          "Constraint-based approaches are grounded in non-linear (dynamic systems) theory — learners discover movement solutions rather than being told them.",
+          "Task, individual, and environmental constraints all interact — a change to one affects the others.",
+          "Ensure constraint-based learning is connected to the autonomous stage — it promotes implicit, adaptable skills."
         ]
       },
       "group": "unit3-skill-acquisition"
     },
     {
-      "name": "Practice Scheduling and Type",
+      "name": "Practice Scheduling: Type, Distribution and Variability",
       "technique_notes": {
-        "core_concepts": "Whole vs part, Massed vs distributed, Blocked vs random. Contextual interference.",
-        "exam_style_guidelines": "Analyze trade-offs between performance (blocked) and retention (random). Random practice maximizes transfer to games.",
+        "core_concepts": "Practice type: Whole vs Part practice. Distribution: Massed (minimal rest) vs Distributed (rest ≥ practice time). Variability: Blocked (same skill repeated) vs Random (skills in unpredictable order). Contextual interference: random practice creates higher interference during practice but better long-term retention and transfer.",
+        "exam_style_guidelines": "Analyze trade-offs between performance during practice (blocked) and retention/transfer to game situations (random). Recommend practice structures based on the learner's stage, skill complexity, and performance goals. Random practice maximises transfer to the unpredictable game environment.",
         "anti_prompts": [
-          "Do not confuse blocked/random with massed/distributed."
+          "Blocked vs random refers to the ORDER of skills practiced, not the rest interval (that's massed vs distributed).",
+          "Do not confuse blocked/random (variability) with massed/distributed (distribution).",
+          "Contextual interference is desirable for long-term learning but may frustrate cognitive-stage learners — adjust based on stage."
         ]
       },
       "group": "unit3-skill-acquisition"
@@ -259,39 +423,64 @@
     {
       "name": "Feedback in Skill Acquisition",
       "technique_notes": {
-        "core_concepts": "Intrinsic vs Augmented (Knowledge of Results vs Knowledge of Performance). Concurrent vs Terminal.",
-        "exam_style_guidelines": "Recommend frequency strategy to avoid feedback dependency. Evaluate the 'guidance hypothesis'.",
-        "anti_prompts": ["Distinguish clearly between KR and KP."]
+        "core_concepts": "Intrinsic (internal, sensory) vs Augmented (external) feedback. Augmented feedback types: Knowledge of Results (KR — outcome success) vs Knowledge of Performance (KP — movement quality). Timing: Concurrent (during movement) vs Terminal (after movement). Frequency strategies to avoid feedback dependency. The guidance hypothesis.",
+        "exam_style_guidelines": "Recommend feedback type, timing, and frequency appropriate for the learner's stage. Evaluate the guidance hypothesis: excessive augmented feedback creates dependency and degrades intrinsic error-detection. Use reduced frequency strategies (e.g., faded, bandwidth, summary) as the learner progresses.",
+        "anti_prompts": [
+          "Distinguish clearly between KR (was the shot successful?) and KP (was the technique correct?).",
+          "Concurrent feedback can interfere with intrinsic processing — use it sparingly and strategically.",
+          "Avoid creating feedback dependency — as learners progress, reduce frequency to develop intrinsic error detection."
+        ]
       },
       "group": "unit3-skill-acquisition"
     },
     {
-      "name": "Linear Motion: Momentum and Impulse",
+      "name": "Psychological Skills and Strategies for Performance",
       "technique_notes": {
-        "core_concepts": "Displacement, velocity, acceleration. Momentum ($p=mv$). Impulse ($I=Ft$). Change in momentum.",
-        "exam_style_guidelines": "Explain how increasing contact time (e.g., landing) or force increases impulse. Use force-time curves.",
-        "anti_prompts": ["Link impulse clearly to 'change in momentum'."]
+        "core_concepts": "Key psychological factors: motivation (intrinsic vs extrinsic), confidence (self-efficacy), optimal arousal (Inverted-U hypothesis), concentration (selective attention). Strategies: imagery (mental rehearsal), progressive muscle relaxation (PMR), goal setting (SMARTER: Specific, Measurable, Achievable, Relevant, Time-bound, Evaluate, Revise), self-talk, pre-performance routines.",
+        "exam_style_guidelines": "Recommend psychological strategies based on the sport type (fine skills require lower arousal; gross/strength skills require higher arousal) and individual athlete needs. Explain how a specific strategy improves one of the psychological factors and ultimately enhances performance.",
+        "anti_prompts": [
+          "Psychological strategies are used during competition and preparation — not just to prevent overtraining or manage anxiety.",
+          "Optimal arousal varies by task: fine motor skills (putting, archery) require lower arousal; gross motor skills (tackling, lifting) require higher arousal.",
+          "The Inverted-U hypothesis describes the relationship between arousal and performance — above optimal arousal, performance declines."
+        ]
       },
-      "group": "unit3-biomechanics"
+      "group": "unit3-skill-acquisition"
     },
     {
-      "name": "Angular Motion and Conservation of Momentum",
+      "name": "Linear Motion: Force, Momentum and Impulse",
       "technique_notes": {
-        "core_concepts": "Rotation around an axis. Moment of inertia vs Angular velocity. Radius of rotation.",
-        "exam_style_guidelines": "Describe how mass distribution changes the rate of rotation (e.g., a diver tucking to spin faster).",
+        "core_concepts": "Displacement, velocity, acceleration, and force. Momentum: p = mv. Impulse: I = Ft = Δp (change in momentum). Force–time relationships: increasing force or contact time increases impulse and thus momentum change. Force–time curves.",
+        "exam_style_guidelines": "Explain how increasing contact time (e.g., bending knees when landing, following through in a throw) increases impulse and reduces peak force. Apply impulse-momentum to sport scenarios: absorbing force (cricket catch, gymnastics landing) vs generating force (sprinting from blocks).",
         "anti_prompts": [
-          "Ensure moment of inertia is linked to the 'radius of rotation'."
+          "Link impulse clearly to 'change in momentum' — impulse IS the change in momentum (F × t = m × Δv).",
+          "Increasing contact time reduces peak force for the same impulse — critical for injury prevention in landing.",
+          "Use force-time curves to illustrate the trade-off between force magnitude and time."
         ]
       },
       "group": "unit3-biomechanics"
     },
     {
-      "name": "Newton's Laws of Motion",
+      "name": "Angular Motion and Moment of Inertia",
       "technique_notes": {
-        "core_concepts": "1st (Inertia), 2nd (Acceleration: $F=ma$), 3rd (Action-Reaction). Ground reaction forces.",
-        "exam_style_guidelines": "Apply laws to sport scenarios (e.g., sprinting off blocks). Explain how force manipulation improves performance.",
+        "core_concepts": "Rotation around an axis. Angular velocity, angular momentum. Moment of inertia: resistance to rotation, depends on mass and its distribution from the axis of rotation (radius of rotation). Conservation of angular momentum: when moment of inertia decreases, angular velocity increases (and vice versa).",
+        "exam_style_guidelines": "Describe how changing mass distribution (e.g., a diver tucking to reduce radius of rotation, an ice skater pulling arms in) changes the rate of rotation. Apply conservation of angular momentum to sport skills — angular momentum is conserved when no external torque acts.",
         "anti_prompts": [
-          "Avoid generic physics examples; must be sport-specific."
+          "Moment of inertia depends on both mass AND the radius of rotation (distance from axis) — changing body position changes moment of inertia.",
+          "Angular momentum is conserved only in the air/ice (no external torque) — explain the mechanism, not just the outcome.",
+          "Do not confuse angular momentum with linear momentum."
+        ]
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Newton's Laws of Motion in Sport",
+      "technique_notes": {
+        "core_concepts": "First Law (Inertia): a body remains at rest or in constant motion unless acted upon by an unbalanced force. Second Law (Acceleration): F = ma — acceleration is proportional to force and inversely proportional to mass. Third Law (Action-Reaction): for every action there is an equal and opposite reaction. Ground reaction forces (GRF).",
+        "exam_style_guidelines": "Apply each law to specific sport scenarios (e.g., sprint start = 2nd law; swimming push-off = 3rd law; maintaining velocity on a bike = 1st law). Explain how athletes manipulate force to improve performance (e.g., increasing force into the ground increases GRF and thus acceleration).",
+        "anti_prompts": [
+          "Apply laws to sport-specific scenarios — avoid generic physics examples without sporting context.",
+          "Ground reaction force is the application of Newton's 3rd Law — the force the ground exerts on the athlete in response to the force they apply.",
+          "F = ma: for the same force, a lighter athlete accelerates more. For the same mass, greater force produces greater acceleration."
         ]
       },
       "group": "unit3-biomechanics"
@@ -299,28 +488,38 @@
     {
       "name": "Projectile Motion",
       "technique_notes": {
-        "core_concepts": "Factors: release angle, height, and speed. Speed is most influential.",
-        "exam_style_guidelines": "Optimal angle changes with release height. 45 degrees is only optimal when release and landing heights are equal.",
-        "anti_prompts": ["Do not state 45 degrees is always optimal."]
-      },
-      "group": "unit3-biomechanics"
-    },
-    {
-      "name": "Equilibrium: Center of Gravity and Stability",
-      "technique_notes": {
-        "core_concepts": "COG, Base of Support (BOS), and line of gravity. Stability-mobility trade-off.",
-        "exam_style_guidelines": "Explain how stance adjustments (e.g., widening feet) improve stability but may reduce mobility.",
-        "anti_prompts": ["Do not confuse stability with balance."]
-      },
-      "group": "unit3-biomechanics"
-    },
-    {
-      "name": "Lever Systems in the Body",
-      "technique_notes": {
-        "core_concepts": "1st, 2nd, and 3rd class levers (Axis-Force-Resistance). Mechanical advantage.",
-        "exam_style_guidelines": "Identify components in a limb (e.g., bicep curl as 3rd class). Explain how 3rd class levers favor speed and range.",
+        "core_concepts": "Factors affecting projectile range and flight path: release angle, release height, and release speed. Speed is the most influential factor. Optimal release angle depends on the relative release and landing heights: 45° only when release and landing heights are equal; < 45° when release height exceeds landing height; > 45° when landing height exceeds release height.",
+        "exam_style_guidelines": "Explain how changing one factor (e.g., increasing release speed or altering angle) affects the projectile's range and flight time. Apply to sports: shot put (release height > landing height, optimal angle < 45°), basketball free throw, long jump take-off.",
         "anti_prompts": [
-          "3rd class levers have a mechanical advantage < 1 (force cost, speed gain)."
+          "Do not state 45 degrees is always optimal — it depends on the relative release and landing heights.",
+          "Release speed is the most influential factor — a small increase in speed has a greater effect on range than the equivalent change in angle.",
+          "Consider air resistance for light projectiles (shuttlecock, table tennis ball) but ignore it for most VCE applications."
+        ]
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Equilibrium: Centre of Gravity and Stability",
+      "technique_notes": {
+        "core_concepts": "Centre of Gravity (COG): the point around which mass is evenly distributed. Base of Support (BOS): the area bounded by the body's contact points with the ground. Line of gravity: a vertical line through the COG. Stability increases when: COG is lower, BOS is wider, line of gravity falls within the BOS, and mass is greater. Stability-mobility trade-off.",
+        "exam_style_guidelines": "Explain how athletes manipulate COG and BOS to enhance stability (e.g., defensive stance in basketball, wrestling base) or mobility (e.g., sprint start, tennis ready position). Analyze the trade-off: increasing stability reduces capacity for rapid movement.",
+        "anti_prompts": [
+          "Do not confuse stability (resistance to being displaced) with balance (ability to maintain equilibrium).",
+          "The line of gravity must fall WITHIN the base of support for equilibrium — moving it toward the edge decreases stability.",
+          "A wider BOS increases stability but reduces mobility — always consider the performance context."
+        ]
+      },
+      "group": "unit3-biomechanics"
+    },
+    {
+      "name": "Anatomical Lever Systems",
+      "technique_notes": {
+        "core_concepts": "Components: Axis (fulcrum/joint), Force (effort/muscle attachment), Resistance (load/body segment + external weight). Lever classes: 1st class (Axis between Force and Resistance — e.g., head nodding), 2nd class (Resistance between Axis and Force — e.g., calf raise, rare in body), 3rd class (Force between Axis and Resistance — e.g., bicep curl, most common in the body). Mechanical advantage = Force arm / Resistance arm.",
+        "exam_style_guidelines": "Identify the axis, force, and resistance in specific anatomical lever systems. Explain how third-class levers (MA < 1) sacrifice force for speed and range of motion — this is why most body levers are third class. Compare the mechanical advantage of different lever arrangements.",
+        "anti_prompts": [
+          "Third-class levers have a mechanical advantage less than 1 — they amplify speed and range at the cost of force.",
+          "The axis is the JOINT, not the bone; the force is the MUSCLE attachment point.",
+          "Do not confuse the lever class with the type of movement produced — classify by the relative positions of axis, force, and resistance."
         ]
       },
       "group": "unit3-biomechanics"
@@ -328,20 +527,25 @@
     {
       "name": "Qualitative Movement Analysis (QMA)",
       "technique_notes": {
-        "core_concepts": "Stages: Preparation, Observation, Evaluation, and Error Correction.",
-        "exam_style_guidelines": "Diagnose errors using biomechanical principles and recommend sound corrections.",
-        "anti_prompts": ["Do not skip the 'Preparation' stage."]
+        "core_concepts": "Four stages: Preparation (determine purpose, knowledge of skill, observation strategy), Observation (systematic viewing, video analysis, checklists), Evaluation (identify errors, strength/weakness, prioritise), Error Correction (provide feedback, design intervention, re-evaluate). Use of biomechanical principles to diagnose movement errors.",
+        "exam_style_guidelines": "Apply the QMA stages to analyze a movement skill (e.g., kicking, throwing, running gait). Diagnose errors using biomechanical principles (levers, projectile motion, equilibrium, Newton's laws) and recommend sound, specific corrections linked to the biomechanical cause.",
+        "anti_prompts": [
+          "Do not skip the 'Preparation' stage — it determines what to observe and how.",
+          "Error correction must address the CAUSE of the error (biomechanical principle), not just the symptom.",
+          "QMA is iterative: after correction, re-evaluate to check effectiveness."
+        ]
       },
       "group": "unit3-biomechanics"
     },
     {
       "name": "Acute Cardiovascular Responses to Exercise (Unit 3)",
       "technique_notes": {
-        "core_concepts": "Increased Heart Rate (HR), Stroke Volume (SV),Cardiac Output (Q), and Blood Pressure. Blood redistribution (shunting).",
-        "exam_style_guidelines": "Explain how these responses meet the increased oxygen demand of working muscles.",
+        "core_concepts": "Increased Heart Rate (HR) via sympathetic nervous system, increased Stroke Volume (SV) via increased venous return and Starling's Law, increased Cardiac Output (Q = HR × SV). Increased systolic blood pressure. Blood redistribution (shunting) — vasodilation to working muscles, vasoconstriction to non-essential organs. Cardiovascular drift during prolonged submaximal exercise.",
+        "exam_style_guidelines": "Explain how each response contributes to meeting the increased oxygen demand of working muscles. Use data (HR, SV, Q values at rest, submaximal, maximal) to describe the cardiovascular response. Link SV plateau (~40–60% VO2 max) to the reliance on HR for further increases in Q.",
         "anti_prompts": [
-          "Submaximal Q remains constant after training, but SV and HR change - don't confuse acute vs chronic here.",
-          "Do not forget the role of blood redistribution in meeting muscle demands."
+          "Submaximal cardiac output remains constant after training, but SV increases and HR decreases — do not confuse acute responses with chronic adaptations.",
+          "a-vO2 difference increases during exercise as muscles extract more oxygen — this is a key acute response.",
+          "Blood redistribution is achieved through vasodilation (muscles) AND vasoconstriction (organs) — both are active processes."
         ]
       },
       "group": "unit3-energy-systems"
@@ -349,10 +553,12 @@
     {
       "name": "Acute Respiratory Responses to Exercise (Unit 3)",
       "technique_notes": {
-        "core_concepts": "Increased Tidal Volume (TV), Respiratory Frequency (Rf), and Ventilation (V).",
-        "exam_style_guidelines": "Describe the change from rest to sub-maximal and maximal exercise intensity.",
+        "core_concepts": "Increased Tidal Volume (TV), Respiratory Frequency (Rf), Ventilation (V = TV × Rf). Increased oxygen uptake (VO2). Increased pulmonary diffusion due to increased surface area (more capillaries perfused) and greater partial pressure gradients. Ventilatory threshold points (VT1/VT2).",
+        "exam_style_guidelines": "Describe the change from rest to submaximal and maximal exercise intensity. Explain the relationship between ventilation and exercise intensity (linear increase until ventilatory threshold, then exponential). Interpret VO2, VCO2, and V data on graphs.",
         "anti_prompts": [
-          "Ventilation increases linearly with intensity until the ventilatory threshold."
+          "Ventilation increases linearly with intensity until the ventilatory threshold (LT2/VT2), after which it increases exponentially due to H+ buffering.",
+          "Both TV and Rf increase during exercise — TV plateaus at higher intensities while Rf continues to rise.",
+          "Pulmonary diffusion increases during exercise because more alveoli and capillaries are perfused, increasing surface area for exchange."
         ]
       },
       "group": "unit3-energy-systems"
@@ -360,25 +566,25 @@
     {
       "name": "Acute Muscular Responses to Exercise",
       "technique_notes": {
-        "core_concepts": "Increased motor unit recruitment, muscle temperature, and lactate production. Decreased fuel levels (ATP, Phosphocreatine).",
-        "exam_style_guidelines": "Link increased recruitment to greater force production. Explain how temperature increases enzyme activity and muscle elasticity.",
+        "core_concepts": "Increased motor unit recruitment and firing frequency. Increased muscle temperature (increased enzyme activity and muscle elasticity). Increased lactate and H+ production (anaerobic glycolysis). Decreased fuel stores: ATP, Phosphocreatine (PC), glycogen. Increased blood flow to muscles.",
+        "exam_style_guidelines": "Link increased motor unit recruitment to greater force production. Explain how increased muscle temperature enhances performance (faster enzyme activity, improved elasticity) but also increases risk if excessive. Describe how fuel depletion and metabolite accumulation contribute to fatigue onset.",
         "anti_prompts": [
-          "Lactate production is a normal response to anaerobic metabolism, not just a fatigue marker.",
-          "Do not say 'lactic acid'; use 'lactate' or 'H+ ions'.",
-          "Phosphocreatine is depleted during high-intensity efforts, not just ATP."
+          "Lactate production is a NORMAL response to anaerobic metabolism, not just a fatigue marker — it can be used as fuel by other muscles and the heart.",
+          "Do not say 'lactic acid'; use 'lactate' (the molecule) or 'H+ ions' (the fatiguing by-product).",
+          "Phosphocreatine is the primary fuel depleted during maximal efforts — its depletion limits ATP-CP system performance, not just ATP."
         ]
       },
       "group": "unit3-energy-systems"
     },
     {
-      "name": "ATP-CP System",
+      "name": "ATP-CP (Phosphocreatine) System",
       "technique_notes": {
-        "core_concepts": "Fuel: PC. Yield: Very low. Rate: Fastest. Duration: 0-10s. Recovery: 3 mins for 100%.",
-        "exam_style_guidelines": "Identify dominance in explosive efforts. Recommend 1:10+ work:rest for training.",
+        "core_concepts": "Chemical fuel: Phosphocreatine (PC). Food fuel: Creatine (from diet). Yield: Very low (< 1 ATP per PC). Rate: Fastest — no oxygen required, single-step reaction. Duration: 0–10 seconds of maximal effort. Recovery: Passive recovery, ~70% PC replenished in 30 seconds, ~3 minutes for near-complete replenishment.",
+        "exam_style_guidelines": "Identify the ATP-CP system as dominant in maximal, explosive efforts (e.g., 100m sprint, powerlifting, vertical jump). Justify based on the intensity and duration of the activity. Recommend work:rest ratios of at least 1:10 for training this system.",
         "anti_prompts": [
-          "Ensure recovery time for PC replenishment is accurate.",
-          "Do not say 'anaerobic alactic'; focus on the fuel and duration.",
-          "Avoid overemphasizing ATP depletion; PC is the primary fuel for this system."
+          "Do not say 'anaerobic alactic' — use 'ATP-CP system' and reference fuel (PC) and duration (0–10s).",
+          "PC recovery requires oxygen (aerobic system) — the aerobic system powers recovery for the anaerobic systems.",
+          "The ATP-CP system provides energy for the first few seconds of ALL activities, regardless of eventual dominant system."
         ]
       },
       "group": "unit3-energy-systems"
@@ -386,12 +592,12 @@
     {
       "name": "Anaerobic Glycolysis System",
       "technique_notes": {
-        "core_concepts": "Fuel: Glycogen. Yield: Low. Rate: Fast. Duration: 10-60/90s. By-product: H+ ions (fatiguing).",
-        "exam_style_guidelines": "Explain fatigue mechanism (H+ ions interference). Link to high-intensity efforts above LIP.",
+        "core_concepts": "Chemical fuel: Glycogen (stored in muscles and liver). Food fuel: Carbohydrates. Yield: Low (~2–3 ATP per glucose). Rate: Fast (slower than ATP-CP, faster than aerobic). Duration: 10–60/90 seconds of high-intensity effort. By-product: H+ ions (acidic, cause fatigue by interfering with enzyme function and muscle contraction). Lactate is produced alongside but is not the fatiguing agent.",
+        "exam_style_guidelines": "Explain the fatigue mechanism (H+ ion accumulation inhibits glycolytic enzymes and interferes with cross-bridge formation). Link to high-intensity efforts above the Lactate Inflection Point (LIP). Explain that glycolysis contributes at the start of all activities and during transitions before the aerobic system fully responds.",
         "anti_prompts": [
-          "Do NOT say 'lactic acid'; use 'H+ ions' or 'lactate'.",
-          "Glycolysis can contribute beyond 60s, especially in untrained individuals or when aerobic system is compromised.",
-          "Avoid saying the anaerobic glycolysis system 'shuts down' after 60s; it can still contribute, but aerobic becomes dominant."
+          "Do NOT say 'lactic acid causes fatigue' — H+ ions are the fatiguing agent; lactate is a useful fuel substrate.",
+          "Anaerobic glycolysis can contribute beyond 60s, especially at intensities above LIP or when aerobic system is compromised.",
+          "Do not say the anaerobic glycolysis system 'shuts down' after 60–90s — it still contributes, but aerobic becomes the dominant system."
         ]
       },
       "group": "unit3-energy-systems"
@@ -399,11 +605,12 @@
     {
       "name": "Aerobic System",
       "technique_notes": {
-        "core_concepts": "Fuels: Glycogen/Fats. Yield: Very High. Rate: Slowest. Duration: 2min+.",
-        "exam_style_guidelines": "Explain dominance in long-duration activity and recovery. Discuss fuel shift (glycogen sparing).",
+        "core_concepts": "Chemical fuel: Glycogen (carbohydrates). Food fuels: Carbohydrates and Fats (at rest and low intensity). Yield: Very high (~36–38 ATP per glucose, > 100 ATP per fat molecule). Rate: Slowest — requires oxygen delivery via cardiovascular system. Duration: 2 minutes+ (dominant system for endurance). Fuel shift: as intensity increases, reliance shifts from fats to glycogen (glycogen sparing at low intensity).",
+        "exam_style_guidelines": "Explain aerobic system dominance in long-duration, submaximal activity and during recovery. Describe the fuel shift from fats at rest/low intensity to glycogen at higher intensities. Link the aerobic system's role in recovery (EPOC — replenishing PC, removing H+).",
         "anti_prompts": [
-          "Do not forget the role of the aerobic system in recovering anaerobic systems.",
-          "Avoid saying the aerobic system 'turns on' after 2 minutes; it is active from the start but becomes dominant as intensity decreases."
+          "Do not say the aerobic system 'turns on' after 2 minutes — it contributes from the start of activity but becomes the dominant system as intensity decreases and duration increases.",
+          "The aerobic system powers recovery for the anaerobic systems — its role extends beyond just providing energy during endurance events.",
+          "Fat yields more ATP than glycogen but requires more oxygen — explain the trade-off."
         ]
       },
       "group": "unit3-energy-systems"
@@ -411,145 +618,224 @@
     {
       "name": "Energy System Interplay",
       "technique_notes": {
-        "core_concepts": "Simultaneous contribution. Dominance shifts based on intensity and duration.",
-        "exam_style_guidelines": "Analyze scenarios (e.g., a lacrosse match) and identify which system is dominant at different phases.",
-        "anti_prompts": ["Avoid saying systems 'turn on' or 'turn off'."]
-      },
-      "group": "unit3-energy-systems"
-    },
-    {
-      "name": "Oxygen Uptake: Deficit, Steady State, and EPOC",
-      "technique_notes": {
-        "core_concepts": "Deficit (lag), Steady State (supply=demand), EPOC (recovery).",
-        "exam_style_guidelines": "Identify these phases on a graph. Explain the role of EPOC in PC replenishment and H+ removal.",
+        "core_concepts": "All three energy systems contribute simultaneously from the start of activity — no system works in isolation. The relative contribution (dominance) shifts based on intensity (higher = more anaerobic) and duration (longer = more aerobic). Interplay during intermittent sports: repeated high-intensity efforts with incomplete recovery.",
+        "exam_style_guidelines": "Analyze complex activity scenarios (e.g., a soccer match, a 400m run, a tennis rally) and identify which system is dominant at different phases, justifying with reference to intensity and duration. Explain interplay during transitions (e.g., from rest to maximal effort, from maximal effort to recovery).",
         "anti_prompts": [
-          "Distinguish between the fast and slow components of EPOC."
+          "NEVER say systems 'turn on' or 'turn off' — all three contribute simultaneously; only the dominant system changes.",
+          "Do not attribute all energy provision at a given time to a single system — describe relative contributions.",
+          "Recovery between high-intensity efforts is powered by the aerobic system — consider interplay across the full activity cycle."
         ]
       },
       "group": "unit3-energy-systems"
     },
     {
-      "name": "VO2 Max and Lactate Inflection Point (LIP)",
+      "name": "Oxygen Uptake: Deficit, Steady State and EPOC",
       "technique_notes": {
-        "core_concepts": "VO2 Max: Max oxygen rate. LIP: Highest sustainable intensity without rapid H+ accumulation.",
-        "exam_style_guidelines": "Distinguish between absolute (L/min) and relative (ml/kg/min) VO2 max. LIP is the best performance predictor for endurance.",
-        "anti_prompts": ["Do not confuse VO2 max with LIP."]
-      },
-      "group": "unit3-energy-systems"
-    },
-    {
-      "name": "Fatigue Mechanisms and Nutrition",
-      "technique_notes": {
-        "core_concepts": "PC depletion, H+ accumulation, Glycogen depletion, Dehydration. Nutrition: Glycogen loading, protein for repair.",
-        "exam_style_guidelines": "Match fatigue mechanism to the dominant energy system. Recommend hydration/nutrition strategies for recovery.",
+        "core_concepts": "Oxygen deficit: the lag in oxygen uptake at the start of exercise when demand exceeds supply (anaerobic systems bridge the gap). Steady state: oxygen supply meets demand; achieved during submaximal, constant-intensity exercise. Excess Post-exercise Oxygen Consumption (EPOC): elevated oxygen consumption after exercise to restore pre-exercise conditions. Fast component (alactacid): PC replenishment, O2 store replenishment (short duration). Slow component (lactacid): H+ removal, elevated HR/ventilation/temperature, protein repair (longer duration).",
+        "exam_style_guidelines": "Identify oxygen deficit, steady state, and EPOC phases on an oxygen uptake graph. Explain the role of EPOC in recovery — link fast component to PC replenishment (~3 min) and slow component to H+ removal and elevated metabolism. Compare active vs passive recovery and their effects on EPOC and metabolite clearance.",
         "anti_prompts": [
-          "Link protein primarily to repair and adaptation, not fuel."
+          "Distinguish between the fast (alactacid) and slow (lactacid) components of EPOC — they serve different recovery functions and have different time courses.",
+          "Oxygen deficit is NOT a 'shortfall' to be repaid — the anaerobic systems provide the energy during this period.",
+          "Active recovery accelerates H+ removal compared to passive recovery but may delay PC replenishment slightly."
         ]
       },
       "group": "unit3-energy-systems"
     },
     {
-      "name": "Activity Analysis and Fitness Demands",
+      "name": "Fatigue Mechanisms During Exercise",
       "technique_notes": {
-        "core_concepts": "Data: Skill frequency, movement patterns, work:rest ratios. Identify fitness components.",
-        "exam_style_guidelines": "Use data to justify training choices. Distinguish between notational and GPS-based analysis.",
+        "core_concepts": "Muscular fatigue mechanisms linked to energy systems: Fuel depletion — PC (ATP-CP system, maximal efforts), Glycogen (aerobic/anaerobic glycolysis, prolonged or repeated high-intensity efforts). Accumulation of metabolic by-products — H+ ions (anaerobic glycolysis, high-intensity efforts). Thermoregulatory fatigue — dehydration, elevated core temperature, reduced blood plasma volume impair cardiovascular function.",
+        "exam_style_guidelines": "Match the specific fatigue mechanism to the dominant energy system and activity context (intensity and duration). Explain how fuel depletion limits ATP resynthesis rate. Describe how H+ accumulation interferes with enzyme activity and cross-bridge cycling. Link thermoregulatory fatigue to cardiovascular drift and reduced performance.",
         "anti_prompts": [
-          "Data must be used to justify training, not just described."
+          "Different activities produce different fatigue mechanisms — do not attribute all fatigue to a single cause.",
+          "PC depletion limits the ATP-CP system; glycogen depletion limits prolonged submaximal and repeated high-intensity performance; H+ accumulation limits high-intensity efforts above LIP.",
+          "Thermoregulatory fatigue involves multiple factors: fluid loss (reduced plasma volume → reduced SV → increased HR), electrolyte imbalance, and elevated core temperature."
+        ]
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Nutritional and Hydration Strategies for Performance and Recovery",
+      "technique_notes": {
+        "core_concepts": "Carbohydrate ingestion: pre-event (glycogen loading/top-up), during event (sustained energy for endurance), post-event (glycogen replenishment). Protein: primarily for muscle repair and adaptation post-exercise, not as a primary fuel source. Hydration: water for thermoregulation and cardiovascular function; electrolyte replacement for prolonged exercise. Timing of nutrient intake relative to exercise.",
+        "exam_style_guidelines": "Recommend specific nutritional strategies based on the activity type, duration, and intensity. Explain how glycogen loading enhances endurance performance. Describe post-exercise nutrition timing (the 'glycogen window') for optimal recovery. Link hydration strategies to thermoregulation and performance maintenance.",
+        "anti_prompts": [
+          "Protein is primarily for repair and adaptation, not fuel — do not describe it as a primary energy source during exercise.",
+          "Glycogen loading (carbohydrate loading) benefits endurance events > 90 minutes; it is not relevant for short-duration or low-intensity activities.",
+          "Hydration strategies must consider both fluid volume and electrolyte balance — plain water may be insufficient for prolonged exercise."
+        ]
+      },
+      "group": "unit3-energy-systems"
+    },
+    {
+      "name": "Activity Analysis: Data Collection and Physiological Requirements",
+      "technique_notes": {
+        "core_concepts": "Types of data collected from activity analysis: skill frequencies, movement patterns (GPS, notational analysis), heart rates, work-to-rest ratios. Purpose: to identify the physiological requirements of an activity (energy systems, fitness components, major muscles used). Data sources: primary (direct observation, wearable tech) and secondary (published analyses).",
+        "exam_style_guidelines": "Use activity analysis data to justify the specific physiological requirements of a sport or activity. Distinguish between notational analysis (skill/movement frequency) and GPS-based analysis (distance, speed zones). Link work-to-rest ratios to the dominant energy system(s).",
+        "anti_prompts": [
+          "Data must be used to JUSTIFY training choices and physiological requirements — do not just describe the data.",
+          "Work-to-rest ratios directly indicate energy system demands: high work:rest (>1:5) = anaerobic; low work:rest (<1:5) = aerobic.",
+          "Activity analysis is the FOUNDATION of an effective training program — always position it as the first step."
         ]
       },
       "group": "unit4-foundations"
     },
     {
-      "name": "Fitness Testing: Selection and Evaluation",
+      "name": "Fitness Components for Physical Activity and Sport",
       "technique_notes": {
-        "core_concepts": "Specificity to movement patterns and energy systems. Reliability, Validity, and Accuracy.",
-        "exam_style_guidelines": "Justify test selection (e.g., Yo-Yo vs Beep Test for team sports). State how to improve reliability (standard protocols).",
-        "anti_prompts": ["Do not confuse reliability with validity."]
+        "core_concepts": "Health-related: aerobic power, anaerobic capacity, muscular strength, power and endurance, flexibility. Skill-related: balance, coordination, speed, agility, reaction time. Factors affecting each fitness component: genetics, age, gender, training status, body composition, muscle fibre type distribution.",
+        "exam_style_guidelines": "Identify and justify which fitness components are most important for a given activity based on activity analysis data. Explain how specific factors (e.g., fibre type, muscle cross-sectional area, VO2 max) influence performance in each component.",
+        "anti_prompts": [
+          "Power = strength × speed — it is a distinct component combining force and velocity, not just 'strength'.",
+          "Anaerobic capacity (ability to produce energy without oxygen) is distinct from aerobic power (VO2 max).",
+          "The fitness components required depend on the specific activity — do not assume all components are equally important."
+        ]
       },
       "group": "unit4-foundations"
     },
     {
-      "name": "Training Principles: FITT and Progression",
+      "name": "Fitness Testing: Selection, Protocols and Evaluation",
       "technique_notes": {
-        "core_concepts": "Frequency, Intensity, Time, Type. Progressive overload.",
-        "exam_style_guidelines": "Apply overload to one variable at a time (~10%). Intensity measurement (HR max, RPE).",
+        "core_concepts": "Purpose of fitness testing: physiological (identify strengths/weaknesses, establish baseline, monitor progress, inform training design) and psychological (motivation, goal setting, confidence). Pre-participation health screening and informed consent. Test selection criteria: specificity to movement patterns and energy systems, reliability (consistency), validity (measures what it claims to), and accuracy. Standardised protocols to maximise reliability.",
+        "exam_style_guidelines": "Justify the selection of specific standardised fitness tests (e.g., Yo-Yo IR test vs Beep test for team sports; 1RM vs 10RM for strength assessment) based on the identified physiological requirements. Describe how to implement test protocols to ensure reliability and validity. Evaluate test results to inform training program design.",
         "anti_prompts": [
-          "Speed training requires high intensity (9-10 RPE) - 7 RPE is too low for speed."
+          "Do not confuse reliability (consistent results on repetition) with validity (measures the intended fitness component).",
+          "Test selection must be justified against the SPECIFIC physiological requirements identified in the activity analysis.",
+          "Standardised protocols (e.g., same time of day, same warm-up, same equipment) are essential for reliable comparisons over time."
+        ]
+      },
+      "group": "unit4-foundations"
+    },
+    {
+      "name": "Exercise Training Sessions: Structure and Monitoring",
+      "technique_notes": {
+        "core_concepts": "Components of an exercise training session: warm up (prepare body physiologically and psychologically), conditioning phase (main training activity), cool down (gradual return to pre-exercise state, aids recovery). Strategies to monitor and record training data: training diaries, digital tools and apps, wearable technologies (HR monitors, GPS). Types of data: physiological (HR, RPE), psychological (mood, motivation), sociological (session enjoyment, group dynamics).",
+        "exam_style_guidelines": "Explain the physiological purpose of each component of a training session. Evaluate the effectiveness of monitoring strategies for tracking training load and informing program adjustments. Link data collection to the reflective folio requirement.",
+        "anti_prompts": [
+          "Warm up is not just about injury prevention — it prepares the body physiologically (increased HR, blood flow, enzyme activity) and psychologically (focus, arousal).",
+          "Cool down promotes venous return and gradual recovery; it is not just 'light exercise after training'.",
+          "Monitoring data should be used to ADJUST training — describe how data informs decisions, not just that it was collected."
         ]
       },
       "group": "unit4-training"
     },
     {
-      "name": "Training Principles: Specificity, Variety, and Diminishing Returns",
+      "name": "Training Principles: FITT, Overload and Progression",
       "technique_notes": {
-        "core_concepts": "Specificity (movement/energy). Variety (prevents plateaus). Diminishing returns (gains slow down).",
-        "exam_style_guidelines": "Identify violations of these principles in a provided program. 'Variety' is a principle; 'variability' is practice classification.",
+        "core_concepts": "FITT: Frequency (how often), Intensity (how hard — %HR max, %1RM, RPE), Time/Duration (how long), Type (mode of training specific to fitness component and energy system). Progressive overload: systematically increasing the training stimulus (~10% rule) to drive continued adaptation. Overload can be applied to any FITT variable — typically adjust one variable at a time.",
+        "exam_style_guidelines": "Apply the FITT framework to design or critique a training program for a specific fitness component. Explain how progressive overload drives physiological adaptation. Recommend appropriate intensity measures for different training goals (%HR max for aerobic, %1RM for strength, RPE for overall effort).",
         "anti_prompts": [
-          "Do not write 'variability' when you mean 'variety' (training principle)."
+          "Intensity must be appropriate for the training goal — speed training requires high intensity (9–10 RPE) and low volume.",
+          "Overload should be applied gradually (~10% per week) to one variable at a time to minimise injury risk.",
+          "FITT is the foundation, not the complete set of training principles — always consider other principles (specificity, individuality, etc.)."
         ]
       },
       "group": "unit4-training"
     },
     {
-      "name": "Continuous and Interval Training Methods",
+      "name": "Training Principles: Specificity, Individuality and Periodisation",
       "technique_notes": {
-        "core_concepts": "Continuous: Aerobic. Interval: Short (<10s, ATP-CP), Intermediate (10-60s, Anaerobic Glyc), Long (2m+, Aerobic).",
-        "exam_style_guidelines": "Differentiate methods by work:rest ratios. Explain how reducing rest alters the targeted energy system.",
+        "core_concepts": "Specificity: training must match the movement patterns, energy systems, and fitness components of the target activity. Variety: introducing different training stimuli to prevent plateaus and maintain motivation. Individuality: training responses vary based on genetics, training age, recovery capacity, and personal circumstances. Diminishing returns: as fitness improves, the rate of improvement slows. Additional principles: Maintenance (fitness can be maintained with reduced volume if intensity is preserved), Tapering (reducing training load before competition to maximise performance), Overtraining (excessive training load leading to performance decline and health issues), Detraining (loss of adaptations when training stops/reduces significantly).",
+        "exam_style_guidelines": "Identify violations of training principles in a provided program and recommend corrections. Design periodised programs that incorporate maintenance, tapering, and variety. Distinguish 'variety' (training principle — changing activities to avoid plateaus) from 'variability' (practice classification — random vs blocked skill practice). Explain how detraining effects differ between aerobic (rapid decline) and strength (slower decline) adaptations.",
         "anti_prompts": [
-          "Decreasing rest may reduce specificity if it shifts the energy system dominance."
+          "Do not write 'variability' when you mean 'variety' (training principle). Variability refers to practice scheduling in skill acquisition.",
+          "Diminishing returns means gains slow as fitness improves — it does NOT mean training is ineffective for advanced athletes.",
+          "Overtraining is a chronic condition from prolonged excessive load; it is distinct from functional overreaching (short-term, recovers with rest).",
+          "During tapering, intensity is maintained while volume decreases — do not reduce all training variables simultaneously."
         ]
       },
       "group": "unit4-training"
     },
     {
-      "name": "Specialized Training: Resistance, Plyometrics, Circuits",
+      "name": "Continuous, Interval and Fartlek Training Methods",
       "technique_notes": {
-        "core_concepts": "Resistance (reps/sets). Plyometrics (stretch-shortening cycle). Circuits (efficiency).",
-        "exam_style_guidelines": "Design sessions targeting specific components (e.g., power vs endurance). Address safety for plyometrics.",
+        "core_concepts": "Continuous training: sustained submaximal exercise without rest (aerobic development — e.g., long slow distance, tempo runs). Interval training: alternating work and rest periods. Types: Short interval (<10s work, 1:6+ work:rest, targets ATP-CP), Intermediate interval (10–60s work, 1:3–1:5 work:rest, targets anaerobic glycolysis), Long interval (2min+ work, 1:1–1:2 work:rest, targets aerobic system), High-Intensity Interval Training (HIIT — near-maximal efforts with short recovery, targets both anaerobic and aerobic systems). Fartlek training: continuous exercise with spontaneous variations in intensity ('speed play').",
+        "exam_style_guidelines": "Differentiate interval types by work:rest ratios and the targeted energy system. Explain how manipulating rest duration alters the energy system emphasis (shorter rest = greater aerobic contribution during recovery). Design interval sessions for specific fitness goals and justify the work:rest ratio.",
         "anti_prompts": [
-          "SSC involves a rapid eccentric contraction followed by a concentric one."
+          "The work:rest ratio determines the energy system targeted — do not just describe the work period in isolation.",
+          "HIIT targets both anaerobic and aerobic systems — it is not purely anaerobic.",
+          "Fartlek is unstructured variation in intensity within a continuous session — distinguish from structured interval training.",
+          "Long interval training (2min+) with short rest targets the aerobic system at intensities near or above LIP."
         ]
       },
       "group": "unit4-training"
     },
     {
-      "name": "Cardiovascular Adaptations to Training",
+      "name": "Resistance, Plyometric, Circuit and Flexibility Training",
       "technique_notes": {
-        "core_concepts": "Cardiac hypertrophy (increased SV), increased blood volume, hemoglobin, and capillarisation.",
-        "exam_style_guidelines": "Explain how increased SV leads to lower resting HR. Acknowledge that submaximal cardiac output remains unchanged.",
+        "core_concepts": "Resistance/weight training: reps, sets, rest, intensity (%1RM) determine adaptation (strength: high load/low reps; endurance: low load/high reps; power: moderate load/explosive speed). Plyometrics: rapid eccentric-concentric cycle utilising the stretch-shortening cycle (SSC) to develop power — e.g., depth jumps, bounding. Circuit training: sequenced exercises at stations with minimal rest; efficient for developing multiple fitness components simultaneously. Flexibility training: static, dynamic, PNF stretching; important for injury prevention and range of motion.",
+        "exam_style_guidelines": "Design resistance training prescriptions for specific goals (strength, power, muscular endurance) including appropriate reps, sets, and intensity. Explain the three phases of the stretch-shortening cycle (eccentric pre-stretch, amortisation, concentric) and why SSC enhances power output. Compare circuit training to traditional methods for developing general fitness.",
         "anti_prompts": [
-          "Submaximal cardiac output remains unchanged despite training (SV up, HR down)."
+          "The SSC involves a rapid eccentric pre-stretch followed immediately by a concentric contraction — the amortisation phase must be short for maximum elastic energy reuse.",
+          "For plyometrics, safety considerations (adequate strength base, appropriate surface, controlled volume) are essential.",
+          "Flexibility training includes dynamic stretching (movement-based, pre-exercise) and static stretching (held positions, post-exercise) — do not conflate their applications."
+        ]
+      },
+      "group": "unit4-training"
+    },
+    {
+      "name": "Cardiovascular Adaptations to Aerobic Training",
+      "technique_notes": {
+        "core_concepts": "Chronic adaptations to aerobic training: cardiac hypertrophy (increased left ventricular size → increased stroke volume), increased blood volume and haemoglobin, increased capillarisation of skeletal and cardiac muscle, decreased resting and submaximal heart rate, decreased blood pressure. These adaptations produce improvements in: VO2 max (increased oxygen delivery and extraction), aerobic performance at submaximal intensities.",
+        "exam_style_guidelines": "Explain how increased SV (via cardiac hypertrophy) leads to lower resting HR and submaximal HR while cardiac output remains unchanged at rest and submaximal intensities (Q = ↑SV × ↓HR = constant). Link increased capillarisation and haemoglobin to improved oxygen delivery and thus increased VO2 max.",
+        "anti_prompts": [
+          "Cardiac output at rest and during submaximal exercise remains UNCHANGED after aerobic training — the composition changes (↑SV, ↓HR).",
+          "VO2 max improves due to both central (↑SV, ↑blood volume) and peripheral (↑capillarisation, ↑mitochondria) adaptations.",
+          "Cardiac hypertrophy from aerobic training (increased chamber size) is different from pathological hypertrophy — do not confuse them."
         ]
       },
       "group": "unit4-adaptations"
     },
     {
-      "name": "Respiratory and Muscular Adaptations",
+      "name": "Respiratory Adaptations to Aerobic Training",
       "technique_notes": {
-        "core_concepts": "Respiratory: Increased pulmonary diffusion and alveolar surface area. Muscular: Mitochondrial density (aerobic) vs Hypertrophy (anaerobic).",
-        "exam_style_guidelines": "Link pulmonary diffusion to increased VO2 max. Distinguish between neural and structural muscular gains.",
-        "anti_prompts": ["Hypertrophy is increased fiber size, not number."]
+        "core_concepts": "Chronic respiratory adaptations: increased pulmonary diffusion (more efficient gas exchange at alveoli), increased alveolar surface area, increased ventilatory efficiency (lower ventilation for same workload), increased tidal volume at maximal exercise. These contribute to increased VO2 max by improving oxygen uptake at the lungs.",
+        "exam_style_guidelines": "Explain how increased pulmonary diffusion and alveolar surface area improve oxygen uptake and thus contribute to increased VO2 max. Link improved ventilatory efficiency (lower V for a given workload) to reduced oxygen cost of breathing.",
+        "anti_prompts": [
+          "Pulmonary diffusion is both an acute response AND a site of chronic adaptation — distinguish the mechanisms.",
+          "Respiratory adaptations support cardiovascular adaptations — increased oxygen uptake at the lungs enables increased oxygen delivery by the cardiovascular system.",
+          "Ventilatory efficiency means less energy is used for breathing at submaximal intensities — this spares oxygen for working muscles."
+        ]
       },
       "group": "unit4-adaptations"
     },
     {
-      "name": "Psychological Strategies for Performance",
+      "name": "Muscular Adaptations to Training",
       "technique_notes": {
-        "core_concepts": "Motivation, Confidence, Arousal (Inverted-U), Concentration. Imagery, PMR, Goal Setting (SMARTER).",
-        "exam_style_guidelines": "Recommend strategies to reach 'optimal arousal' based on sport type (fine vs gross skills).",
+        "core_concepts": "Aerobic training adaptations: increased mitochondrial density and size, increased oxidative enzyme activity, increased myoglobin content, increased glycogen stores, increased fat oxidation capacity (glycogen sparing). Anaerobic training adaptations: muscular hypertrophy (increased fibre size, not number), increased glycolytic enzyme activity, increased ATP-CP stores, increased lactate tolerance (improved buffering capacity). Resistance training adaptations: hypertrophy, increased motor unit recruitment and synchronisation, increased strength. Neural adaptations precede structural changes.",
+        "exam_style_guidelines": "Distinguish between adaptations to aerobic training (enhanced oxygen utilisation), anaerobic training (enhanced high-intensity capacity), and resistance training (increased force production). Explain that neural adaptations (improved recruitment, synchronisation, rate coding) occur early in training, while structural changes (hypertrophy) take longer. Link lactate tolerance (improved buffering) to enhanced anaerobic performance.",
         "anti_prompts": [
-          "Psychological strategies are used *during* competition, not just to prevent overtraining."
+          "Hypertrophy is increased muscle fibre SIZE, not number (hyperplasia) — muscle fibre number does not increase significantly.",
+          "Neural adaptations (improved recruitment and coordination) account for early strength gains before significant hypertrophy occurs.",
+          "Lactate tolerance (improved H+ buffering) is an adaptation to anaerobic training that delays fatigue — it is distinct from lactate clearance.",
+          "Mitochondrial adaptations improve the muscle's capacity to use oxygen and spare glycogen — link to improved endurance performance."
         ]
       },
-      "group": "unit3-skill-acquisition"
+      "group": "unit4-adaptations"
     },
     {
-      "name": "Holistic Integration and Interdisciplinary Approach",
+      "name": "VO2 Max and Lactate Inflection Point (LIP) as Performance Indicators",
       "technique_notes": {
-        "core_concepts": "Interrelationships between skill, biomechanics, energy, and training.",
-        "exam_style_guidelines": "Analyze performance breakdowns by considering interacting factors (e.g., fatigue leading to technical errors).",
+        "core_concepts": "VO2 Max: the maximum rate of oxygen uptake and utilisation. Measured in absolute (L/min) and relative (ml/kg/min) terms. Primarily genetically determined but trainable (~10–20% improvement). Lactate Inflection Point (LIP): the highest exercise intensity that can be sustained without rapid accumulation of H+ ions (lactate production = lactate clearance). LIP is a better predictor of endurance performance than VO2 max. Training at or near LIP shifts the LIP to a higher % of VO2 max.",
+        "exam_style_guidelines": "Distinguish between absolute and relative VO2 max and explain when each is more relevant (relative for body-weight-supported activities like running; absolute for non-weight-supported activities like rowing). Explain why LIP is a better predictor of endurance performance — it represents the sustainable upper limit of aerobic intensity. Describe how training shifts the LIP curve to the right (higher intensity before H+ accumulation).",
         "anti_prompts": [
-          "Avoid treating domains in isolation; look for the interaction."
+          "Do not confuse VO2 max (maximum capacity) with LIP (maximum sustainable intensity without rapid fatigue).",
+          "LIP is the BEST predictor of endurance performance, not VO2 max — the athlete with the higher LIP (as % VO2 max) will typically outperform.",
+          "VO2 max is largely genetically determined; LIP is highly trainable.",
+          "Absolute VO2 max (L/min) and relative VO2 max (ml/kg/min) serve different comparison purposes — always specify which is being used."
+        ]
+      },
+      "group": "unit4-adaptations"
+    },
+    {
+      "name": "Interdisciplinary Integration and Holistic Analysis",
+      "technique_notes": {
+        "core_concepts": "Interrelationships between skill acquisition, biomechanics, energy production, and training knowledge across Units 3 and 4. Performance is the product of interacting factors: technical (skill), mechanical (biomechanics), physiological (energy systems and fatigue), and program design (training principles and methods). The reflective folio as a tool for connecting theory with practical experience.",
+        "exam_style_guidelines": "Analyze performance breakdowns or improvements by considering interacting factors across multiple domains (e.g., how fatigue from energy system demands leads to biomechanical errors; how improved skill execution reduces unnecessary energy expenditure). Use primary data from practical activities to demonstrate the integration of theoretical concepts. Apply an interdisciplinary approach — do not treat domains in isolation.",
+        "anti_prompts": [
+          "Performance is never determined by a single domain — always look for the interactions between skill, biomechanics, energy, and training.",
+          "Integration means showing HOW one domain affects another — e.g., fatigue (energy) → technique breakdown (skill) → inefficient movement (biomechanics).",
+          "The reflective folio is evidence of practical engagement — responses should reference specific practical activities and primary data."
         ]
       },
       "group": "unit4-integration"

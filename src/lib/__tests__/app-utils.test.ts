@@ -94,6 +94,28 @@ describe('app-utils', () => {
       const normalized = normalizeMarkResponse(raw, 5);
       expect(normalized.achievedMarks).toBe(5);
     });
+
+    it('should normalize old-format records without new fields', () => {
+      const oldRecord = {
+        verdict: 'Correct',
+        achievedMarks: 4,
+        maxMarks: 5,
+        vcaaMarkingScheme: [
+          { criterion: 'Correct substitution', achievedMarks: 2, maxMarks: 2, rationale: 'OK' },
+        ],
+        comparisonToSolutionMarkdown: 'Good.',
+        feedbackMarkdown: '## Strengths\nNice work.',
+        workedSolutionMarkdown: 'Steps...',
+        exemplarResponseMarkdown: 'Model.',
+      };
+      const normalized = normalizeMarkResponse(oldRecord, 5);
+
+      expect(normalized.verdict).toBe('Correct');
+      expect(normalized.partialReason).toBeUndefined();
+      expect(normalized.indicativeContentMarkdown).toBeUndefined();
+      expect(normalized.exemplarAnnotations).toBeUndefined();
+      expect(normalized.vcaaMarkingScheme[0].markType).toBeUndefined();
+    });
   });
 
   describe('readBackendError', () => {

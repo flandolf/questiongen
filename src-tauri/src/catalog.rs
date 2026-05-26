@@ -34,6 +34,10 @@ struct RawTopic {
     report_pdfs: Vec<String>,
     #[serde(default, alias = "examGuidance")]
     exam_guidance: String,
+    #[serde(default, alias = "markingGuidance")]
+    marking_guidance: String,
+    #[serde(default, alias = "markingSchemeStyle")]
+    marking_scheme_style: String,
     #[serde(default)]
     out_of_scope: Vec<String>,
     subtopics: Vec<RawSubtopic>,
@@ -59,6 +63,8 @@ pub struct TopicEntry {
     pub exam_pdfs: Vec<String>,
     pub report_pdfs: Vec<String>,
     pub exam_guidance: String,
+    pub marking_guidance: String,
+    pub marking_scheme_style: String,
     pub out_of_scope: Vec<String>,
     pub subtopics: Vec<SubtopicEntry>,
 }
@@ -101,6 +107,8 @@ static CATALOG: Lazy<Vec<TopicEntry>> = Lazy::new(|| {
             exam_pdfs: t.exam_pdfs.clone(),
             report_pdfs: t.report_pdfs.clone(),
             exam_guidance: t.exam_guidance.clone(),
+            marking_guidance: t.marking_guidance.clone(),
+            marking_scheme_style: t.marking_scheme_style.clone(),
             out_of_scope: t.out_of_scope.clone(),
             subtopics: t
                 .subtopics
@@ -167,6 +175,16 @@ pub fn topic_exam_guidance(name: &str) -> &'static str {
     find_topic(name)
         .map(|t| t.exam_guidance.as_str())
         .unwrap_or("")
+}
+pub fn topic_marking_guidance(name: &str) -> &'static str {
+    find_topic(name)
+        .map(|t| t.marking_guidance.as_str())
+        .unwrap_or("")
+}
+pub fn topic_marking_scheme_style(name: &str) -> &'static str {
+    find_topic(name)
+        .map(|t| t.marking_scheme_style.as_str())
+        .unwrap_or("criterion-per-mark")
 }
 
 pub fn topic_exam_pdfs(name: &str) -> &'static [String] {

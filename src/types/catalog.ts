@@ -25,6 +25,8 @@ type CatalogTopicEntry = {
   examPdfs?: string[];
   reportPdfs?: string[];
   examGuidance?: string;
+  markingGuidance?: string;
+  markingSchemeStyle?: string;
   subtopics: CatalogSubtopicEntry[];
 };
 

@@ -95,7 +95,7 @@ export function GeneratorView() {
   const streamBufferRef = useRef<Record<string, string>>({});
   const streamFlushRafRef = useRef<number | null>(null);
 
-  const [writtenSketchpadActive, setWrittenSketchpadActive] = useState(false);
+  const [, setWrittenSketchpadActive] = useState(false);
   const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
 
   const {
@@ -1242,7 +1242,6 @@ export function GeneratorView() {
         ) : questionMode === 'written' ? (
           <QuestionSplitLayout
             mode='written'
-            sketchpadActive={writtenSketchpadActive}
             leftSlot={
               <div className='border-t border-border/15 pt-4'>
                 <div
@@ -1274,7 +1273,6 @@ export function GeneratorView() {
         ) : mcSketchpadActive ? (
           <QuestionSplitLayout
             mode='mc'
-            sketchpadActive={mcSketchpadActive}
             leftSlot={
               <div className='border-t border-border/15 pt-4'>
                 <div
@@ -1324,7 +1322,6 @@ export function GeneratorView() {
         ) : (
           <QuestionSplitLayout
             mode='mc'
-            sketchpadActive={mcSketchpadActive}
             leftSlot={
               <div className='border-t border-border/15 pt-4'>
                 <div

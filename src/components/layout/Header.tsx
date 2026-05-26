@@ -342,15 +342,15 @@ export function Header() {
       initial={{ y: -50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={SPRING}
-      className={`flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md w-full z-50 ${isAndroid ? 'mt-8' : ''} mb-1`}
+      className={`flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md border-b border-border/40 w-full z-50 ${isAndroid ? 'mt-8' : ''}`}
     >
       {/* Left: Navigation */}
-      <nav className='flex items-center gap-1 no-scrollbar'>
+      <nav className='flex items-center gap-1.5 no-scrollbar'>
         {navLinks.map(renderLink)}
       </nav>
 
       {/* Right: Stats + Settings */}
-      <div className='flex items-center gap-3'>
+      <div className='flex items-center gap-2.5'>
         <TooltipProvider>
           {/* Sync Indicator */}
           {isSyncEnabled && (
@@ -405,8 +405,8 @@ export function Header() {
 
         {/* Streak */}
         {streakData.currentStreak > 0 && (
-          <div className='flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/5 border border-orange-500/10'>
-            <Flame className='h-4 w-4 text-orange-400 animate-pulse shrink-0' />
+          <div className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-500/5 border border-orange-500/10'>
+            <Flame className='h-3.5 w-3.5 text-orange-400 animate-pulse shrink-0' />
             <span className='text-xs font-bold text-orange-400 tabular-nums'>
               {streakData.currentStreak}
             </span>

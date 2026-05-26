@@ -1,4 +1,4 @@
-import type { BackendError, MarkAnswerResponse } from '@/types';
+import type { BackendError, MarkAnswerResponse, MarkingCriterion } from '@/types';
 
 export {
   normalizeMathDelimiters,
@@ -85,26 +85,43 @@ export function normalizeMarkResponse(
   /**
    * Normalize a raw marking response from the backend into a full
    * `MarkAnswerResponse` with safe defaults and clamped numeric fields.
+   *
+   * The total maxMarks is derived from the rubric (sum of criterion maxMarks)
+   * when criteria are present, falling back to questionMaxMarks otherwise.
    */
   const data = (raw ?? {}) as Partial<MarkAnswerResponse>;
-  const maxMarks =
+  const questionMax =
     questionMaxMarks > 0
       ? questionMaxMarks
       : clampWholeNumber(data.maxMarks, 10, 1, 30);
-  const achievedMarks = clampWholeNumber(data.achievedMarks, 0, 0, maxMarks);
-  const vcaaMarkingScheme = Array.isArray(data.vcaaMarkingScheme)
-    ? data.vcaaMarkingScheme.map((item) => ({
-        criterion: item.criterion || 'Criterion',
-        achievedMarks: clampWholeNumber(item.achievedMarks, 0, 0, maxMarks),
-        maxMarks: clampWholeNumber(item.maxMarks, maxMarks, 1, maxMarks),
-        rationale: item.rationale || 'No rationale provided.',
-      }))
+
+  const rawScheme = Array.isArray(data.vcaaMarkingScheme)
+    ? data.vcaaMarkingScheme
     : [];
+
+  const vcaaMarkingScheme: MarkingCriterion[] = rawScheme.map((item) => {
+    const cm = clampWholeNumber(item.maxMarks, questionMax, 1, questionMax);
+    return {
+      criterion: item.criterion || 'Criterion',
+      achievedMarks: clampWholeNumber(item.achievedMarks, 0, 0, cm),
+      maxMarks: cm,
+      rationale: item.rationale || 'No rationale provided.',
+      markType: item.markType || undefined,
+    };
+  });
+
+  const maxMarks =
+    vcaaMarkingScheme.length > 0
+      ? vcaaMarkingScheme.reduce((s, c) => s + c.maxMarks, 0)
+      : questionMax;
+
+  const achievedMarks = clampWholeNumber(data.achievedMarks, 0, 0, maxMarks);
 
   return {
     verdict: data.verdict || 'Unrated',
     achievedMarks,
     maxMarks,
+    partialReason: data.partialReason || undefined,
     vcaaMarkingScheme,
     comparisonToSolutionMarkdown:
       data.comparisonToSolutionMarkdown ||
@@ -113,6 +130,8 @@ export function normalizeMarkResponse(
     workedSolutionMarkdown:
       data.workedSolutionMarkdown || 'No worked solution returned.',
     exemplarResponseMarkdown: data.exemplarResponseMarkdown || undefined,
+    indicativeContentMarkdown: data.indicativeContentMarkdown || undefined,
+    exemplarAnnotations: data.exemplarAnnotations || undefined,
     promptTokens: data.promptTokens,
     completionTokens: data.completionTokens,
     totalTokens: data.totalTokens,

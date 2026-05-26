@@ -460,9 +460,6 @@ impl GenerationService {
         let include_exam_context = request.include_exam_context();
         let strict_latex_validation = request.strict_latex_validation();
         let diversity_enabled = request.diversity_enabled();
-        let enforce_distinctness = request.avoid_similar_questions() || diversity_enabled;
-        let (distinctness_threshold, per_question_distinctness_threshold) =
-            self.diversity_thresholds(diversity_enabled);
 
         let adjusted_difficulty = difficulty::adjust_difficulty(
             request.difficulty(),
@@ -619,194 +616,13 @@ impl GenerationService {
             .iter()
             .map(|q| q.get_max_marks())
             .collect();
-        let (mut metrics, mut summary) = quality::score_batch(&texts, Some(&marks));
+        let (metrics, mut summary) = quality::score_batch(&texts, Some(&marks));
         if is_mc {
             summary.mark_allocation_variance = Some(0.0);
         }
 
         for (q, metric) in payload.questions.iter_mut().zip(metrics.iter()) {
             q.apply_metrics(metric);
-        }
-
-        let mut final_prompt_tokens = result.prompt_tokens;
-        let mut final_completion_tokens = result.completion_tokens;
-        let mut final_total_tokens = result.total_tokens;
-        let mut final_reasoning_tokens = result.reasoning_tokens;
-
-        let mut retry_deficit = self.retry_deficit(
-            &summary,
-            &metrics,
-            distinctness_threshold,
-            per_question_distinctness_threshold,
-            enforce_distinctness,
-            &adjusted_difficulty,
-            is_mc,
-        );
-
-        if retry_deficit > 0.0 {
-            let mut attempts = 0;
-            while retry_deficit > 0.0 && attempts < 2 {
-                attempts += 1;
-
-                // Reset frontend stream buffer for the new attempt
-                let _ = self.app.emit(
-                    "generation-reset",
-                    serde_json::json!({ "topic": topics.first() }),
-                );
-
-                self.emit_generation_status(serde_json::json!({
-                    "mode": mode_str,
-                    "stage": "regenerating-duplicates",
-                    "message": format!("Regenerating to improve quality (attempt {}/2)...", attempts),
-                    "attempt": attempts + 1
-                }));
-
-                let avoid_texts = Q::extract_texts(&payload.questions);
-                let avoid_context = avoid_texts
-                    .iter()
-                    .map(|t| format!("- {}", prompts::truncate_for_prompt(t, 160)))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-
-                let diversity_note = format!(
-                    "\nDIVERSITY REGENERATION: The previous output contained repetitive or low-quality questions.\n\
-                     DO NOT REPEAT or paraphrase these previous scenarios/contexts:\n\
-                     {avoid_context}\n\n\
-                     Generate an ENTIRELY NEW set of questions with different scenarios, names, numbers, and methods. \
-                     Increase creativity and ensure high cognitive diversity."
-                );
-
-                let adaptive_note = prompts::adaptive_quality_note(&metrics);
-                let hard_difficulty_note =
-                    self.high_difficulty_regen_note(&adjusted_difficulty, is_mc);
-                let regen_intro = format!("Regenerate {count} {mode} questions. Topics: {topics}. Difficulty: {difficulty}.", count = request.question_count(), mode = mode_str, topics = sanitize_for_api(&topics.join(", ")), difficulty = adjusted_difficulty);
-
-                let new_user_content = if use_exam_context {
-                    let mut parts =
-                        vec![serde_json::json!({ "type": "text", "text": regen_intro.clone() })];
-                    parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
-                    parts.extend(pdf::build_report_file_parts(&self.app, &topics));
-                    parts.push(serde_json::json!({ "type": "text", "text": sanitize_for_api(&prompts::pdf_reanchor_note(selected_subs, custom_focus_area.as_deref(), request.shuffle_subtopics(), request.question_count())) }));
-                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
-                        selected_subs,
-                        request.question_count(),
-                    ));
-                    if !synth.is_empty() {
-                        parts.push(serde_json::json!({ "type": "text", "text": synth }));
-                    }
-                    if !is_mc {
-                        let methods_note =
-                            prompts::math_methods_exam1_tech_free_note(&topics, tech_mode);
-                        if !methods_note.is_empty() {
-                            parts.push(serde_json::json!({ "type": "text", "text": methods_note }));
-                        }
-                    }
-                    parts.push(serde_json::json!({ "type": "text", "text": diversity_note }));
-                    if !hard_difficulty_note.is_empty() {
-                        parts.push(
-                            serde_json::json!({ "type": "text", "text": hard_difficulty_note }),
-                        );
-                    }
-                    if !adaptive_note.is_empty() {
-                        parts.push(serde_json::json!({ "type": "text", "text": adaptive_note }));
-                    }
-                    serde_json::Value::Array(parts)
-                } else {
-                    let synth = sanitize_for_api(&prompts::subtopic_synthesis_note(
-                        selected_subs,
-                        request.question_count(),
-                    ));
-                    let mut p = format!(
-                        "{}\n\n{}\n\n{}\n\n{}",
-                        regen_intro,
-                        sanitize_for_api(&prompts::subtopics_note(
-                            &topics,
-                            selected_subs,
-                            request.shuffle_subtopics(),
-                            &adjusted_difficulty,
-                            tech_mode
-                        )),
-                        synth,
-                        diversity_note
-                    );
-                    if !hard_difficulty_note.is_empty() {
-                        p.push_str("\n\n");
-                        p.push_str(hard_difficulty_note);
-                    }
-                    if !adaptive_note.is_empty() {
-                        p.push_str(&adaptive_note);
-                    }
-                    if !is_mc {
-                        let methods_note =
-                            prompts::math_methods_exam1_tech_free_note(&topics, tech_mode);
-                        if !methods_note.is_empty() {
-                            p.push_str("\n\n");
-                            p.push_str(methods_note);
-                        }
-                    }
-                    serde_json::Value::String(p)
-                };
-
-                let mut retry_config = OpenRouterRequestConfig::new(
-                    request.api_key(),
-                    request.model(),
-                    &sys_prompt,
-                    new_user_content,
-                    format.clone(),
-                    max_tokens,
-                )
-                .with_plugins(plugins.clone())
-                .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
-                .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new));
-                if let Some(url) = request.base_url() {
-                    retry_config = retry_config.with_base_url(url);
-                }
-                let retry_result = call_openrouter(retry_config).await;
-                if let Ok(r) = retry_result {
-                    if let Ok(mut new_payload) =
-                        self.parse_payload::<QuestionsPayload<Q>>(&r.content)
-                    {
-                        Q::normalize(&mut new_payload.questions, &topics, selected_subs);
-                        if Q::validate(&new_payload.questions, request.question_count()).is_ok() {
-                            Q::adjust_marks(&mut new_payload.questions, total_marks);
-                            let new_texts = Q::extract_texts(&new_payload.questions);
-                            let new_marks: Vec<u8> = new_payload
-                                .questions
-                                .iter()
-                                .map(|q| q.get_max_marks())
-                                .collect();
-                            let (new_metrics, new_summary) =
-                                quality::score_batch(&new_texts, Some(&new_marks));
-                            let new_retry_deficit = self.retry_deficit(
-                                &new_summary,
-                                &new_metrics,
-                                distinctness_threshold,
-                                per_question_distinctness_threshold,
-                                enforce_distinctness,
-                                &adjusted_difficulty,
-                                is_mc,
-                            );
-                            if new_retry_deficit < retry_deficit {
-                                payload = new_payload;
-                                metrics = new_metrics;
-                                summary = new_summary;
-                                retry_deficit = new_retry_deficit;
-                                final_prompt_tokens = r.prompt_tokens;
-                                final_completion_tokens = r.completion_tokens;
-                                final_total_tokens = r.total_tokens;
-                                final_reasoning_tokens = r.reasoning_tokens;
-                                for (q, metric) in payload.questions.iter_mut().zip(metrics.iter())
-                                {
-                                    q.apply_metrics(metric);
-                                }
-                                if retry_deficit <= 0.0 {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         let final_latex_issues = self.collect_latex_issues(&payload.questions, is_mc);
@@ -822,23 +638,23 @@ impl GenerationService {
 
         let estimated_cost_usd = cached_stats.as_ref().and_then(|stats| {
             compute_generation_cost(
-                Some(final_prompt_tokens as u64),
-                Some(final_completion_tokens as u64),
+                Some(result.prompt_tokens as u64),
+                Some(result.completion_tokens as u64),
                 stats.prompt_price_per_token,
                 stats.completion_price_per_token,
             )
         });
         let duration_ms = started.elapsed().as_millis() as u64;
 
-        self.emit_generation_status(serde_json::json!({ "mode": mode_str, "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": final_total_tokens, "promptTokens": final_prompt_tokens, "completionTokens": final_completion_tokens, "reasoningTokens": final_reasoning_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
+        self.emit_generation_status(serde_json::json!({ "mode": mode_str, "stage": "completed", "message": format!("Done — {} questions in {:.1}s.", payload.questions.len(), duration_ms as f64 / 1000.0), "attempt": 1, "totalTokens": result.total_tokens, "promptTokens": result.prompt_tokens, "completionTokens": result.completion_tokens, "reasoningTokens": result.reasoning_tokens, "estimatedCostUsd": estimated_cost_usd, "durationMs": duration_ms }));
 
         Ok((
             payload.questions,
             duration_ms,
-            final_prompt_tokens,
-            final_completion_tokens,
-            final_total_tokens,
-            final_reasoning_tokens,
+            result.prompt_tokens,
+            result.completion_tokens,
+            result.total_tokens,
+            result.reasoning_tokens,
             estimated_cost_usd,
             summary,
             quality_diagnostics,
@@ -996,121 +812,6 @@ impl GenerationService {
             }
         }
         examples
-    }
-
-    pub fn diversity_thresholds(&self, enabled: bool) -> (f32, f32) {
-        if enabled {
-            (0.72, 0.45) // Strict: requires high distinctness
-        } else {
-            (0.55, 0.25) // Standard: basic variety
-        }
-    }
-
-    #[allow(dead_code)]
-    fn high_difficulty_quality_thresholds(
-        &self,
-        difficulty: &str,
-        is_mc: bool,
-    ) -> Option<(f32, f32)> {
-        match difficulty.to_ascii_lowercase().as_str() {
-            "hard" => {
-                if is_mc {
-                    Some((2.2, 0.45))
-                } else {
-                    Some((2.8, 0.55))
-                }
-            }
-            "extreme" => {
-                if is_mc {
-                    Some((2.5, 0.55))
-                } else {
-                    Some((3.2, 0.7))
-                }
-            }
-            _ => None,
-        }
-    }
-
-    fn high_difficulty_regen_note(&self, difficulty: &str, is_mc: bool) -> &'static str {
-        match difficulty.to_ascii_lowercase().as_str() {
-            "hard" => {
-                if is_mc {
-                    "HIGH-DIFFICULTY CORRECTION (HARD): Increase cognitive demand. Require non-routine distractors, multi-step inference, and explicit discrimination between closely plausible options. Avoid direct recall and one-step substitutions."
-                } else {
-                    "HIGH-DIFFICULTY CORRECTION (HARD): Increase cognitive demand. Each question should require multi-step reasoning, method selection, and justification. Include non-routine structure and richer data/context; avoid direct template substitution."
-                }
-            }
-            "extreme" => {
-                if is_mc {
-                    "HIGH-DIFFICULTY CORRECTION (EXTREME): Push to top-end challenge. Use layered reasoning with subtle distractor traps that test synthesis across concepts, not recall."
-                } else {
-                    "HIGH-DIFFICULTY CORRECTION (EXTREME): Push to top-end challenge. Require deep synthesis across concepts, chain reasoning, and rigorous argumentation/proof-style justification where syllabus-valid."
-                }
-            }
-            _ => "",
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn retry_deficit(
-        &self,
-        summary: &quality::QualitySummary,
-        metrics: &[quality::QuestionQualityMetrics],
-        distinctness_threshold: f32,
-        per_question_distinctness_threshold: f32,
-        enforce_distinctness: bool,
-        difficulty: &str,
-        _is_mc: bool,
-    ) -> f32 {
-        let mut deficit: f32 = 0.0;
-        let batch_size = metrics.len() as f32;
-
-        // Distinctness: how unique questions are from each other
-        let avg_distinctness = summary.distinctness_avg.unwrap_or(1.0);
-        if enforce_distinctness && avg_distinctness < distinctness_threshold {
-            deficit += (distinctness_threshold - avg_distinctness) * 3.0;
-        }
-
-        // Per-question distinctness floor
-        if enforce_distinctness {
-            let low_distinct_count = metrics
-                .iter()
-                .filter(|m| m.distinctness < per_question_distinctness_threshold)
-                .count() as f32;
-            if low_distinct_count > 0.0 {
-                deficit += (low_distinct_count / batch_size) * 1.5;
-            }
-        }
-
-        // Verb diversity: variety of command verbs across batch
-        let verb_diversity = summary.command_verb_diversity.unwrap_or(1.0);
-        let verb_threshold = if batch_size <= 2.0 { 0.5 } else { 0.4 };
-        if verb_diversity < verb_threshold {
-            deficit += (verb_threshold - verb_diversity) * 2.0;
-        }
-
-        // Scaffold variety: penalize when all questions are single-part
-        let single_part_ratio = metrics
-            .iter()
-            .filter(|m| m.scaffold_pattern == "single-part")
-            .count() as f32
-            / batch_size;
-        if single_part_ratio > 0.7 && batch_size >= 2.0 {
-            deficit += (single_part_ratio - 0.7) * 2.5;
-        }
-
-        // Depth: expect deeper questions at higher difficulties
-        let avg_depth = summary.multi_step_depth_avg.unwrap_or(1.0);
-        let depth_target = match difficulty.to_ascii_lowercase().as_str() {
-            "hard" => 2.0,
-            "extreme" => 3.0,
-            _ => 1.5,
-        };
-        if avg_depth < depth_target {
-            deficit += (depth_target - avg_depth) * 0.8;
-        }
-
-        (deficit * 100.0).round() / 100.0
     }
 
     pub fn resolve_tech_mode(&self, mode: Option<&str>) -> &'static str {
@@ -1329,16 +1030,8 @@ impl GenerationService {
             sanitize_for_api(question.subtopic.as_deref().unwrap_or("—").trim());
         let question_prompt = sanitize_for_api(&question.prompt_markdown);
 
-        let chem_note = if question_topic.eq_ignore_ascii_case(constants::CHEMISTRY_TOPIC) {
-            constants::CHEMISTRY_LATEX_GUIDANCE
-        } else {
-            ""
-        };
-        let pe_note = if question_topic.eq_ignore_ascii_case(constants::PHYSICAL_EDUCATION_TOPIC) {
-            "\nPHYSICAL EDUCATION MARKING STYLE:\n- DO NOT use mathematical equations, derivations, or formula-based solutions in your exemplarResponseMarkdown, feedbackMarkdown, comparisonToSolutionMarkdown, or workedSolutionMarkdown.\n- VCE PE does not require formal mathematical working. Write all responses in clear prose — paragraphs, bullet points, and short explanations.\n- Simple named formulas are acceptable where the Study Design requires them (e.g. 'Fitt's principle', 'F = ma', 'VO₂max', '1RM') — but do NOT derive, rearrange, or chain equations. Mention the formula by name, then explain its application in words.\n- Award marks for quality of analysis, evaluation, and justification — not for mathematical rigour.\n"
-        } else {
-            ""
-        };
+        let marking_guidance = catalog::topic_marking_guidance(&question_topic);
+        let marking_scheme_style = catalog::topic_marking_scheme_style(&question_topic);
 
         let max_marks = question.max_marks;
 
@@ -1428,8 +1121,8 @@ impl GenerationService {
 
         let mut marking_system_prompt = prompts::marking_system(
             max_marks,
-            chem_note,
-            pe_note,
+            marking_guidance,
+            marking_scheme_style,
             marker_style,
             custom_marker_style,
         );
@@ -1482,19 +1175,24 @@ impl GenerationService {
         let mut parsed: MarkAnswerResponse = serde_json::from_str(&json_str).map_err(|e| {
             AppError::new("MODEL_PARSE_ERROR", format!("Marking schema mismatch: {e}"))
         })?;
-        parsed.max_marks = if max_marks > 0 { max_marks } else { 10 };
-        parsed.achieved_marks = parsed.achieved_marks.min(parsed.max_marks);
+        const MAX_MARKS_CAP: u16 = MAX_ALLOWED_MARKS as u16;
 
         if !parsed.vcaa_marking_scheme.is_empty() {
-            let scheme_total = parsed
+            let scheme_max: u16 = parsed
+                .vcaa_marking_scheme
+                .iter()
+                .map(|c| c.max_marks as u16)
+                .sum();
+            parsed.max_marks = scheme_max.clamp(1, MAX_MARKS_CAP) as u8;
+            let scheme_achieved: u16 = parsed
                 .vcaa_marking_scheme
                 .iter()
                 .map(|c| c.achieved_marks as u16)
-                .sum::<u16>()
-                .min(parsed.max_marks as u16) as u8;
-            if scheme_total != parsed.achieved_marks {
-                parsed.achieved_marks = scheme_total;
-            }
+                .sum();
+            parsed.achieved_marks = scheme_achieved.min(parsed.max_marks as u16) as u8;
+        } else {
+            parsed.max_marks = if max_marks > 0 { max_marks } else { 10 };
+            parsed.achieved_marks = parsed.achieved_marks.min(parsed.max_marks);
         }
 
         parsed.feedback_markdown = clean_field(&parsed.feedback_markdown);

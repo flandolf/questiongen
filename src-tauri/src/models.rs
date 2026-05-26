@@ -285,6 +285,15 @@ pub struct MarkAnswerResponse {
     /// Separate exemplar response showing an ideal student answer.
     #[serde(default)]
     pub exemplar_response_markdown: String,
+    /// VCAA-style indicative content: key points a good answer should include.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub indicative_content_markdown: String,
+    /// Why the response earned its marks, with part-by-part annotations.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exemplar_annotations: Vec<ExemplarAnnotation>,
+    /// When verdict is "Partial", explains the nature: "MostlyCorrect", "PartialUnderstanding", "MethodError", "Incomplete".
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub partial_reason: String,
     /// Per-option explanations for MC questions; empty for written questions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mc_option_explanations: Vec<McOptionExplanation>,
@@ -305,6 +314,21 @@ pub struct MarkingCriterion {
     #[serde(default)]
     pub max_marks: u8,
     pub rationale: String,
+    /// Mark type: "M" (method), "A" (answer), "C" (communication/explanation).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub mark_type: String,
+}
+
+/// Annotation explaining why a part of the exemplar response earned its marks.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExemplarAnnotation {
+    /// e.g., "(a)", "(b)", "(c)"
+    pub part: String,
+    pub marks_earned: u8,
+    pub marks_available: u8,
+    /// Why this part earned the marks it did.
+    pub note: String,
 }
 
 /// Explanation for a single MC option (A–D).
@@ -997,4 +1021,110 @@ pub struct PersistedAppState {
 
 fn default_version() -> u32 {
     2
+}
+
+#[cfg(test)]
+mod tests {
+    #[allow(unused_imports)]
+    use super::*;
+    #[test]
+    fn deserializes_old_format_mark_answer_response_without_new_fields() {
+        // Simulates a v1 record stored before markType, indicativeContent,
+        // exemplarAnnotations, and partialReason were added.
+        let old_json = r###"{
+            "verdict": "Correct",
+            "achievedMarks": 4,
+            "maxMarks": 5,
+            "vcaaMarkingScheme": [
+                {
+                    "criterion": "Correct substitution",
+                    "achievedMarks": 2,
+                    "maxMarks": 2,
+                    "rationale": "Substituted correctly"
+                },
+                {
+                    "criterion": "Correct simplification",
+                    "achievedMarks": 2,
+                    "maxMarks": 3,
+                    "rationale": "Simplification had minor error"
+                }
+            ],
+            "comparisonToSolutionMarkdown": "Good work.",
+            "feedbackMarkdown": "## Strengths\nGood understanding.\n## Areas for Improvement\nCheck arithmetic.",
+            "workedSolutionMarkdown": "Step 1: ...\nStep 2: ...",
+            "exemplarResponseMarkdown": "Model answer here."
+        }"###;
+
+        let parsed: MarkAnswerResponse =
+            serde_json::from_str(old_json).expect("old-format JSON must deserialize");
+
+        assert_eq!(parsed.verdict, "Correct");
+        assert_eq!(parsed.achieved_marks, 4);
+        assert_eq!(parsed.max_marks, 5);
+        assert_eq!(parsed.vcaa_marking_scheme.len(), 2);
+
+        // New fields default gracefully
+        assert!(parsed.partial_reason.is_empty());
+        assert!(parsed.indicative_content_markdown.is_empty());
+        assert!(parsed.exemplar_annotations.is_empty());
+
+        // Old criterion entries lack markType — defaults to empty string
+        for criterion in &parsed.vcaa_marking_scheme {
+            assert!(criterion.mark_type.is_empty());
+        }
+
+        // Round-trip: re-serialize and check new fields are omitted when empty
+        let roundtripped = serde_json::to_string(&parsed).unwrap();
+        assert!(!roundtripped.contains("partialReason"));
+        assert!(!roundtripped.contains("indicativeContentMarkdown"));
+        assert!(!roundtripped.contains("exemplarAnnotations"));
+        assert!(!roundtripped.contains("markType"));
+    }
+
+    #[test]
+    fn deserializes_new_format_mark_answer_response_with_all_fields() {
+        let new_json = r###"{
+            "verdict": "Partial",
+            "achievedMarks": 3,
+            "maxMarks": 6,
+            "partialReason": "Incomplete",
+            "vcaaMarkingScheme": [
+                {
+                    "criterion": "Method correct",
+                    "achievedMarks": 3,
+                    "maxMarks": 3,
+                    "rationale": "Good approach",
+                    "markType": "M"
+                },
+                {
+                    "criterion": "Answer incorrect",
+                    "achievedMarks": 0,
+                    "maxMarks": 3,
+                    "rationale": "Wrong final value",
+                    "markType": "A"
+                }
+            ],
+            "comparisonToSolutionMarkdown": "Method OK, answer wrong.",
+            "feedbackMarkdown": "## What a high-scoring response looks like\nFull working.\n## Common errors\nWrong answer.\n## How to improve\nCheck final step.",
+            "workedSolutionMarkdown": "Full solution here.",
+            "exemplarResponseMarkdown": "Ideal answer.",
+            "indicativeContentMarkdown": "- Correct method\n- Right answer\n- Clear steps",
+            "exemplarAnnotations": [
+                {"part": "(a)", "marksEarned": 3, "marksAvailable": 3, "note": "Correct method"},
+                {"part": "(b)", "marksEarned": 0, "marksAvailable": 3, "note": "Wrong answer"}
+            ]
+        }"###;
+
+        let parsed: MarkAnswerResponse =
+            serde_json::from_str(new_json).expect("new-format JSON must deserialize");
+
+        assert_eq!(parsed.verdict, "Partial");
+        assert_eq!(parsed.partial_reason, "Incomplete");
+        assert_eq!(parsed.indicative_content_markdown, "- Correct method\n- Right answer\n- Clear steps");
+        assert_eq!(parsed.exemplar_annotations.len(), 2);
+        assert_eq!(parsed.exemplar_annotations[0].part, "(a)");
+        assert_eq!(parsed.exemplar_annotations[0].marks_earned, 3);
+        assert_eq!(parsed.vcaa_marking_scheme[0].mark_type, "M");
+        assert_eq!(parsed.vcaa_marking_scheme[1].mark_type, "A");
+    }
 }
