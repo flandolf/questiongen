@@ -5,14 +5,16 @@ import {
   AlertTriangle,
   BookOpen,
   Calculator,
-  Check,
   Dumbbell,
   FlaskConical,
   FunctionSquare,
   Loader2,
+  Pen,
+  Search,
   SigmaSquare,
   Target,
   TestTubeDiagonal,
+  X,
   Zap,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,6 +24,8 @@ import { useAppSettings } from '@/AppContext';
 import { PageHeader } from '@/components/layout/primitives';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -30,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import {
   Tooltip,
   TooltipContent,
@@ -38,24 +43,39 @@ import {
 } from '@/components/ui/tooltip';
 import { auth } from '@/context/modules/firebase-init';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
-import { SPRING } from '@/lib/motion';
+import {
+  fadeInUp,
+  SPRING,
+  SPRING_OVERSHOOT,
+  staggerContainer,
+} from '@/lib/motion';
 import { normalizeDifficulty } from '@/lib/persistence';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
+import type {
+  BatchTopicProgress,
+  CustomSubtopic,
+  Difficulty,
+  GenerationStatusEvent,
+  GenerationSubCallProgress,
+  GenerationTelemetry,
+  QuestionMode,
+  TechMode,
+  Topic,
+  TopicSubtopicGroup,
+} from '@/types';
 import {
-  type BatchTopicProgress,
-  type Difficulty,
-  type GenerationStatusEvent,
-  type GenerationSubCallProgress,
-  type GenerationTelemetry,
-  type QuestionMode,
-  type TechMode,
+  BIOLOGY_SUBTOPIC_GROUPS,
+  CHEMISTRY_SUBTOPIC_GROUPS,
+  GENERAL_MATHEMATICS_SUBTOPIC_GROUPS,
+  MATH_METHODS_SUBTOPIC_GROUPS,
+  PE_SUBTOPIC_GROUPS,
+  SPECIALIST_MATH_SUBTOPIC_GROUPS,
   toCanonicalSubtopicName,
-  type Topic,
+  toScopedSubtopicGroups,
 } from '@/types';
 
 import { getModelsForProvider, getProviderLabel } from '../settings/constants';
-import { AdvancedOptionsGroup } from './AdvancedOptions';
 import {
   BatchTimeline,
   GenerationTimeline,
@@ -64,6 +84,12 @@ import {
 import { PresetSection } from './PresetSection';
 
 export type { BatchTopicProgress } from '@/types';
+
+// ─── Precomputed subtopic groups ──────────────────────────────────────────────
+
+const MATH_METHODS_SCOPED_SUBTOPIC_GROUPS = toScopedSubtopicGroups(
+  MATH_METHODS_SUBTOPIC_GROUPS,
+);
 
 // ─── Topic icon map ───────────────────────────────────────────────────────────
 
@@ -143,6 +169,88 @@ const DIFFICULTY_META: Record<
   },
 };
 
+type GlowTone = 'quiet' | 'active' | 'strong' | 'cta';
+type GlowAnchor = 'center' | 'top' | 'bottom' | 'left' | 'right';
+
+const GLOW_KEYFRAMES = `
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 0.92;
+      filter: saturate(1) brightness(1);
+    }
+    50% {
+      opacity: 1;
+      filter: saturate(1.08) brightness(1.03);
+    }
+  }
+`;
+
+const GLOW_SHADOWS: Record<GlowTone, (color: string) => string> = {
+  quiet: (color) =>
+    `0 0 0 1px color-mix(in srgb, ${color} 10%, transparent), 0 8px 18px -16px color-mix(in srgb, ${color} 38%, transparent)`,
+  active: (color) =>
+    `0 0 0 1px color-mix(in srgb, ${color} 18%, transparent), 0 12px 24px -18px color-mix(in srgb, ${color} 50%, transparent), inset 0 1px 0 color-mix(in srgb, ${color} 8%, transparent)`,
+  strong: (color) =>
+    `0 0 0 1px color-mix(in srgb, ${color} 24%, transparent), 0 0 16px -6px color-mix(in srgb, ${color} 38%, transparent), 0 16px 32px -22px color-mix(in srgb, ${color} 55%, transparent)`,
+  cta: (color) =>
+    `0 0 0 1px color-mix(in srgb, ${color} 30%, transparent), 0 0 18px -6px color-mix(in srgb, ${color} 55%, transparent), 0 14px 28px -16px color-mix(in srgb, ${color} 65%, transparent)`,
+};
+
+function glowStyle(
+  color: string,
+  tone: GlowTone = 'active',
+): React.CSSProperties {
+  return { boxShadow: GLOW_SHADOWS[tone](color) };
+}
+
+function auraBackground(
+  color: string,
+  anchor: GlowAnchor = 'center',
+  strength = 12,
+) {
+  const anchors: Record<GlowAnchor, string> = {
+    center: '50% 50%',
+    top: '50% 0%',
+    bottom: '50% 100%',
+    left: '0% 50%',
+    right: '100% 50%',
+  };
+
+  return [
+    `radial-gradient(ellipse at ${anchors[anchor]}, color-mix(in srgb, ${color} ${strength}%, transparent), transparent 66%)`,
+    `linear-gradient(135deg, color-mix(in srgb, ${color} ${Math.max(strength - 7, 3)}%, transparent), transparent 52%)`,
+  ].join(', ');
+}
+
+function GlowAura({
+  color,
+  anchor = 'center',
+  strength = 12,
+  className,
+  pulse = false,
+}: {
+  color: string;
+  anchor?: GlowAnchor;
+  strength?: number;
+  className?: string;
+  pulse?: boolean;
+}) {
+  return (
+    <motion.div
+      aria-hidden='true'
+      className={cn('absolute inset-0 z-0 pointer-events-none', className)}
+      initial={false}
+      animate={pulse ? { opacity: [0.8, 1, 0.8] } : { opacity: 1 }}
+      transition={
+        pulse
+          ? { duration: 4, repeat: Infinity, ease: 'easeInOut' }
+          : { duration: 0.4 }
+      }
+      style={{ background: auraBackground(color, anchor, strength) }}
+    />
+  );
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type SetupPanelProps = {
@@ -186,7 +294,665 @@ type SetupPanelProps = {
   generationSubCallProgress?: GenerationSubCallProgress | null;
 };
 
+export type AdvancedOptionsGroupProps = {
+  questionMode: QuestionMode;
+  averageMarksPerQuestion: number;
+  onSetAverageMarksPerQuestion: (marks: number) => void;
+  selectedTopics: Topic[];
+  hasSubtopicSection: boolean;
+  selectedSubtopics: Record<string, string[]>;
+  onToggleSubtopic: (topic: Topic, sub: string | string[]) => void;
+  customSubtopics: Record<Topic, CustomSubtopic[]>;
+  hasAnyMathTopic: boolean;
+  techMode: TechMode;
+  onSetTechMode: (mode: TechMode) => void;
+  customFocusArea: string;
+  onSetCustomFocusArea: (value: string) => void;
+  diversityEnabled: boolean;
+  onSetDiversityEnabled: (enabled: boolean) => void;
+  strictLatexValidation: boolean;
+  onSetStrictLatexValidation: (enabled: boolean) => void;
+  themeColor?: string;
+};
+
 const EMPTY_BATCH_PROGRESS: BatchTopicProgress[] = [];
+
+function GroupedSubtopicSelector({
+  label,
+  groups,
+  selected,
+  onToggle,
+  themeColor = '#f59e0b',
+}: {
+  label: string;
+  groups: readonly TopicSubtopicGroup[];
+  selected: string[];
+  onToggle: (item: string | string[]) => void;
+  themeColor?: string;
+}) {
+  const [selectedUnits, setSelectedUnits] = useState<Set<string>>(() => {
+    const units = new Set<string>();
+    for (const group of groups) {
+      if (group.subtopics.some((s) => selected.includes(s))) {
+        units.add(group.unit);
+      }
+    }
+    return units;
+  });
+
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredGroups = useMemo(() => {
+    if (!searchTerm.trim()) return groups;
+    const lowerSearch = searchTerm.toLowerCase();
+    return groups
+      .map((group) => ({
+        ...group,
+        subtopics: group.subtopics.filter(
+          (s) =>
+            toCanonicalSubtopicName(s).toLowerCase().includes(lowerSearch) ||
+            group.aos.toLowerCase().includes(lowerSearch),
+        ),
+      }))
+      .filter((group) => group.subtopics.length > 0);
+  }, [groups, searchTerm]);
+
+  const toggleSelectAllInUnit = (unit: string) => {
+    const unitGroups = (searchTerm.trim() ? filteredGroups : groups).filter(
+      (g) => g.unit === unit,
+    );
+    const allSubtopics = unitGroups.flatMap((g) => g.subtopics);
+
+    const toSelect = allSubtopics.filter((s) => !selected.includes(s));
+    if (toSelect.length > 0) {
+      onToggle(toSelect);
+      return;
+    }
+
+    const toDeselect = allSubtopics.filter((s) => selected.includes(s));
+    onToggle(toDeselect);
+  };
+
+  const toggleSelectAllInGroup = (group: TopicSubtopicGroup) => {
+    const toSelect = group.subtopics.filter((s) => !selected.includes(s));
+    if (toSelect.length > 0) {
+      onToggle(toSelect);
+      return;
+    }
+
+    const toDeselect = group.subtopics.filter((s) => selected.includes(s));
+    onToggle(toDeselect);
+  };
+
+  const toggleUnit = (unit: string) => {
+    setSelectedUnits((prev) => {
+      const next = new Set(prev);
+      if (next.has(unit)) {
+        next.delete(unit);
+      } else {
+        next.add(unit);
+      }
+      return next;
+    });
+  };
+
+  const units = useMemo(
+    () =>
+      Array.from(new Set(groups.map((group) => group.unit))).sort((a, b) => {
+        const unitNumber = (value: string) => {
+          const match = value.match(/^Unit\s+(\d+)$/i);
+          return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+        };
+        const numberDiff = unitNumber(a) - unitNumber(b);
+        if (numberDiff !== 0) return numberDiff;
+        return a.localeCompare(b);
+      }),
+    [groups],
+  );
+
+  const visibleGroups = useMemo(() => {
+    if (searchTerm.trim()) return filteredGroups;
+    return groups.filter((group) => selectedUnits.has(group.unit));
+  }, [groups, selectedUnits, searchTerm, filteredGroups]);
+
+  const unitsWithMatches = useMemo(() => {
+    if (!searchTerm.trim()) return new Set(units);
+    return new Set(filteredGroups.map((g) => g.unit));
+  }, [filteredGroups, searchTerm, units]);
+
+  return (
+    <div className='flex flex-col gap-6 w-full'>
+      <div className='flex flex-col gap-4'>
+        <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
+          <h3 className='text-sm font-bold text-foreground'>{label}</h3>
+          <div className='relative w-full sm:w-64'>
+            <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground' />
+            <input
+              type='text'
+              placeholder='Search subtopics...'
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label='Search subtopics'
+              className='w-full h-9 pl-9 pr-8 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all'
+            />
+            {searchTerm && (
+              <button
+                type='button'
+                onClick={() => setSearchTerm('')}
+                aria-label='Clear search'
+                className='absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
+              >
+                <X className='h-3.5 w-3.5' />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* High-density Unit Selector Cards */}
+        <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+          {units.map((unit) => {
+            const hasMatches = unitsWithMatches.has(unit);
+            if (!hasMatches && searchTerm.trim()) return null;
+
+            const isActive = searchTerm.trim() || selectedUnits.has(unit);
+            const unitGroups = groups.filter((g) => g.unit === unit);
+            const totalSubs = unitGroups.reduce(
+              (sum, g) => sum + g.subtopics.length,
+              0,
+            );
+            const selectedCount = unitGroups.reduce(
+              (sum, g) =>
+                sum + g.subtopics.filter((s) => selected.includes(s)).length,
+              0,
+            );
+
+            return (
+              <motion.button
+                key={unit}
+                type='button'
+                onClick={() => toggleUnit(unit)}
+                whileHover={{ y: -1.5 }}
+                whileTap={{ scale: 0.97 }}
+                transition={SPRING_OVERSHOOT}
+                className={cn(
+                  'group relative flex items-center justify-between p-3 rounded-xl transition-all border overflow-hidden',
+                  isActive
+                    ? 'border-transparent'
+                    : 'bg-card border-border hover:bg-muted/50 text-muted-foreground',
+                )}
+                style={
+                  isActive
+                    ? {
+                        backgroundColor: `color-mix(in srgb, ${themeColor} 6%, transparent)`,
+                        borderColor: `color-mix(in srgb, ${themeColor} 22%, transparent)`,
+                        ...glowStyle(themeColor, 'quiet'),
+                      }
+                    : undefined
+                }
+              >
+                {isActive && (
+                  <GlowAura color={themeColor} anchor='left' strength={5} />
+                )}
+
+                <div className='flex flex-col items-start relative z-10'>
+                  <span
+                    className={cn(
+                      'font-bold text-xs',
+                      isActive ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    {unit}
+                  </span>
+                  <motion.span
+                    animate={{
+                      scale: selectedCount > 0 ? [1, 1.1, 1] : 1,
+                    }}
+                    transition={{ duration: 0.2 }}
+                    className={cn(
+                      'text-[10px] tabular-nums',
+                      selectedCount > 0
+                        ? 'text-primary/70 font-bold'
+                        : 'text-muted-foreground/40',
+                    )}
+                  >
+                    {selectedCount}/{totalSubs}
+                  </motion.span>
+                </div>
+
+                <div
+                  role='button'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    toggleSelectAllInUnit(unit);
+                  }}
+                  className='cursor-pointer text-[10px] font-bold text-muted-foreground/50 hover:text-foreground px-2 py-1 rounded bg-muted/30 hover:bg-muted transition-colors relative z-10'
+                >
+                  ALL
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      <AnimatePresence mode='popLayout'>
+        {visibleGroups.length > 0 && (
+          <motion.div
+            initial='hidden'
+            animate='visible'
+            exit={{ opacity: 0, y: 10 }}
+            variants={staggerContainer}
+            className='grid grid-cols-1 lg:grid-cols-2 gap-4'
+          >
+            {visibleGroups.map((group) => {
+              const selectedCount = group.subtopics.filter((s) =>
+                selected.includes(s),
+              ).length;
+              const allSelected = selectedCount === group.subtopics.length;
+
+              return (
+                <motion.div
+                  layout
+                  key={group.groupId}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    boxShadow: allSelected
+                      ? GLOW_SHADOWS.active(themeColor)
+                      : '0 0 0px transparent',
+                  }}
+                  exit={{ opacity: 0, y: 8 }}
+                  className={cn(
+                    'flex flex-col gap-3 p-4 rounded-xl border transition-colors relative overflow-hidden',
+                    allSelected
+                      ? 'border-transparent'
+                      : 'bg-card border-border',
+                  )}
+                  style={
+                    allSelected
+                      ? {
+                          backgroundColor: `color-mix(in srgb, ${themeColor} 5%, transparent)`,
+                          borderColor: `color-mix(in srgb, ${themeColor} 24%, transparent)`,
+                        }
+                      : undefined
+                  }
+                  whileHover={{ y: -1 }}
+                  transition={SPRING}
+                >
+                  {allSelected && (
+                    <GlowAura color={themeColor} anchor='top' strength={6} />
+                  )}
+                  <div className='flex items-center justify-between relative z-10'>
+                    <h4 className='text-xs font-bold text-foreground leading-tight'>
+                      {group.aos}
+                    </h4>
+                    <motion.button
+                      type='button'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectAllInGroup(group);
+                      }}
+                      whileTap={{ scale: 0.93 }}
+                      transition={SPRING_OVERSHOOT}
+                      className='text-[10px] font-bold text-muted-foreground/40 hover:text-foreground bg-muted/30 hover:bg-muted px-2 py-1 rounded transition-colors shrink-0'
+                    >
+                      {allSelected ? 'CLEAR' : 'SELECT ALL'}
+                    </motion.button>
+                  </div>
+
+                  <motion.div
+                    className='flex flex-wrap gap-1.5 relative z-10'
+                    variants={staggerContainer}
+                    initial='hidden'
+                    animate='visible'
+                  >
+                    {group.subtopics.map((subtopic, chipIdx) => {
+                      const isSelected = selected.includes(subtopic);
+                      return (
+                        <motion.button
+                          key={subtopic}
+                          type='button'
+                          variants={fadeInUp}
+                          custom={chipIdx}
+                          whileHover={{ scale: 1.05, y: -1 }}
+                          whileTap={{ scale: 0.93 }}
+                          transition={SPRING_OVERSHOOT}
+                          onClick={() => onToggle(subtopic)}
+                          className={cn(
+                            'inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border select-none',
+                            isSelected
+                              ? 'bg-primary/10 text-primary border-primary/25 font-bold shadow-sm'
+                              : 'bg-background text-muted-foreground/60 border-border hover:bg-muted/50',
+                          )}
+                          style={
+                            isSelected
+                              ? {
+                                  backgroundColor: `color-mix(in srgb, ${themeColor} 10%, transparent)`,
+                                  borderColor: `color-mix(in srgb, ${themeColor} 34%, transparent)`,
+                                  color: themeColor,
+                                  ...glowStyle(themeColor, 'quiet'),
+                                }
+                              : undefined
+                          }
+                        >
+                          {toCanonicalSubtopicName(subtopic)}
+                        </motion.button>
+                      );
+                    })}
+                  </motion.div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Advanced options components ──────────────────────────────────────────────
+
+function ToggleRow({
+  id,
+  label,
+  description,
+  checked,
+  onCheckedChange,
+  themeColor = '#f59e0b',
+}: {
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  themeColor?: string;
+}) {
+  return (
+    <motion.div
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 1 }}
+      className={cn(
+        'relative flex min-h-17 items-center justify-between gap-3 px-3 py-3 rounded-lg border transition-colors cursor-pointer group overflow-hidden',
+        checked ? '' : 'bg-card border-border hover:bg-muted/50',
+      )}
+      style={
+        checked
+          ? {
+              backgroundColor: `color-mix(in srgb, ${themeColor} 5%, transparent)`,
+              borderColor: `color-mix(in srgb, ${themeColor} 20%, transparent)`,
+              ...glowStyle(themeColor, 'quiet'),
+            }
+          : undefined
+      }
+      onClick={() => onCheckedChange(!checked)}
+    >
+      {checked && <GlowAura color={themeColor} anchor='right' strength={5} />}
+      <div className='flex items-start gap-3 min-w-0 relative z-10'>
+        <div className='min-w-0'>
+          <Label
+            htmlFor={id}
+            className='text-sm font-semibold cursor-pointer block text-foreground'
+          >
+            {label}
+          </Label>
+          <p className='text-xs mt-0.5 line-clamp-1 text-muted-foreground'>
+            {description}
+          </p>
+        </div>
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        onClick={(e) => e.stopPropagation()}
+        onCheckedChange={onCheckedChange}
+        className='shrink-0 relative z-10'
+      />
+    </motion.div>
+  );
+}
+
+function AdvancedOptionsGroup({
+  questionMode,
+  averageMarksPerQuestion,
+  onSetAverageMarksPerQuestion,
+  selectedTopics,
+  hasSubtopicSection,
+  selectedSubtopics,
+  onToggleSubtopic,
+  customSubtopics,
+  hasAnyMathTopic,
+  techMode,
+  onSetTechMode,
+  customFocusArea,
+  onSetCustomFocusArea,
+  diversityEnabled,
+  onSetDiversityEnabled,
+  strictLatexValidation,
+  onSetStrictLatexValidation,
+  themeColor = '#f59e0b',
+}: AdvancedOptionsGroupProps) {
+  const getSubtopicGroups = (topic: Topic): readonly TopicSubtopicGroup[] => {
+    let groups: readonly TopicSubtopicGroup[];
+    switch (topic) {
+      case 'Mathematical Methods':
+        groups = MATH_METHODS_SCOPED_SUBTOPIC_GROUPS;
+        break;
+      case 'Specialist Mathematics':
+        groups = SPECIALIST_MATH_SUBTOPIC_GROUPS;
+        break;
+      case 'Chemistry':
+        groups = CHEMISTRY_SUBTOPIC_GROUPS;
+        break;
+      case 'Physical Education':
+        groups = PE_SUBTOPIC_GROUPS;
+        break;
+      case 'Biology':
+        groups = BIOLOGY_SUBTOPIC_GROUPS;
+        break;
+      case 'General Mathematics':
+        groups = GENERAL_MATHEMATICS_SUBTOPIC_GROUPS;
+        break;
+      default:
+        groups = [];
+    }
+
+    const customSubs = customSubtopics[topic] || [];
+    if (customSubs.length === 0) return groups;
+
+    const customGroup: TopicSubtopicGroup = {
+      topic,
+      groupId: 'custom',
+      unit: 'Custom',
+      aos: 'Custom Subtopics',
+      label: 'Custom Subtopics',
+      subtopics: customSubs.map((s) => s.name),
+    };
+
+    return [...groups, customGroup];
+  };
+
+  return (
+    <div className='flex flex-col gap-6 w-full'>
+      {/* Session Size & Marks Row */}
+      <div className='flex flex-col gap-2'>
+        <motion.div
+          className={cn(
+            'p-4 rounded-xl border flex flex-col gap-4 transition-colors w-full relative overflow-hidden',
+            questionMode === 'multiple-choice'
+              ? 'bg-muted/30 border-transparent opacity-60 pointer-events-none'
+              : 'bg-card border-border/70',
+          )}
+          style={
+            questionMode !== 'multiple-choice'
+              ? glowStyle(themeColor, 'quiet')
+              : undefined
+          }
+        >
+          {questionMode !== 'multiple-choice' && (
+            <GlowAura color={themeColor} anchor='right' strength={5} />
+          )}
+          <div className='flex items-center justify-between relative z-10'>
+            <Label className='text-sm font-semibold flex items-center gap-2'>
+              Marks Per Question
+            </Label>
+            <div className='font-mono text-xl font-bold text-foreground'>
+              {averageMarksPerQuestion}
+            </div>
+          </div>
+          <Slider
+            min={1}
+            max={20}
+            step={1}
+            value={[averageMarksPerQuestion]}
+            onValueChange={(val) => onSetAverageMarksPerQuestion(val[0])}
+            disabled={questionMode === 'multiple-choice'}
+            className='relative z-10'
+          />
+        </motion.div>
+      </div>
+
+      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+        <ToggleRow
+          id='diversity-toggle'
+          label='Enforce Diversity'
+          description='Strictly varies question styles and context.'
+          checked={diversityEnabled}
+          onCheckedChange={onSetDiversityEnabled}
+          themeColor={themeColor}
+        />
+        <ToggleRow
+          id='latex-toggle'
+          label='Strict LaTeX'
+          description='Rejects formulas with syntax errors.'
+          checked={strictLatexValidation}
+          onCheckedChange={onSetStrictLatexValidation}
+          themeColor={themeColor}
+        />
+      </div>
+
+      {/* Calculator & Flags Row */}
+      {hasAnyMathTopic && (
+        <div
+          className={cn(
+            'flex flex-col gap-2',
+            selectedTopics.length <= 1 && 'md:col-span-2',
+          )}
+        >
+          <div className='grid grid-cols-2 gap-3'>
+            {(
+              [
+                {
+                  value: 'tech-free' as TechMode,
+                  label: 'Tech Free',
+                  icon: <Pen className='w-4 h-4' />,
+                  desc: 'No calculator allowed',
+                },
+                {
+                  value: 'tech-active' as TechMode,
+                  label: 'Tech Active',
+                  icon: <Calculator className='w-4 h-4' />,
+                  desc: 'Calculator required',
+                },
+              ] as const
+            ).map(({ value, label, desc }) => {
+              const isActive = techMode === value;
+              return (
+                <TooltipProvider key={value}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type='button'
+                        onClick={() => onSetTechMode(value)}
+                        className={cn(
+                          'relative flex min-h-14 flex-col items-center justify-center gap-1.5 p-3 rounded-xl border transition-all cursor-pointer w-full overflow-hidden',
+                          isActive
+                            ? 'font-bold'
+                            : 'bg-card text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground',
+                        )}
+                        style={
+                          isActive
+                            ? {
+                                backgroundColor: `color-mix(in srgb, ${themeColor} 5%, transparent)`,
+                                borderColor: `color-mix(in srgb, ${themeColor} 30%, transparent)`,
+                                color: themeColor,
+                                ...glowStyle(themeColor, 'quiet'),
+                              }
+                            : undefined
+                        }
+                      >
+                        {isActive && (
+                          <GlowAura
+                            color={themeColor}
+                            anchor='bottom'
+                            strength={6}
+                          />
+                        )}
+                        <div className='text-sm relative z-10'>{label}</div>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side='top'>
+                      <p>{desc}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Direction Override */}
+      <div className='flex flex-col gap-2'>
+        <div className='flex items-center justify-between w-full'>
+          <h2 className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 flex items-center gap-2'>
+            Custom Focus Area
+          </h2>
+          <span className='font-mono text-[9px] text-muted-foreground/30'>
+            OPTIONAL
+          </span>
+        </div>
+
+        <div className='relative'>
+          <Input
+            value={customFocusArea}
+            onChange={(e) => onSetCustomFocusArea(e.target.value)}
+            maxLength={160}
+            placeholder='e.g. "Focus on differentiation rules"'
+            className='pr-16 rounded-xl h-10 bg-card border-border text-sm placeholder:text-muted-foreground/30 focus-visible:ring-primary/20 focus-visible:border-transparent transition-all'
+            style={
+              customFocusArea.length > 0
+                ? glowStyle(themeColor, 'quiet')
+                : undefined
+            }
+          />
+          {customFocusArea.length > 0 && (
+            <div className='absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground/30 font-medium'>
+              {customFocusArea.length}/160
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Subtopics */}
+      {hasSubtopicSection && (
+        <div className='flex flex-col gap-6'>
+          {selectedTopics.map((topic) => (
+            <GroupedSubtopicSelector
+              key={topic}
+              label={topic}
+              groups={getSubtopicGroups(topic)}
+              selected={selectedSubtopics[topic] || []}
+              onToggle={(sub) => onToggleSubtopic(topic, sub)}
+              themeColor={themeColor}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -293,6 +1059,7 @@ function SetupPanelImpl({
 
   const activeDifficulty = normalizeDifficulty(difficulty);
   const activeDifficultyMeta = DIFFICULTY_META[activeDifficulty];
+  const themeColor = activeDifficultyMeta.themeColor;
   const showBatchTimeline = batchProgress.length > 1;
   const activeProviderId = useAppStore((s) => s.activeProviderId);
 
@@ -443,10 +1210,20 @@ function SetupPanelImpl({
 
   return (
     <TooltipProvider>
-      <div className='selection:bg-foreground/10 flex flex-col h-screen'>
-        <div className='relative px-6 py-8 flex flex-col lg:flex-row gap-12 flex-1 overflow-y-auto'>
+      <div
+        className='selection:bg-foreground/10 flex flex-col h-screen'
+        style={{ '--theme-color': themeColor } as React.CSSProperties}
+      >
+        <style>{GLOW_KEYFRAMES}</style>
+        <div className='relative px-6 py-8 flex flex-col lg:flex-row gap-12 flex-1 overflow-y-auto overflow-x-hidden'>
+          <GlowAura
+            color={themeColor}
+            anchor='top'
+            strength={5}
+            className='h-72 bottom-auto opacity-60'
+          />
           {/* ── LEFT COLUMN ── */}
-          <div className='w-full lg:w-104 xl:w-md flex flex-col gap-6 shrink-0'>
+          <div className='w-full lg:w-104 xl:w-md flex flex-col gap-6 shrink-0 relative z-10'>
             {/* Header */}
             <PageHeader
               title='Generator'
@@ -469,6 +1246,7 @@ function SetupPanelImpl({
                   },
                 ].map(({ mode, label, icon }) => {
                   const isActive = questionMode === mode;
+                  const modeColor = mode === 'written' ? '#0ea5e9' : '#8b5cf6';
                   const activeClass =
                     mode === 'written'
                       ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
@@ -482,14 +1260,24 @@ function SetupPanelImpl({
                       whileTap={{ scale: 0.98 }}
                       transition={SPRING}
                       className={cn(
-                        'flex items-center justify-center gap-2.5 h-11 rounded-xl border text-sm font-semibold transition-all',
+                        'relative flex items-center justify-center gap-2.5 h-11 rounded-xl border text-sm font-semibold transition-all overflow-hidden',
                         isActive
                           ? activeClass
                           : 'bg-card border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground',
                       )}
+                      style={
+                        isActive ? glowStyle(modeColor, 'quiet') : undefined
+                      }
                     >
-                      {icon}
-                      {label}
+                      {isActive && (
+                        <GlowAura
+                          color={modeColor}
+                          anchor='bottom'
+                          strength={6}
+                        />
+                      )}
+                      <span className='relative z-10'>{icon}</span>
+                      <span className='relative z-10'>{label}</span>
                     </motion.button>
                   );
                 })}
@@ -507,9 +1295,19 @@ function SetupPanelImpl({
                     className={cn(
                       'h-8 rounded-md border-border/70 text-xs flex-1',
                       activeGroup === id
-                        ? 'bg-primary/10 border-primary/30 text-primary'
+                        ? ''
                         : 'hover:bg-muted/50 hover:border-foreground/20',
                     )}
+                    style={
+                      activeGroup === id
+                        ? {
+                            backgroundColor: `color-mix(in srgb, ${themeColor} 10%, transparent)`,
+                            borderColor: `color-mix(in srgb, ${themeColor} 30%, transparent)`,
+                            color: themeColor,
+                            ...glowStyle(themeColor, 'quiet'),
+                          }
+                        : undefined
+                    }
                   >
                     {label}
                   </Button>
@@ -532,49 +1330,70 @@ function SetupPanelImpl({
                           key={topic}
                           type='button'
                           onClick={() => onToggleTopic(topic)}
-                          whileHover={{ y: -2, scale: 1.01 }}
-                          whileTap={{ scale: 0.98 }}
-                          transition={SPRING}
+                          whileHover={{ y: -2, scale: 1.02 }}
+                          whileTap={{ scale: 0.97 }}
+                          transition={SPRING_OVERSHOOT}
                           className={cn(
-                            'relative flex flex-col items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer select-none group overflow-hidden',
+                            'relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border text-center transition-all cursor-pointer select-none group overflow-hidden',
                             isSelected
-                              ? 'bg-primary/5 border-primary/25 shadow-sm'
+                              ? 'border-transparent'
                               : 'bg-card border-border hover:border-foreground/20 hover:bg-muted/30',
                           )}
+                          style={
+                            isSelected
+                              ? {
+                                  borderColor: `color-mix(in srgb, ${themeColor} 30%, transparent)`,
+                                  backgroundColor: `color-mix(in srgb, ${themeColor} 5%, transparent)`,
+                                  ...glowStyle(themeColor, 'active'),
+                                }
+                              : undefined
+                          }
                         >
-                          <div className='flex items-start justify-between w-full relative z-10'>
-                            <div
-                              className={cn(
-                                'p-1.5 rounded-lg transition-colors duration-200',
+                          {isSelected && (
+                            <GlowAura
+                              color={themeColor}
+                              anchor='center'
+                              strength={7}
+                            />
+                          )}
+
+                          {/* Hero icon */}
+                          <motion.div
+                            className={cn(
+                              'relative flex items-center justify-center rounded-2xl transition-all duration-300 z-10',
+                              isSelected
+                                ? 'p-2.5'
+                                : 'p-2 bg-muted/60 text-muted-foreground group-hover:text-foreground',
+                            )}
+                            style={
+                              isSelected
+                                ? {
+                                    backgroundColor: `color-mix(in srgb, ${themeColor} 15%, transparent)`,
+                                    color: themeColor,
+                                    ...glowStyle(themeColor, 'quiet'),
+                                  }
+                                : undefined
+                            }
+                            animate={isSelected ? { scale: [1, 1.03, 1] } : {}}
+                            transition={{ duration: 0.5, ease: 'easeOut' }}
+                          >
+                            <span
+                              className={
                                 isSelected
-                                  ? 'bg-primary/10 text-primary'
-                                  : 'bg-muted/60 text-muted-foreground group-hover:text-foreground',
-                              )}
+                                  ? 'scale-110 transition-transform duration-300'
+                                  : ''
+                              }
                             >
                               {TOPIC_ICONS[topic] ?? (
                                 <BookOpen className='w-4 h-4' />
                               )}
-                            </div>
-                            <div
-                              className={cn(
-                                'w-4 h-4 rounded-sm border-[1.5px] flex items-center justify-center transition-all duration-200 mt-0.5',
-                                isSelected
-                                  ? 'bg-primary border-primary text-primary-foreground'
-                                  : 'border-border/70',
-                              )}
-                            >
-                              {isSelected && (
-                                <Check
-                                  className='w-2.5 h-2.5'
-                                  strokeWidth={3}
-                                />
-                              )}
-                            </div>
-                          </div>
+                            </span>
+                          </motion.div>
 
+                          {/* Subject name */}
                           <p
                             className={cn(
-                              'text-xs font-semibold leading-tight relative z-10',
+                              'text-xs font-bold leading-tight relative z-10',
                               isSelected
                                 ? 'text-foreground'
                                 : 'text-muted-foreground group-hover:text-foreground',
@@ -582,6 +1401,20 @@ function SetupPanelImpl({
                           >
                             {topic}
                           </p>
+
+                          {/* Accent bar at bottom */}
+                          <motion.div
+                            className='h-0.5 rounded-full relative z-10'
+                            initial={false}
+                            animate={{
+                              width: isSelected ? '60%' : '0%',
+                              backgroundColor: isSelected
+                                ? themeColor
+                                : 'transparent',
+                              opacity: isSelected ? 0.6 : 0,
+                            }}
+                            transition={SPRING_OVERSHOOT}
+                          />
                         </motion.button>
                       );
                     })}
@@ -592,10 +1425,18 @@ function SetupPanelImpl({
 
             {/* Difficulty */}
             <Section label='Difficulty' className='mt-2'>
-              <div className='rounded-xl bg-muted/15 p-5 flex flex-col gap-4'>
-                {/* Header row */}
-                <div className='flex items-center justify-between'>
-                  <div className='flex items-center gap-2'>
+              <div
+                className='rounded-xl bg-muted/15 p-5 flex flex-col gap-4 relative overflow-hidden'
+                style={glowStyle(themeColor, 'quiet')}
+              >
+                <GlowAura color={themeColor} anchor='bottom' strength={8} />
+                <div className='flex items-center justify-between relative z-10'>
+                  <div className='flex items-center gap-3'>
+                    <motion.div
+                      className='w-2 h-2 rounded-full'
+                      animate={{ backgroundColor: themeColor }}
+                      transition={{ duration: 0.4 }}
+                    />
                     <span
                       className={cn(
                         'text-base font-black tracking-tight',
@@ -609,9 +1450,7 @@ function SetupPanelImpl({
                     </span>
                   </div>
                 </div>
-
-                {/* Gauge bars */}
-                <div className='flex gap-1.5 h-10 items-end'>
+                <div className='flex gap-1.5 h-10 items-end relative z-10'>
                   {levels.map((level, idx) => {
                     const isActive = idx <= diffIndex;
                     const isCurrent = idx === diffIndex;
@@ -623,26 +1462,47 @@ function SetupPanelImpl({
                         onClick={() => onSetDifficulty(level)}
                         className='group/bar relative flex-1 h-full flex items-end justify-center cursor-pointer outline-none'
                       >
+                        {isCurrent && (
+                          <motion.div
+                            className='absolute bottom-0 left-1/2 -translate-x-1/2 w-full blur-md pointer-events-none z-0'
+                            initial={false}
+                            animate={{
+                              height: '86%',
+                              backgroundColor: `color-mix(in srgb, ${themeColor} 28%, transparent)`,
+                            }}
+                            transition={SPRING_OVERSHOOT}
+                          />
+                        )}
                         <motion.div
                           initial={false}
                           animate={{
                             height: `${barHeights[idx]}%`,
                             backgroundColor: isCurrent
-                              ? activeDifficultyMeta.themeColor
+                              ? themeColor
                               : isActive
-                                ? `color-mix(in srgb, ${activeDifficultyMeta.themeColor} 30%, transparent)`
+                                ? `color-mix(in srgb, ${themeColor} 30%, transparent)`
                                 : 'color-mix(in srgb, var(--color-border) 40%, transparent)',
                           }}
-                          transition={SPRING}
+                          transition={SPRING_OVERSHOOT}
                           className='w-full rounded-sm relative z-10'
-                        />
+                        >
+                          {isCurrent && (
+                            <motion.div
+                              className='absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full'
+                              initial={false}
+                              animate={{ backgroundColor: themeColor }}
+                              transition={{ duration: 0.3 }}
+                              style={{
+                                boxShadow: `0 0 6px color-mix(in srgb, ${themeColor} 35%, transparent), 0 0 2px color-mix(in srgb, ${themeColor} 20%, transparent)`,
+                              }}
+                            />
+                          )}
+                        </motion.div>
                       </button>
                     );
                   })}
                 </div>
-
-                {/* Level labels */}
-                <div className='flex gap-1.5'>
+                <div className='flex gap-1.5 relative z-10'>
                   {levels.map((level, idx) => (
                     <button
                       key={level}
@@ -664,9 +1524,13 @@ function SetupPanelImpl({
 
             {/* Question Count */}
             <Section label='Questions'>
-              <div className='rounded-xl bg-muted/15 px-5 py-5 flex flex-col gap-4'>
+              <div
+                className='rounded-xl bg-muted/15 px-5 py-5 flex flex-col gap-4 relative overflow-hidden'
+                style={glowStyle(themeColor, 'quiet')}
+              >
+                <GlowAura color={themeColor} anchor='right' strength={7} />
                 {/* Header with count and context */}
-                <div className='flex items-start justify-between'>
+                <div className='flex items-start justify-between relative z-10'>
                   <div className='flex items-start gap-3'>
                     <div className='flex flex-col gap-1'>
                       <span className='text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60'>
@@ -678,7 +1542,10 @@ function SetupPanelImpl({
                     </div>
                   </div>
                   <div className='text-right'>
-                    <p className='text-xs font-bold text-primary/80 mt-1'>
+                    <p
+                      className='text-xs font-bold mt-1'
+                      style={{ color: themeColor, opacity: 0.8 }}
+                    >
                       {Math.ceil((questionCount * 2.5) / 10) * 10}–
                       {Math.ceil((questionCount * 3.5) / 10) * 10} mins
                     </p>
@@ -686,7 +1553,7 @@ function SetupPanelImpl({
                 </div>
 
                 {/* Slider with visual fill */}
-                <div className='flex flex-col gap-2'>
+                <div className='flex flex-col gap-2 relative z-10'>
                   <Slider
                     min={1}
                     max={20}
@@ -702,7 +1569,7 @@ function SetupPanelImpl({
                 </div>
 
                 {/* Quick presets */}
-                <div className='flex gap-2'>
+                <div className='flex gap-2 relative z-10'>
                   {[
                     { count: 3, label: 'Quick' },
                     { count: 7, label: 'Balanced' },
@@ -718,9 +1585,18 @@ function SetupPanelImpl({
                       className={cn(
                         'flex-1 px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border',
                         questionCount === count
-                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                          ? 'text-white shadow-sm'
                           : 'border-border/40 bg-muted/30 text-muted-foreground hover:border-border/70 hover:bg-muted/50',
                       )}
+                      style={
+                        questionCount === count
+                          ? {
+                              backgroundColor: themeColor,
+                              borderColor: themeColor,
+                              ...glowStyle(themeColor, 'quiet'),
+                            }
+                          : undefined
+                      }
                     >
                       {label}
                     </motion.button>
@@ -734,12 +1610,14 @@ function SetupPanelImpl({
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className='flex items-start gap-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 mt-2'
+                className='relative flex items-start gap-3.5 rounded-xl border border-amber-500/25 bg-amber-500/5 p-4 mt-2 overflow-hidden'
+                style={glowStyle('#f59e0b', 'quiet')}
               >
-                <div className='p-1.5 bg-amber-500/10 rounded-lg mt-0.5 shrink-0'>
+                <GlowAura color='#f59e0b' anchor='left' strength={6} />
+                <div className='p-1.5 bg-amber-500/10 rounded-lg mt-0.5 shrink-0 relative z-10'>
                   <AlertTriangle className='w-4 h-4 text-amber-600 dark:text-amber-400' />
                 </div>
-                <div className='flex-1 space-y-2'>
+                <div className='flex-1 space-y-2 relative z-10'>
                   <p className='text-sm font-semibold text-foreground leading-snug'>
                     API key missing
                   </p>
@@ -760,7 +1638,7 @@ function SetupPanelImpl({
           </div>
 
           {/* ── RIGHT COLUMN ── */}
-          <div className='w-full lg:flex-1 flex flex-col gap-6'>
+          <div className='w-full lg:flex-1 flex flex-col gap-6 relative z-10'>
             {/* Presets */}
             <div className='flex flex-col gap-4'>
               <div className='flex items-center gap-3'>
@@ -769,17 +1647,23 @@ function SetupPanelImpl({
                 </p>
                 <div className='flex-1 border-t border-border/20' />
               </div>
-              <div className='rounded-xl border border-border/40 bg-card p-5'>
-                <PresetSection
-                  selectedTopics={selectedTopics}
-                  difficulty={difficulty}
-                  techMode={techMode}
-                  selectedSubtopics={selectedSubtopics}
-                  questionCount={questionCount}
-                  averageMarksPerQuestion={averageMarksPerQuestion}
-                  questionMode={questionMode}
-                  customFocusArea={customFocusArea}
-                />
+              <div
+                className='rounded-xl border border-border/40 bg-card p-5 relative overflow-hidden'
+                style={glowStyle(themeColor, 'quiet')}
+              >
+                <GlowAura color={themeColor} anchor='top' strength={4} />
+                <div className='relative z-10'>
+                  <PresetSection
+                    selectedTopics={selectedTopics}
+                    difficulty={difficulty}
+                    techMode={techMode}
+                    selectedSubtopics={selectedSubtopics}
+                    questionCount={questionCount}
+                    averageMarksPerQuestion={averageMarksPerQuestion}
+                    questionMode={questionMode}
+                    customFocusArea={customFocusArea}
+                  />
+                </div>
               </div>
             </div>
 
@@ -806,14 +1690,24 @@ function SetupPanelImpl({
                 onSetDiversityEnabled={onSetDiversityEnabled}
                 strictLatexValidation={strictLatexValidation}
                 onSetStrictLatexValidation={onSetStrictLatexValidation}
+                themeColor={themeColor}
               />
             </div>
           </div>
         </div>
 
         {/* ── STICKY CONTROL BAR ── */}
-        <div className='sticky bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/40'>
-          <div className='px-6 py-4'>
+        <div
+          className='sticky bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/40 overflow-hidden'
+          style={glowStyle(themeColor, 'quiet')}
+        >
+          <GlowAura
+            color={themeColor}
+            anchor='bottom'
+            strength={5}
+            className='top-auto h-28'
+          />
+          <div className='px-6 py-4 relative z-10'>
             <AnimatePresence>
               {isGenerating && (
                 <motion.div
@@ -934,21 +1828,38 @@ function SetupPanelImpl({
                         onClick={onGenerate}
                         disabled={isGenerationDisabled}
                         className={cn(
-                          'h-10 px-6 rounded-full font-bold text-sm gap-2 transition-all',
+                          'h-10 px-6 rounded-full font-bold text-sm gap-2 transition-all relative overflow-hidden',
                           isGenerationDisabled
                             ? 'opacity-50 cursor-not-allowed'
-                            : 'shadow-sm',
+                            : 'shadow-sm hover:shadow-md',
                         )}
+                        style={
+                          !isGenerationDisabled
+                            ? {
+                                ...glowStyle(themeColor, 'strong'),
+                                animation:
+                                  'pulse-glow 2.8s ease-in-out infinite',
+                              }
+                            : undefined
+                        }
                       >
+                        {!isGenerationDisabled && (
+                          <GlowAura
+                            color={themeColor}
+                            anchor='left'
+                            strength={10}
+                            pulse={isGenerating}
+                          />
+                        )}
                         {isGenerating ? (
                           <>
-                            <Loader2 className='w-4 h-4 animate-spin' />
-                            <span>Generating…</span>
+                            <Loader2 className='w-4 h-4 animate-spin relative z-10' />
+                            <span className='relative z-10'>Generating…</span>
                           </>
                         ) : (
                           <>
-                            <Zap className='w-4 h-4' />
-                            Generate
+                            <Zap className='w-4 h-4 relative z-10' />
+                            <span className='relative z-10'>Generate</span>
                           </>
                         )}
                       </Button>
