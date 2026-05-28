@@ -1,4 +1,4 @@
-import type { Transition } from 'framer-motion';
+import type { Transition, Variants } from 'framer-motion';
 
 export const SPRING_SNAPPY: Transition = {
   type: 'spring',
@@ -10,6 +10,13 @@ export const SPRING: Transition = {
   type: 'spring',
   stiffness: 300,
   damping: 30,
+};
+
+export const SPRING_OVERSHOOT: Transition = {
+  type: 'spring',
+  stiffness: 350,
+  damping: 22,
+  mass: 1.2,
 };
 
 export const SPRING_GENTLE: Transition = {
@@ -36,4 +43,21 @@ export const EASE_IN: Transition = {
 export const EASE_FLUID: Transition = {
   duration: 0.5,
   ease: [0.34, 1.56, 0.64, 1],
+};
+
+// Variants types require specific shapes — use `as const` to lock literals
+export const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 400, damping: 30 },
+  },
+};
+
+export const staggerContainer: Variants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.04 },
+  },
 };
