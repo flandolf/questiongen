@@ -114,7 +114,7 @@ export class RouteErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className='min-h-[400px] flex items-center justify-center px-6'>
+        <div className='min-h-100 flex items-center justify-center px-6'>
           <div className='text-center space-y-4 max-w-md'>
             <h2 className='text-lg font-semibold tracking-tight'>
               {this.props.routeName} failed to load
