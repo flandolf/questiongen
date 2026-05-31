@@ -42,8 +42,7 @@
   git).
 - **Anki**: Native `.apkg` generation via `genanki-rs` in
   `src-tauri/src/anki.rs`.
-- **Firebase**: Sync logic in `src/context/FirebaseSyncContext.tsx`. Matches
-  `firestore.rules`.
+- **Firebase**: Sync logic in `src/context/FirebaseSyncContext.tsx`.
 - **CSP**: Disabled in `src-tauri/tauri.conf.json` (`"csp": null`). Required
   because the app loads MathJax 4 from a CDN via `<script>` tag and uses inline
   scripts for theme injection in `index.html`.
