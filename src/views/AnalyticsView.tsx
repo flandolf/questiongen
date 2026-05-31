@@ -35,8 +35,8 @@ import { PageContainer, PageHeader } from '@/components/layout/primitives';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
 import type { ChartConfig } from '@/components/ui/chart';
+import { useDateFilter } from '@/hooks/useDateFilter';
 import { formatDurationMs, formatPercent } from '@/lib/app-utils';
-import { useDateFilter } from '@/lib/useDateFilter';
 import { getDayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
 

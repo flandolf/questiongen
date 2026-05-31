@@ -19,6 +19,7 @@ mod pdf;
 mod persistence;
 mod prompts;
 mod quality;
+mod question_traits;
 mod schemas;
 mod text_clean;
 mod topic_normalize;

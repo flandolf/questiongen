@@ -11,12 +11,12 @@ use crate::models::{
     GenerateQuestionsResponse, GeneratedQuestion, GenerationQualityDiagnostics, MarkAnswerRequest,
     MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, McQuestion,
 };
-use crate::normalization;
 use crate::openrouter_info::{compute_generation_cost, get_cached_model_stats, get_model_stats};
 use crate::parsing::protect_latex_in_raw_json;
 use crate::pdf;
 use crate::prompts;
 use crate::quality;
+use crate::question_traits::{NormalizableQuestion, QuestionWithMarkdown, TechAllowed};
 use crate::schemas;
 use crate::text_clean::{clean_field, sanitize_for_api};
 use std::collections::{HashMap, HashSet};
@@ -183,19 +183,38 @@ fn validate_and_prepare_generation_inputs(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
-fn estimate_completion_budget(
-    question_count: usize,
-    average_marks: u8,
-    difficulty: &str,
-    include_exam_context: bool,
-    topic_count: usize,
-    subtopic_count: usize,
-    prior_question_count: usize,
-    has_custom_focus_area: bool,
-    avoid_similar_questions: bool,
-) -> u32 {
-    let base_per_question = match average_marks {
+/// Parameters for estimating token budget for generation.
+pub struct BudgetParams {
+    pub question_count: usize,
+    pub average_marks: u8,
+    pub difficulty: String,
+    pub include_exam_context: bool,
+    pub topic_count: usize,
+    pub subtopic_count: usize,
+    pub prior_question_count: usize,
+    pub has_custom_focus_area: bool,
+    pub avoid_similar_questions: bool,
+}
+
+/// Parameters for marking a single answer.
+pub struct MarkingParams {
+    pub api_key: String,
+    pub model: String,
+    pub base_url: Option<String>,
+    pub question: crate::models::GeneratedQuestion,
+    pub student_answer: String,
+    pub image_data_urls: Vec<String>,
+    pub pdf_base64: Option<String>,
+    pub pdf_page_indices: Option<Vec<usize>>,
+    pub marker_style: Option<String>,
+    pub custom_marker_style: Option<String>,
+    pub abort_signal: AbortSignal,
+    pub reasoning_enabled: bool,
+    pub reasoning_effort: Option<String>,
+}
+
+fn estimate_completion_budget(params: &BudgetParams) -> u32 {
+    let base_per_question = match params.average_marks {
         1..=3 => 1800,
         4..=7 => 2500,
         8..=15 => 3500,
@@ -203,7 +222,7 @@ fn estimate_completion_budget(
         _ => 3000,
     };
 
-    let difficulty_multiplier = match difficulty.to_ascii_lowercase().as_str() {
+    let difficulty_multiplier = match params.difficulty.to_ascii_lowercase().as_str() {
         "essential skills" => 0.85,
         "easy" => 0.95,
         "medium" => 1.0,
@@ -212,18 +231,18 @@ fn estimate_completion_budget(
         _ => 1.0,
     };
 
-    let topic_multiplier = 1.0 + (topic_count.saturating_sub(1).min(3) as f32 * 0.05);
-    let subtopic_multiplier = if subtopic_count == 0 {
+    let topic_multiplier = 1.0 + (params.topic_count.saturating_sub(1).min(3) as f32 * 0.05);
+    let subtopic_multiplier = if params.subtopic_count == 0 {
         1.0
     } else {
-        1.0 + (subtopic_count.min(6) as f32 * 0.04)
+        1.0 + (params.subtopic_count.min(6) as f32 * 0.04)
     };
-    let prior_example_multiplier = 1.0 + (prior_question_count.min(6) as f32 * 0.02);
-    let custom_focus_multiplier = if has_custom_focus_area { 1.08 } else { 1.0 };
-    let similarity_multiplier = if avoid_similar_questions { 1.05 } else { 1.0 };
-    let pdf_overhead = if include_exam_context { 1200 } else { 0 };
+    let prior_example_multiplier = 1.0 + (params.prior_question_count.min(6) as f32 * 0.02);
+    let custom_focus_multiplier = if params.has_custom_focus_area { 1.08 } else { 1.0 };
+    let similarity_multiplier = if params.avoid_similar_questions { 1.05 } else { 1.0 };
+    let pdf_overhead = if params.include_exam_context { 1200 } else { 0 };
 
-    let estimated = question_count as f32
+    let estimated = params.question_count as f32
         * base_per_question as f32
         * difficulty_multiplier
         * topic_multiplier
@@ -233,7 +252,7 @@ fn estimate_completion_budget(
         * similarity_multiplier;
 
     let overhead = 2000;
-    let max_budget = match question_count {
+    let max_budget = match params.question_count {
         1 => 16_000,
         2 => 24_000,
         3 => 32_000,
@@ -526,17 +545,17 @@ impl GenerationService {
             sys_prompt.push_str("\n\n");
             sys_prompt.push_str(guidance);
         }
-        let max_tokens = self.calculate_optimal_max_tokens(
-            request.question_count(),
-            average_marks_val,
-            &adjusted_difficulty,
-            use_exam_context,
-            topics.len(),
-            subtopics.as_ref().map_or(0, Vec::len),
-            prior_question_prompts.as_ref().map_or(0, Vec::len),
-            custom_focus_area.is_some(),
-            request.avoid_similar_questions(),
-        );
+        let max_tokens = self.calculate_optimal_max_tokens(&BudgetParams {
+            question_count: request.question_count(),
+            average_marks: average_marks_val,
+            difficulty: adjusted_difficulty.clone(),
+            include_exam_context: use_exam_context,
+            topic_count: topics.len(),
+            subtopic_count: subtopics.as_ref().map_or(0, Vec::len),
+            prior_question_count: prior_question_prompts.as_ref().map_or(0, Vec::len),
+            has_custom_focus_area: custom_focus_area.is_some(),
+            avoid_similar_questions: request.avoid_similar_questions(),
+        });
 
         let cached_stats = get_cached_model_stats(request.api_key(), request.model());
         if cached_stats.is_none() {
@@ -625,6 +644,117 @@ impl GenerationService {
             q.apply_metrics(metric);
         }
 
+        // ─── Quality-driven regeneration ────────────────────────────────────
+        // Identify low-distinctness questions (1-mark written excluded entirely).
+        const DISTINCTNESS_THRESHOLD: f32 = 0.3;
+        let mut low_quality_indices: Vec<usize> = Vec::new();
+        for (i, q) in payload.questions.iter().enumerate() {
+            let marks = q.get_max_marks();
+            // Skip 1-mark written questions from all quality checks.
+            if !is_mc && marks <= 1 {
+                continue;
+            }
+            if let Some(score) = q.get_distinctness() {
+                if score < DISTINCTNESS_THRESHOLD {
+                    low_quality_indices.push(i);
+                }
+            }
+        }
+
+        // Retry once if low-quality questions found.
+        if !low_quality_indices.is_empty() {
+            self.emit_generation_status(serde_json::json!({
+                "mode": mode_str, "stage": "regenerating",
+                "message": format!("Regenerating {} low-quality question(s)…", low_quality_indices.len()),
+                "attempt": 2
+            }));
+
+            let failing_stems: Vec<String> = low_quality_indices
+                .iter()
+                .filter_map(|&i| payload.questions.get(i))
+                .map(|q| Q::get_prompt(q).to_string())
+                .collect();
+
+            // Build retry prompt with failing stems as anti-examples.
+            let mut retry_prior = prior_question_prompts.unwrap_or_default();
+            retry_prior.extend(failing_stems);
+
+            let retry_builder = prompts::UserPromptBuilder {
+                count: request.question_count(),
+                topics: topics.clone(),
+                difficulty: adjusted_difficulty.clone(),
+                average_marks: if is_mc { None } else { Some(average_marks_val) },
+                subtopics: subtopics.clone(),
+                custom_focus_area: custom_focus_area.clone(),
+                tech_mode: tech_mode.to_string(),
+                include_exam_context: use_exam_context,
+                avoid_similar_questions: true,
+                diversity_enabled: true,
+                shuffle_subtopics: request.shuffle_subtopics(),
+                prior_question_prompts: Some(retry_prior),
+            };
+            let retry_prompt = if is_mc {
+                retry_builder.build_mc()
+            } else {
+                retry_builder.build_written()
+            };
+
+            let retry_user_content = if use_exam_context {
+                let mut parts = vec![serde_json::json!({ "type": "text", "text": retry_prompt })];
+                parts.extend(pdf::build_exam_file_parts(&self.app, &topics));
+                parts.extend(pdf::build_report_file_parts(&self.app, &topics));
+                let reanchor = sanitize_for_api(&prompts::pdf_reanchor_note(
+                    selected_subs,
+                    custom_focus_area.as_deref(),
+                    request.shuffle_subtopics(),
+                    request.question_count(),
+                ));
+                parts.push(serde_json::json!({ "type": "text", "text": reanchor }));
+                serde_json::Value::Array(parts)
+            } else {
+                serde_json::Value::String(retry_prompt)
+            };
+
+            let retry_config = OpenRouterRequestConfig::new(
+                request.api_key(),
+                request.model(),
+                &sys_prompt,
+                retry_user_content,
+                format.clone(),
+                max_tokens,
+            )
+            .with_plugins(plugins.clone())
+            .with_stream(self.app.clone(), topics.first().map(|s| s.to_string()))
+            .with_abort_signal(self.abort_signal.clone().unwrap_or_else(AbortSignal::new))
+            .with_reasoning_enabled(request.reasoning_enabled());
+
+            if let Ok(retry_result) = call_openrouter(retry_config).await {
+                if let Ok(retry_payload) = self.parse_payload::<QuestionsPayload<Q>>(&retry_result.content) {
+                    let mut retry_qs = retry_payload.questions;
+                    Q::normalize(&mut retry_qs, &topics, selected_subs);
+                    if retry_qs.len() == payload.questions.len() {
+                        // Replace only the low-quality questions with retry results.
+                        for (orig_idx, &retry_idx) in low_quality_indices.iter().enumerate() {
+                            if let Some(new_q) = retry_qs.get(orig_idx) {
+                                payload.questions[retry_idx] = new_q.clone();
+                            }
+                        }
+                        // Re-score after replacement.
+                        let retry_texts = Q::extract_texts(&payload.questions);
+                        let retry_marks: Vec<u8> = payload.questions.iter().map(|q| q.get_max_marks()).collect();
+                        let (retry_metrics, retry_summary) = quality::score_batch(&retry_texts, Some(&retry_marks));
+                        summary = retry_summary;
+                        if is_mc {
+                            summary.mark_allocation_variance = Some(0.0);
+                        }
+                        for (q, metric) in payload.questions.iter_mut().zip(retry_metrics.iter()) {
+                            q.apply_metrics(metric);
+                        }
+                    }
+                }
+            }
+        }
+
         let final_latex_issues = self.collect_latex_issues(&payload.questions, is_mc);
         let quality_diagnostics = self.build_subtopic_diagnostics(
             selected_subs,
@@ -660,30 +790,8 @@ impl GenerationService {
             quality_diagnostics,
         ))
     }
-    #[allow(clippy::too_many_arguments)]
-    pub fn calculate_optimal_max_tokens(
-        &self,
-        question_count: usize,
-        average_marks: u8,
-        difficulty: &str,
-        include_exam_context: bool,
-        topic_count: usize,
-        subtopic_count: usize,
-        prior_question_count: usize,
-        has_custom_focus_area: bool,
-        avoid_similar_questions: bool,
-    ) -> u32 {
-        estimate_completion_budget(
-            question_count,
-            average_marks,
-            difficulty,
-            include_exam_context,
-            topic_count,
-            subtopic_count,
-            prior_question_count,
-            has_custom_focus_area,
-            avoid_similar_questions,
-        )
+    pub fn calculate_optimal_max_tokens(&self, params: &BudgetParams) -> u32 {
+        estimate_completion_budget(params)
     }
 
     pub fn emit_generation_status(&self, payload: serde_json::Value) {
@@ -942,41 +1050,44 @@ impl GenerationService {
             images.extend(urls);
         }
 
-        self.perform_marking(
-            &request.api_key,
-            &request.model,
-            request.base_url.as_deref(),
-            &request.question,
-            &request.student_answer,
-            images,
-            None,
-            None,
-            request.marker_style.as_deref(),
-            request.custom_marker_style.as_deref(),
-            self.abort_signal.clone().unwrap_or_else(AbortSignal::new),
-            request.reasoning_enabled,
-            request.reasoning_effort.as_deref(),
-        )
+        self.perform_marking(&MarkingParams {
+            api_key: request.api_key,
+            model: request.model,
+            base_url: request.base_url,
+            question: request.question,
+            student_answer: request.student_answer,
+            image_data_urls: images,
+            pdf_base64: None,
+            pdf_page_indices: None,
+            marker_style: request.marker_style,
+            custom_marker_style: request.custom_marker_style,
+            abort_signal: self.abort_signal.clone().unwrap_or_else(AbortSignal::new),
+            reasoning_enabled: request.reasoning_enabled,
+            reasoning_effort: request.reasoning_effort,
+        })
         .await
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn perform_marking(
         &self,
-        api_key: &str,
-        model: &str,
-        base_url: Option<&str>,
-        question: &crate::models::GeneratedQuestion,
-        student_answer: &str,
-        image_data_urls: Vec<String>,
-        pdf_base64: Option<String>,
-        pdf_page_indices: Option<Vec<usize>>,
-        marker_style: Option<&str>,
-        custom_marker_style: Option<&str>,
-        abort_signal: AbortSignal,
-        reasoning_enabled: bool,
-        reasoning_effort: Option<&str>,
+        params: &MarkingParams,
     ) -> CommandResult<MarkAnswerResponse> {
+        let MarkingParams {
+            api_key,
+            model,
+            base_url,
+            question,
+            student_answer,
+            image_data_urls,
+            pdf_base64,
+            pdf_page_indices,
+            marker_style,
+            custom_marker_style,
+            abort_signal,
+            reasoning_enabled,
+            reasoning_effort,
+        } = params;
+
         self.rust_log(
             "info",
             "Starting marking for question",
@@ -1092,7 +1203,7 @@ impl GenerationService {
             }
         }
 
-        for url in image_data_urls {
+        for url in image_data_urls.iter() {
             let url = url.trim();
             if url.is_empty() {
                 continue;
@@ -1123,8 +1234,8 @@ impl GenerationService {
             max_marks,
             marking_guidance,
             marking_scheme_style,
-            marker_style,
-            custom_marker_style,
+            marker_style.as_deref(),
+            custom_marker_style.as_deref(),
         );
         if !crate::llm::supports_json_schema_format(model) {
             marking_system_prompt.push_str("\n\n");
@@ -1140,13 +1251,13 @@ impl GenerationService {
             max_tokens,
         )
         .with_plugins(plugins)
-        .with_abort_signal(abort_signal)
+        .with_abort_signal(abort_signal.clone())
         .with_stream(self.app.clone(), Some(question.id.clone()))
-        .with_reasoning_enabled(reasoning_enabled);
-        if let Some(effort) = reasoning_effort {
+        .with_reasoning_enabled(*reasoning_enabled);
+        if let Some(effort) = reasoning_effort.as_deref() {
             marking_config = marking_config.with_reasoning_effort(effort);
         }
-        if let Some(url) = base_url {
+        if let Some(url) = base_url.as_deref() {
             marking_config = marking_config.with_base_url(url);
         }
         let result = call_openrouter(marking_config).await?;
@@ -1352,21 +1463,21 @@ impl GenerationService {
             let pdf_for_question = extracted_pdfs.get(&mapping.question_index).cloned();
 
             match self
-                .perform_marking(
-                    &request.api_key,
-                    &request.model,
-                    request.base_url.as_deref(),
-                    question,
-                    "",
-                    Vec::new(),
-                    pdf_for_question,
-                    Some(mapping.page_indices.clone()),
-                    request.marker_style.as_deref(),
-                    request.custom_marker_style.as_deref(),
-                    abort_signal.clone(),
-                    request.reasoning_enabled,
-                    request.reasoning_effort.as_deref(),
-                )
+                .perform_marking(&MarkingParams {
+                    api_key: request.api_key.clone(),
+                    model: request.model.clone(),
+                    base_url: request.base_url.clone(),
+                    question: question.clone(),
+                    student_answer: String::new(),
+                    image_data_urls: Vec::new(),
+                    pdf_base64: pdf_for_question,
+                    pdf_page_indices: Some(mapping.page_indices.clone()),
+                    marker_style: request.marker_style.clone(),
+                    custom_marker_style: request.custom_marker_style.clone(),
+                    abort_signal: abort_signal.clone(),
+                    reasoning_enabled: request.reasoning_enabled,
+                    reasoning_effort: request.reasoning_effort.clone(),
+                })
                 .await
             {
                 Ok(response) => {
@@ -1536,168 +1647,9 @@ impl GenerationService {
     }
 }
 
-pub trait TechAllowed {
-    fn set_tech_allowed(&mut self, v: bool);
-}
-impl TechAllowed for GeneratedQuestion {
-    fn set_tech_allowed(&mut self, v: bool) {
-        self.tech_allowed = v;
-    }
-}
-impl TechAllowed for McQuestion {
-    fn set_tech_allowed(&mut self, v: bool) {
-        self.tech_allowed = v;
-    }
-}
-
-pub trait QuestionWithMarkdown {
-    fn get_id(&self) -> &str;
-    fn get_prompt(&self) -> &str;
-    fn get_explanation(&self) -> Option<&str>;
-    fn get_subtopic(&self) -> Option<&str>;
-}
-
-impl QuestionWithMarkdown for GeneratedQuestion {
-    fn get_id(&self) -> &str {
-        &self.id
-    }
-    fn get_prompt(&self) -> &str {
-        &self.prompt_markdown
-    }
-    fn get_explanation(&self) -> Option<&str> {
-        None
-    }
-    fn get_subtopic(&self) -> Option<&str> {
-        self.subtopic.as_deref()
-    }
-}
-
-impl QuestionWithMarkdown for McQuestion {
-    fn get_id(&self) -> &str {
-        &self.id
-    }
-    fn get_prompt(&self) -> &str {
-        &self.prompt_markdown
-    }
-    fn get_explanation(&self) -> Option<&str> {
-        Some(&self.explanation_markdown)
-    }
-    fn get_subtopic(&self) -> Option<&str> {
-        self.subtopic.as_deref()
-    }
-}
-
-pub trait NormalizableQuestion: QuestionWithMarkdown + TechAllowed {
-    fn normalize(questions: &mut [Self], topics: &[String], subtopics: Option<&Vec<String>>)
-    where
-        Self: Sized;
-    fn validate(questions: &[Self], expected: usize) -> CommandResult<()>
-    where
-        Self: Sized;
-    fn extract_texts(questions: &[Self]) -> Vec<String>
-    where
-        Self: Sized;
-    fn apply_metrics(&mut self, metrics: &quality::QuestionQualityMetrics);
-    fn get_max_marks(&self) -> u8;
-    fn adjust_marks(questions: &mut [Self], total_marks: usize)
-    where
-        Self: Sized;
-}
-
-impl NormalizableQuestion for GeneratedQuestion {
-    fn normalize(questions: &mut [Self], topics: &[String], subtopics: Option<&Vec<String>>) {
-        normalization::normalise_written(questions, topics, subtopics);
-    }
-    fn validate(questions: &[Self], expected: usize) -> CommandResult<()> {
-        normalization::validate_written(questions, expected)
-    }
-    fn extract_texts(questions: &[Self]) -> Vec<String> {
-        questions
-            .iter()
-            .map(|q| q.prompt_markdown.clone())
-            .collect()
-    }
-    fn apply_metrics(&mut self, m: &quality::QuestionQualityMetrics) {
-        self.distinctness_score = Some(m.distinctness);
-        self.multi_step_depth = Some(m.depth);
-        self.verb_diversity_count = Some(m.verb_diversity);
-        self.scaffold_pattern = Some(m.scaffold_pattern.clone());
-    }
-    fn get_max_marks(&self) -> u8 {
-        self.max_marks
-    }
-    fn adjust_marks(questions: &mut [Self], total_marks: usize) {
-        if questions.is_empty() {
-            return;
-        }
-        let current_total: i64 = questions.iter().map(|q| q.max_marks as i64).sum();
-        let diff = total_marks as i64 - current_total;
-        if diff == 0 {
-            return;
-        }
-        let q_count = questions.len();
-        let base_adj = diff / q_count as i64;
-        let remainder = diff.abs() % q_count as i64;
-        let mut indices: Vec<usize> = (0..q_count).collect();
-        if diff > 0 {
-            indices.sort_by_key(|&i| questions[i].max_marks);
-        } else {
-            indices.sort_by_key(|&i| std::cmp::Reverse(questions[i].max_marks));
-        }
-        for (pos, &i) in indices.iter().enumerate() {
-            let adj = base_adj
-                + if (pos as i64) < remainder {
-                    diff.signum()
-                } else {
-                    0
-                };
-            let new_marks = (questions[i].max_marks as i64 + adj).clamp(
-                constants::MIN_MARKS_PER_QUESTION as i64,
-                constants::MAX_MARKS_PER_QUESTION as i64,
-            );
-            questions[i].max_marks = new_marks as u8;
-        }
-    }
-}
-
-impl NormalizableQuestion for McQuestion {
-    fn normalize(questions: &mut [Self], topics: &[String], subtopics: Option<&Vec<String>>) {
-        normalization::normalise_mc(questions, topics, subtopics);
-    }
-    fn validate(questions: &[Self], expected: usize) -> CommandResult<()> {
-        normalization::validate_mc(questions, expected)
-    }
-    fn extract_texts(questions: &[Self]) -> Vec<String> {
-        questions
-            .iter()
-            .map(|q| {
-                let opts = q
-                    .options
-                    .iter()
-                    .map(|o| format!("{}: {}", o.label, o.text))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                format!("{} {opts}", q.prompt_markdown)
-            })
-            .collect()
-    }
-    fn apply_metrics(&mut self, m: &quality::QuestionQualityMetrics) {
-        self.distinctness_score = Some(m.distinctness);
-        self.multi_step_depth = Some(m.depth);
-        self.verb_diversity_count = Some(m.verb_diversity);
-        self.scaffold_pattern = Some(m.scaffold_pattern.clone());
-    }
-    fn get_max_marks(&self) -> u8 {
-        1
-    }
-    fn adjust_marks(_questions: &mut [Self], _total_marks: usize) {
-        // MC questions are always 1 mark each, no adjustment.
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{estimate_completion_budget, validate_and_prepare_generation_inputs};
+    use super::{estimate_completion_budget, validate_and_prepare_generation_inputs, BudgetParams};
     use std::collections::HashMap;
 
     #[test]
@@ -1747,17 +1699,67 @@ mod tests {
 
     #[test]
     fn estimate_completion_budget_scales_with_context() {
-        let base = estimate_completion_budget(5, 10, "Medium", false, 1, 0, 0, false, false);
-        let contextual = estimate_completion_budget(5, 10, "Medium", true, 3, 4, 3, true, true);
+        let base = estimate_completion_budget(&BudgetParams {
+            question_count: 5,
+            average_marks: 10,
+            difficulty: "Medium".to_string(),
+            include_exam_context: false,
+            topic_count: 1,
+            subtopic_count: 0,
+            prior_question_count: 0,
+            has_custom_focus_area: false,
+            avoid_similar_questions: false,
+        });
+        let contextual = estimate_completion_budget(&BudgetParams {
+            question_count: 5,
+            average_marks: 10,
+            difficulty: "Medium".to_string(),
+            include_exam_context: true,
+            topic_count: 3,
+            subtopic_count: 4,
+            prior_question_count: 3,
+            has_custom_focus_area: true,
+            avoid_similar_questions: true,
+        });
 
         assert!(contextual > base);
     }
 
     #[test]
     fn estimate_completion_budget_scales_with_higher_difficulty() {
-        let medium = estimate_completion_budget(4, 8, "Medium", false, 1, 1, 0, false, false);
-        let hard = estimate_completion_budget(4, 8, "Hard", false, 1, 1, 0, false, false);
-        let extreme = estimate_completion_budget(4, 8, "Extreme", false, 1, 1, 0, false, false);
+        let medium = estimate_completion_budget(&BudgetParams {
+            question_count: 4,
+            average_marks: 8,
+            difficulty: "Medium".to_string(),
+            include_exam_context: false,
+            topic_count: 1,
+            subtopic_count: 1,
+            prior_question_count: 0,
+            has_custom_focus_area: false,
+            avoid_similar_questions: false,
+        });
+        let hard = estimate_completion_budget(&BudgetParams {
+            question_count: 4,
+            average_marks: 8,
+            difficulty: "Hard".to_string(),
+            include_exam_context: false,
+            topic_count: 1,
+            subtopic_count: 1,
+            prior_question_count: 0,
+            has_custom_focus_area: false,
+            avoid_similar_questions: false,
+        });
+        let extreme = estimate_completion_budget(&BudgetParams {
+            question_count: 4,
+            average_marks: 8,
+            difficulty: "Extreme".to_string(),
+            include_exam_context: false,
+            topic_count: 1,
+            subtopic_count: 1,
+            prior_question_count: 0,
+            has_custom_focus_area: false,
+            avoid_similar_questions: false,
+        });
 
         assert!(hard > medium);
         assert!(extreme > hard);

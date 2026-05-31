@@ -1,3 +1,5 @@
+import { DEFAULT_MODEL } from './constants';
+
 export type ProviderId = 'openrouter' | 'deepseek' | 'custom';
 
 export interface ProviderConfig {
@@ -44,7 +46,7 @@ export function createDefaultProviderState(
   config: ProviderConfig,
 ): ProviderState {
   const defaultModel =
-    config.id === 'deepseek' ? 'deepseek-v4-flash' : 'openai/gpt-5.4-mini';
+    config.id === 'deepseek' ? 'deepseek-v4-flash' : DEFAULT_MODEL;
   return {
     config,
     apiKey: '',

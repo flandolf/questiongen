@@ -1,3 +1,17 @@
+/*
+ * App.css — Main stylesheet entry point.
+ *
+ * Import hierarchy:
+ *   main.tsx
+ *     ├── App.css (this file)
+ *     │     ├── tailwindcss + tw-animate-css + shadcn
+ *     │     ├── themes/index.css (barrel: imports all 12 design themes)
+ *     │     ├── @theme inline (Tailwind <-> CSS variable mapping)
+ *     │     ├── @layer base (scrollbar, heading fonts)
+ *     │     ├── @layer components (question cards, MC options, feedback)
+ *     │     └── keyframes + animations
+ *     └── themes/fonts.css (font-face declarations)
+ */
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';

@@ -11,6 +11,99 @@ pub fn topic_field_contract() -> &'static str {
     "FIELDS: 'topic' = subject name (e.g. Mathematical Methods); 'subtopic' = focus area label. No subtopics in 'topic' field."
 }
 
+// ─── Few-shot exemplars ────────────────────────────────────────────────────────
+
+const WRITTEN_EXEMPLARS: &str = r#"
+EXEMPLAR QUESTIONS (for style reference only — do NOT reuse content):
+
+[Mathematical Methods — 5 marks, scaffolded]
+(a) Let $f(x) = 2x^2 - 3x + 1$. Find $f'(-1)$. [1 mark]
+(b) Hence, or otherwise, find the equation of the tangent to $y = f(x)$ at the point where $x = -1$. [2 marks]
+(c) Determine the values of $x$ for which $f(x)$ is decreasing. [2 marks]
+
+[Mathematical Methods — 3 marks, probability]
+A continuous random variable $X$ has probability density function $f(x) = kx(1-x)$ for $0 \le x \le 1$, and $f(x) = 0$ otherwise.
+(a) Show that $k = 6$. [1 mark]
+(b) Find $P(X > 0.5)$. [2 marks]
+
+[Chemistry — 4 marks, data-driven]
+A student carries out a titration of 25.00 mL of 0.100 mol/L $\text{NaOH}$ with 0.120 mol/L $\text{HCl}$.
+(a) Write the balanced equation for the reaction. [1 mark]
+(b) Calculate the volume of $\text{HCl}$ required to reach the equivalence point. [2 marks]
+(c) Suggest an appropriate indicator for this titration and justify your choice. [1 mark]
+
+[Biology — 5 marks, experimental design]
+A geneticist crosses two heterozygous pea plants ($Tt \times Tt$) for the gene controlling stem height.
+(a) Predict the expected phenotypic ratio of the offspring. [1 mark]
+(b) In a sample of 400 offspring, 230 are tall and 170 are short. Perform a chi-squared test at the 5% significance level to determine whether these results are consistent with Mendelian inheritance. [4 marks]
+
+[Physical Education — 3 marks, qualitative analysis]
+Explain how the three energy systems (ATP-PC, glycolytic, and oxidative) contribute to energy supply during a 400-metre sprint. In your response, identify the dominant system and justify why it is primarily relied upon in this event.
+"#;
+
+const MC_EXEMPLARS: &str = r#"
+EXEMPLAR MC QUESTIONS (for style reference only — do NOT reuse content):
+
+[Mathematical Methods]
+If $f(x) = x^3 - 3x + 2$, then $f'(x) =$  
+A. $3x^2 - 3x$  
+B. $3x^2 - 3$  
+C. $x^3 - 3$  
+D. $3x^2 + 3$  
+Correct: B. Using the power rule, $\frac{d}{dx}(x^3) = 3x^2$ and $\frac{d}{dx}(-3x) = -3$. The constant $+2$ differentiates to $0$. Option A incorrectly retains the $x$ term. Option C confuses differentiation with the original function. Option D incorrectly changes the sign of the constant.
+
+[Chemistry]
+Which of the following correctly describes the change in oxidation state of manganese when $\text{KMnO}_4$ reacts with $\text{HCl}$?  
+A. Mn changes from $+7$ to $+2$  
+B. Mn changes from $+7$ to $+4$  
+C. Mn changes from $+4$ to $+2$  
+D. Mn does not change oxidation state  
+Correct: A. In $\text{KMnO}_4$, Mn has oxidation state $+7$. In $\text{MnCl}_2$, Mn has oxidation state $+2$. Option B corresponds to $\text{MnO}_2$ (a different product). Option C assumes Mn starts at $+4$. Option D ignores the redox nature of the reaction.
+
+[Biology]
+In a cross between two organisms heterozygous for a single gene ($Aa \times Aa$), what proportion of the offspring is expected to be homozygous?  
+A. $\frac{1}{4}$  
+B. $\frac{1}{2}$  
+C. $\frac{3}{4}$  
+D. $1$  
+Correct: B. The Punnett square yields $AA$, $Aa$, $Aa$, $aa$. Homozygous genotypes are $AA$ and $aa$, giving $\frac{2}{4} = \frac{1}{2}$. Option A confuses homozygous with homozygous dominant only. Option C counts heterozygotes. Option D assumes all offspring are homozygous.
+"#;
+
+pub fn exemplars_note(topics: &[String], is_mc: bool) -> String {
+    let mut s = String::new();
+    let mut included_any = false;
+
+    for topic in topics {
+        let low = topic.to_lowercase();
+
+        if is_mc {
+            if low.contains("methods") || low.contains("specialist") || low.contains("general math") {
+                if !included_any {
+                    s.push_str(MC_EXEMPLARS);
+                    included_any = true;
+                }
+            }
+        } else {
+            if low.contains("methods") || low.contains("specialist") || low.contains("general math") {
+                if !included_any {
+                    s.push_str(WRITTEN_EXEMPLARS);
+                    included_any = true;
+                }
+            }
+        }
+    }
+
+    if !included_any {
+        if is_mc {
+            s.push_str(MC_EXEMPLARS);
+        } else {
+            s.push_str(WRITTEN_EXEMPLARS);
+        }
+    }
+
+    s
+}
+
 pub fn strict_json_output_note() -> &'static str {
     "STRICT JSON OUTPUT:\n\
      - Output ONLY raw JSON. No markdown fences, no backticks, no explanation.\n\
@@ -752,6 +845,8 @@ impl UserPromptBuilder {
             ""
         };
 
+        let exemplars = sanitize_for_api(&exemplars_note(&self.topics, false));
+
         format!(
             "USER REQUEST:\n\
              Generate {count} VCE written questions.\n\
@@ -762,6 +857,7 @@ impl UserPromptBuilder {
              - CRITICAL: Do NOT exceed the average marks requested. Keep each question's marks AT OR NEAR {average_marks}. Difficulty should come from cognitive complexity, NOT from mark bloat.\n\
              - Complexity must match marks (e.g., 5-6 marks = 2-3 parts).\n\
              {scaffolding}{subs_note}{synth_note}{custom_note}{tech}{difficulty_enforcement}{topic_notes}{math_diff}{methods_exam1_note}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
+             {exemplars}\n\
              GOAL: Output exactly {count} high-quality questions following VCAA standards.",
             count                 = self.count,
             topics                = sanitize_for_api(&self.topics.join(", ")),
@@ -791,6 +887,7 @@ impl UserPromptBuilder {
                 self.avoid_similar_questions || self.diversity_enabled,
                 self.prior_question_prompts.as_deref(),
             )),
+            exemplars             = exemplars,
         )
     }
 
@@ -813,6 +910,8 @@ impl UserPromptBuilder {
             ""
         };
 
+        let exemplars = sanitize_for_api(&exemplars_note(&self.topics, true));
+
         format!(
             "USER REQUEST:\n\
              Generate {count} VCE multiple-choice questions (1 mark each).\n\
@@ -820,6 +919,7 @@ impl UserPromptBuilder {
              Difficulty: {difficulty} ({diff_rules})\n\n\
              CONSTRAINTS:\n\
              {subs_note}{synth_note}{custom_note}{tech}{difficulty_enforcement}{topic_notes}{math_diff}{prob_table_note}{sim_note}{focus_lock}{exam_context_preamble}\n\n\
+             {exemplars}\n\
              GOAL: Output exactly {count} high-quality questions following VCAA standards.",
             count                 = self.count,
             topics                = sanitize_for_api(&self.topics.join(", ")),
@@ -845,6 +945,7 @@ impl UserPromptBuilder {
                 self.avoid_similar_questions || self.diversity_enabled,
                 self.prior_question_prompts.as_deref(),
             )),
+            exemplars             = exemplars,
         )
     }
 }
@@ -1078,6 +1179,29 @@ Generate 5-10 subtopics, with focus_area getting priority coverage.",
         assert!(prompt.contains("'M' (method/approach)"));
         assert!(prompt.contains("'A' (answer/result)"));
         assert!(prompt.contains("'C' (communication/explanation/justification)"));
+    }
+
+    #[test]
+    fn exemplars_note_includes_written_for_methods() {
+        let topics = vec!["Mathematical Methods".to_string()];
+        let note = exemplars_note(&topics, false);
+        assert!(note.contains("EXEMPLAR QUESTIONS"));
+        assert!(note.contains("f(x) = 2x^2"));
+    }
+
+    #[test]
+    fn exemplars_note_includes_mc_for_chemistry() {
+        let topics = vec!["Chemistry".to_string()];
+        let note = exemplars_note(&topics, true);
+        assert!(note.contains("EXEMPLAR MC QUESTIONS"));
+        assert!(note.contains("Correct:"));
+    }
+
+    #[test]
+    fn exemplars_note_falls_back_for_unknown_subjects() {
+        let topics = vec!["History".to_string()];
+        let note = exemplars_note(&topics, false);
+        assert!(note.contains("EXEMPLAR QUESTIONS"));
     }
 
     #[test]
