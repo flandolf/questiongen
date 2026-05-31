@@ -1,7 +1,10 @@
 import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
-import { useAppContext } from '@/AppContext';
+import {
+  useMultipleChoiceSession,
+  useWrittenSession,
+} from '@/AppContext';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -35,9 +38,11 @@ export function CleanupSection() {
   const {
     questionHistory,
     updateQuestionHistoryEntries,
+  } = useWrittenSession();
+  const {
     mcHistory,
     updateMcHistoryEntries,
-  } = useAppContext();
+  } = useMultipleChoiceSession();
 
   const [fixCount, setFixCount] = useState<number | null>(null);
 

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 
 import { useMultipleChoiceSession, useWrittenSession } from '@/AppContext';
-import type { DateRange } from '@/lib/useDateFilter';
+import type { DateRange } from '@/hooks/useDateFilter';
 import {
   computePreviousPeriod,
   filterAttemptsByDate,
-} from '@/lib/useDateFilter';
+} from '@/hooks/useDateFilter';
 import { useAppStore } from '@/store';
 
 import type {

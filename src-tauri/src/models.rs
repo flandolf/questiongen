@@ -678,7 +678,7 @@ pub struct PersistedSettings {
 }
 
 fn default_model() -> String {
-    "openai/gpt-5.4-mini".to_string()
+    crate::constants::DEFAULT_MODEL.to_string()
 }
 fn default_text_size() -> u32 {
     16

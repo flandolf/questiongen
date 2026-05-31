@@ -64,6 +64,10 @@ function accumulateTopicTelemetry(
     total.distinctnessAvg = current.distinctnessAvg;
   if (current.multiStepDepthAvg !== undefined)
     total.multiStepDepthAvg = current.multiStepDepthAvg;
+  if (current.commandVerbDiversity !== undefined)
+    total.commandVerbDiversity = current.commandVerbDiversity;
+  if (current.markAllocationVariance !== undefined)
+    total.markAllocationVariance = current.markAllocationVariance;
 }
 
 async function generateTopicQuestions(
@@ -129,6 +133,8 @@ async function generateTopicQuestions(
       estimatedCostUsd: 0,
       distinctnessAvg: 0,
       multiStepDepthAvg: 0,
+      commandVerbDiversity: 0,
+      markAllocationVariance: 0,
     };
 
     if (generationStrategy === 'single-pass') {
@@ -184,63 +190,78 @@ async function generateTopicQuestions(
         combineForSmallBatches: true,
       });
 
-      for (let si = 0; si < subCalls.length; si++) {
-        const call = subCalls[si];
-        if (call.count === 0) continue;
-
-        if (subCalls.length > 1) {
-          store.setGenerationSubCallProgress({
-            current: si + 1,
-            total: subCalls.length,
-          });
-        }
-
-        const invokeTarget =
-          questionMode === 'written'
-            ? 'generate_questions'
-            : 'generate_mc_questions';
-
-        store.setStreamText('', topic); // Clear for each focus area pass
-        const response = await invoke<
-          GenerateQuestionsResponse | GenerateMcQuestionsResponse
-        >(invokeTarget, {
-          request: {
-            topics: [topic],
-            difficulty,
-            questionCount: call.count,
-            model,
-            apiKey: modelApiKey,
-            baseUrl,
-            techMode,
-            includeExamContext,
-            subtopics: call.subtopics,
-            customSubtopics:
-              customTopicSubtopics.length > 0
-                ? { [topic]: customTopicSubtopics }
-                : undefined,
-            shuffleSubtopics,
-            avoidSimilarQuestions,
-            aiDifficultyScalingEnabled,
-            diversityEnabled,
-            strictLatexValidation,
-            averageMarksPerQuestion,
-            customFocusArea,
-            reasoningEnabled: modelReasoningEnabled,
-            reasoningEffort: modelReasoningEffort,
-          },
+      if (subCalls.length > 1) {
+        store.setGenerationSubCallProgress({
+          current: 0,
+          total: subCalls.length,
         });
-
-        const currentQs = response.questions;
-        if (questionMode === 'multiple-choice') {
-          const adjusted = (currentQs as McQuestion[]).map((q) =>
-            shuffleMcQuestionOptions(q),
-          );
-          topicQuestions = [...topicQuestions, ...adjusted];
-        } else {
-          topicQuestions = [...topicQuestions, ...currentQs];
-        }
-        accumulateTopicTelemetry(topicTelemetry, response);
       }
+
+      store.setStreamText('', topic);
+
+      const invokeTarget =
+        questionMode === 'written'
+          ? 'generate_questions'
+          : 'generate_mc_questions';
+
+      const subResults = await Promise.allSettled(
+        subCalls
+          .filter((call) => call.count > 0)
+          .map((call, si) => {
+            if (subCalls.length > 1) {
+              store.setGenerationSubCallProgress({
+                current: si + 1,
+                total: subCalls.length,
+              });
+            }
+
+            return invoke<
+              GenerateQuestionsResponse | GenerateMcQuestionsResponse
+            >(invokeTarget, {
+              request: {
+                topics: [topic],
+                difficulty,
+                questionCount: call.count,
+                model,
+                apiKey: modelApiKey,
+                baseUrl,
+                techMode,
+                includeExamContext,
+                subtopics: call.subtopics,
+                customSubtopics:
+                  customTopicSubtopics.length > 0
+                    ? { [topic]: customTopicSubtopics }
+                    : undefined,
+                shuffleSubtopics,
+                avoidSimilarQuestions,
+                aiDifficultyScalingEnabled,
+                diversityEnabled,
+                strictLatexValidation,
+                averageMarksPerQuestion,
+                customFocusArea,
+                reasoningEnabled: modelReasoningEnabled,
+                reasoningEffort: modelReasoningEffort,
+              },
+            }).then((response) => ({ response, subIndex: si }));
+          }),
+      );
+
+      for (const result of subResults) {
+        if (result.status === 'fulfilled') {
+          const { response } = result.value;
+          const currentQs = response.questions;
+          if (questionMode === 'multiple-choice') {
+            const adjusted = (currentQs as McQuestion[]).map((q) =>
+              shuffleMcQuestionOptions(q),
+            );
+            topicQuestions = [...topicQuestions, ...adjusted];
+          } else {
+            topicQuestions = [...topicQuestions, ...currentQs];
+          }
+          accumulateTopicTelemetry(topicTelemetry, response);
+        }
+      }
+
       store.setGenerationSubCallProgress(null);
     }
 
@@ -281,6 +302,8 @@ function processResults(
     estimatedCostUsd: 0,
     distinctnessAvg: 0,
     multiStepDepthAvg: 0,
+    commandVerbDiversity: 0,
+    markAllocationVariance: 0,
   };
   let distinctnessWeight = 0;
   let multiStepDepthWeight = 0;

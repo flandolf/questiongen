@@ -43,3 +43,8 @@ firebase.json
 firestore.indexes.json
 firestore.rules
 storage.rules
+
+.claude/
+.codex/
+.opencode/
+.vscode/

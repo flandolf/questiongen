@@ -1,6 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
 
-import { APP_STATE_STORAGE_KEY, PERSISTED_APP_STATE_VERSION } from '@/types';
+import {
+  APP_STATE_STORAGE_KEY,
+  DEFAULT_MODEL,
+  PERSISTED_APP_STATE_VERSION,
+} from '@/types';
 import type { TimerState } from '@/types/timer';
 
 import type {
@@ -37,10 +41,10 @@ import {
 
 const DEFAULT_SETTINGS: PersistedSettings = {
   apiKey: '',
-  model: 'openai/gpt-5.4-mini',
-  markingModel: 'openai/gpt-5.4-mini',
+  model: DEFAULT_MODEL,
+  markingModel: DEFAULT_MODEL,
   useSeparateMarkingModel: false,
-  imageMarkingModel: 'openai/gpt-5.4-mini',
+  imageMarkingModel: DEFAULT_MODEL,
   useSeparateImageMarkingModel: false,
   debugMode: false,
   showRawLlmOutput: false,
@@ -56,7 +60,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   interfaceFont: 'Inter Variable',
   headingFont: 'Manrope Variable',
   tutorPersona: '',
-  tutorModel: 'openai/gpt-5.4-mini',
+  tutorModel: DEFAULT_MODEL,
   shuffleSubtopics: false,
   shuffleQuestions: false,
   markerStyle: 'strict',
@@ -300,7 +304,7 @@ function migrateProviders(raw: Record<string, unknown>): {
 
   // Migration from old flat format: seed the openrouter provider
   const key = asString(raw.apiKey);
-  const model = normalizeNonEmptyString(raw.model, 'openai/gpt-5.4-mini');
+  const model = normalizeNonEmptyString(raw.model, DEFAULT_MODEL);
   const orProvider = createDefaultProviderState(BUILTIN_PROVIDERS.openrouter);
   orProvider.apiKey = key;
   orProvider.modelSelections.model = model;

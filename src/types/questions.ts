@@ -7,6 +7,8 @@ export type GeneratedQuestion = {
   techAllowed?: boolean;
   distinctnessScore?: number;
   multiStepDepth?: number;
+  verbDiversityCount?: number;
+  scaffoldPattern?: string;
 };
 
 export type McOption = {
@@ -25,6 +27,8 @@ export type McQuestion = {
   techAllowed?: boolean;
   distinctnessScore?: number;
   multiStepDepth?: number;
+  verbDiversityCount?: number;
+  scaffoldPattern?: string;
 };
 
 export type StudentAnswerImage = {

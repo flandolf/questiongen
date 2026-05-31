@@ -1,4 +1,4 @@
-import type { DateRangePreset } from '@/lib/useDateFilter';
+import type { DateRangePreset } from '@/hooks/useDateFilter';
 
 const PRESETS: { value: DateRangePreset; label: string }[] = [
   { value: '7d', label: '7 days' },

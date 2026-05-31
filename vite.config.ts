@@ -34,7 +34,6 @@ export default defineConfig(() => ({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('recharts')) return 'recharts';
-            if (id.includes('better-react-mathjax')) return 'mathjax';
             if (id.includes('zustand')) return 'zustand';
             if (id.includes('firebase')) return 'firebase';
             if (id.includes('@tauri-apps')) return 'tauri';

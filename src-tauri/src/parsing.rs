@@ -110,81 +110,27 @@ pub fn protect_latex_in_raw_json(raw: &str) -> String {
                             // actually a JSON escape for whitespace/control, or
                             // is the model trying to write a LaTeX command?
                             //
+                            // Strategy: treat as LaTeX if the backslash + letter
+                            // is followed by 2+ more alphabetic characters (i.e.
+                            // a 3+ letter command name). This catches all LaTeX
+                            // commands without needing a hardcoded list, while
+                            // preserving genuine JSON escapes like \n followed by
+                            // a space or digit.
                             let mut is_latex = false;
                             if matches!(next, b'f' | b't' | b'b' | b'n' | b'r') {
-                                let commands: &[&[u8]] = match next {
-                                    b'n' => &[
-                                        b"nabla", b"natural", b"ne", b"neq", b"nearrow", b"not",
-                                        b"notin", b"nu",
-                                    ],
-                                    b'r' => &[
-                                        b"rho",
-                                        b"right",
-                                        b"rightarrow",
-                                        b"Rightarrow",
-                                        b"rm",
-                                        b"Re",
-                                        b"rangle",
-                                        b"rceil",
-                                        b"rfloor",
-                                        b"rvert",
-                                        b"rVert",
-                                    ],
-                                    b't' => &[
-                                        b"tan",
-                                        b"tanh",
-                                        b"tau",
-                                        b"text",
-                                        b"textbf",
-                                        b"textit",
-                                        b"textrm",
-                                        b"textsf",
-                                        b"texttt",
-                                        b"textup",
-                                        b"theta",
-                                        b"times",
-                                        b"to",
-                                        b"top",
-                                        b"triangle",
-                                        b"triangleright",
-                                        b"therefore",
-                                        b"tilde",
-                                        b"tfrac",
-                                    ],
-                                    b'f' => {
-                                        &[b"frac", b"forall", b"frown", b"flat", b"fbox", b"fty"]
-                                    }
-                                    b'b' => &[
-                                        b"beta",
-                                        b"bar",
-                                        b"bf",
-                                        b"begin",
-                                        b"binom",
-                                        b"big",
-                                        b"Big",
-                                        b"bigg",
-                                        b"Bigg",
-                                        b"bot",
-                                        b"bullet",
-                                        b"bmod",
-                                        b"bowtie",
-                                        b"backslash",
-                                        b"bmatrix",
-                                        b"bmathbb",
-                                    ],
-                                    _ => &[],
-                                };
-
                                 let start = i + 1;
-                                for &cmd in commands {
-                                    if bytes[start..].starts_with(cmd) {
-                                        let next_idx = start + cmd.len();
-                                        if next_idx >= len || !bytes[next_idx].is_ascii_alphabetic()
-                                        {
-                                            is_latex = true;
-                                            break;
-                                        }
-                                    }
+                                // Count consecutive alphabetic chars after the initial letter.
+                                let mut alpha_count = 1usize; // the initial letter itself
+                                let mut j = start + 1;
+                                while j < len && bytes[j].is_ascii_alphabetic() {
+                                    alpha_count += 1;
+                                    j += 1;
+                                }
+                                // If 2+ more alpha chars follow (total >= 3), treat as LaTeX.
+                                // This preserves genuine \n (newline) + space, but catches
+                                // \frac, \text, \nabla, \beta, \right, etc.
+                                if alpha_count >= 3 {
+                                    is_latex = true;
                                 }
                             }
 
@@ -291,16 +237,60 @@ mod tests {
 
     #[test]
     fn real_tab_escape_preserved() {
-        // A real \t (tab) that is NOT followed by a letter should be preserved
-        // as a tab character after JSON parsing.
-        let raw = "{\"q\": \"col1\\tcol2\"}";
+        // A real \t (tab) followed by only 1 more alpha char — preserved as tab.
+        // "col1\tX" has only 2 alpha chars total (t + X), below the 3-char threshold.
+        let raw = "{\"q\": \"col1\\tX\"}";
         let protected = protect_latex_in_raw_json(raw);
         let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
-        // \t followed by 'c' — our heuristic will treat this as LaTeX.
-        // This is an acceptable false positive: "col1\tcol2" is not typical
-        // in a math/science question body. The test documents the behaviour.
         let result = v["q"].as_str().unwrap();
-        assert!(result.contains('\\') || result.contains('\t'));
+        assert!(result.contains('\t'), "Expected tab in: {result}");
+    }
+
+    #[test]
+    fn tab_followed_by_three_alpha_treated_as_latex() {
+        // \tcol is 3+ alpha chars → treated as LaTeX (prefix matching).
+        let raw = r#"{"q": "\tcol{data}"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\tcol{data}");
+    }
+
+    #[test]
+    fn frel_protected_by_prefix_matching() {
+        // \frel starts with \f (JSON form feed) but is a LaTeX command.
+        // 3+ alpha chars → should be protected.
+        let raw = r#"{"q": "\frel{x}"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\frel{x}");
+    }
+
+    #[test]
+    fn tpartial_protected_by_prefix_matching() {
+        // \tpartial starts with \t (JSON tab) but is a LaTeX command.
+        let raw = r#"{"q": "\tpartial{x}"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\tpartial{x}");
+    }
+
+    #[test]
+    fn nabla_protected_by_prefix_matching() {
+        // \nabla starts with \n (JSON newline) but is 3+ alpha chars.
+        let raw = r#"{"q": "\nabla f"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\nabla f");
+    }
+
+    #[test]
+    fn two_char_command_like_ne_not_protected() {
+        // \nX is only 2 alpha chars total → preserved as newline.
+        let raw = "{\"q\": \"\\nX value\"}";
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        let result = v["q"].as_str().unwrap();
+        assert!(result.contains('\n'), "Expected newline in: {result}");
     }
 
     #[test]

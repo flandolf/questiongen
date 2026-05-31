@@ -1,5 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
+import { Button } from './button';
+
 type ErrorBoundaryProps = {
   children: ReactNode;
   fallback?: ReactNode;
@@ -66,6 +68,68 @@ export class ErrorBoundary extends Component<
             </div>
           </div>
         )
+      );
+    }
+    return this.props.children;
+  }
+}
+
+type RouteErrorBoundaryProps = {
+  children: ReactNode;
+  routeName: string;
+};
+
+type RouteErrorBoundaryState = {
+  hasError: boolean;
+  error: Error | null;
+};
+
+export class RouteErrorBoundary extends Component<
+  RouteErrorBoundaryProps,
+  RouteErrorBoundaryState
+> {
+  state: RouteErrorBoundaryState = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error): RouteErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error(
+      `[RouteErrorBoundary] Error in ${this.props.routeName}:`,
+      error,
+      info.componentStack,
+    );
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  handleGoHome = () => {
+    window.location.hash = '#/';
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className='min-h-[400px] flex items-center justify-center px-6'>
+          <div className='text-center space-y-4 max-w-md'>
+            <h2 className='text-lg font-semibold tracking-tight'>
+              {this.props.routeName} failed to load
+            </h2>
+            <p className='text-sm text-muted-foreground'>
+              {this.state.error?.message ?? 'An unexpected error occurred.'}
+            </p>
+            <div className='flex gap-2 justify-center'>
+              <Button variant='outline' onClick={this.handleReset}>
+                Try again
+              </Button>
+              <Button onClick={this.handleGoHome}>Go home</Button>
+            </div>
+          </div>
+        </div>
       );
     }
     return this.props.children;

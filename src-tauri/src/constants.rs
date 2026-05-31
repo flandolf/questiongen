@@ -1,5 +1,8 @@
 pub const DEFAULT_OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
+/// Default LLM model used across the application.
+pub const DEFAULT_MODEL: &str = "openai/gpt-5.4-mini";
+
 /// Build the chat completions URL from a base URL.
 pub fn chat_completions_url(base_url: &str) -> String {
     let base = base_url.trim_end_matches('/');

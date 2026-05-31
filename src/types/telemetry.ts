@@ -18,6 +18,8 @@ export type GenerationTelemetry = {
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+  commandVerbDiversity?: number;
+  markAllocationVariance?: number;
   qualityDiagnostics?: GenerationQualityDiagnostics;
 };
 
@@ -31,6 +33,8 @@ export type GenerateQuestionsResponse = {
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+  commandVerbDiversity?: number;
+  markAllocationVariance?: number;
   qualityDiagnostics?: GenerationQualityDiagnostics;
 };
 
@@ -44,5 +48,7 @@ export type GenerateMcQuestionsResponse = {
   estimatedCostUsd?: number;
   distinctnessAvg?: number;
   multiStepDepthAvg?: number;
+  commandVerbDiversity?: number;
+  markAllocationVariance?: number;
   qualityDiagnostics?: GenerationQualityDiagnostics;
 };
