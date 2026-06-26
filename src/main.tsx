@@ -8,10 +8,10 @@ import App from './App';
 import { ThemeProvider } from './components/theme-provider';
 import { normalizeHexColor } from './lib/color-helpers';
 import { generateM3Theme } from './lib/color-utils';
+import { patchUiPrefs, readUiPrefs } from './lib/ui-prefs';
 import { resolveDesignThemeName } from './themes/designThemes';
 
 const APP_STATE_STORAGE_KEY = 'questiongen.appState';
-const UI_PREFS_STORAGE_KEY = 'questiongen-ui-prefs';
 
 type PersistedSettingsLike = {
   settings?: {
@@ -62,40 +62,56 @@ function extractPersistedSettings(raw: unknown): {
   return { theme, customThemeSeedColor };
 }
 
-function resolveCurrentMode(): 'dark' | 'light' {
-  const uiPrefs = parseJsonSafely(
-    localStorage.getItem(UI_PREFS_STORAGE_KEY),
-  ) as Record<string, unknown> | null;
-  const mode =
-    (typeof uiPrefs?.mode === 'string' && uiPrefs.mode) ||
-    localStorage.getItem('questiongen-theme') ||
-    'dark';
-
-  if (mode === 'dark') {
-    return 'dark';
+function readStoredMode(): 'dark' | 'light' | 'system' {
+  const prefs = readUiPrefs();
+  const fromPrefs = typeof prefs.mode === 'string' ? prefs.mode : null;
+  const fromLocal =
+    fromPrefs ?? localStorage.getItem('questiongen-theme') ?? 'dark';
+  if (fromLocal === 'dark' || fromLocal === 'light' || fromLocal === 'system') {
+    return fromLocal;
   }
+  return 'dark';
+}
 
+function resolveCurrentMode(): 'dark' | 'light' {
+  const mode = readStoredMode();
+  if (mode === 'dark') return 'dark';
   if (mode === 'system') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches
       ? 'dark'
       : 'light';
   }
-
   return 'light';
 }
 
+async function readTauriPersistedSettings(): Promise<{
+  theme: string | null;
+  customThemeSeedColor: string | null;
+} | null> {
+  if (!('__TAURI_INTERNALS__' in window)) return null;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const persistedRaw = await invoke<unknown>('load_persisted_state');
+    const persisted =
+      typeof persistedRaw === 'string'
+        ? parseJsonSafely(persistedRaw)
+        : persistedRaw;
+    return extractPersistedSettings(persisted);
+  } catch {
+    return null;
+  }
+}
+
 async function resolveInitialAppearance(): Promise<ResolvedInitialAppearance> {
-  const uiPrefs = parseJsonSafely(
-    localStorage.getItem(UI_PREFS_STORAGE_KEY),
-  ) as Record<string, unknown> | null;
+  const uiPrefs = readUiPrefs();
 
   const uiTheme =
-    typeof uiPrefs?.designTheme === 'string' && uiPrefs.designTheme.trim()
+    typeof uiPrefs.designTheme === 'string' && uiPrefs.designTheme.trim()
       ? uiPrefs.designTheme
       : null;
 
   const uiCustomSeed =
-    typeof uiPrefs?.customThemeSeedColor === 'string' &&
+    typeof uiPrefs.customThemeSeedColor === 'string' &&
     uiPrefs.customThemeSeedColor.trim()
       ? normalizeHexColor(uiPrefs.customThemeSeedColor)
       : null;
@@ -107,28 +123,13 @@ async function resolveInitialAppearance(): Promise<ResolvedInitialAppearance> {
     };
   }
 
-  const isTauriRuntime = '__TAURI_INTERNALS__' in window;
-
-  if (isTauriRuntime) {
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const persistedRaw = await invoke<unknown>('load_persisted_state');
-      const persisted =
-        typeof persistedRaw === 'string'
-          ? parseJsonSafely(persistedRaw)
-          : persistedRaw;
-      const extracted = extractPersistedSettings(persisted);
-
-      if (extracted.theme) {
-        return {
-          designTheme: resolveDesignThemeName(extracted.theme),
-          customThemeSeedColor:
-            extracted.customThemeSeedColor ?? normalizeHexColor(null),
-        };
-      }
-    } catch {
-      // Ignore and continue to localStorage fallback.
-    }
+  const tauriExtracted = await readTauriPersistedSettings();
+  if (tauriExtracted?.theme) {
+    return {
+      designTheme: resolveDesignThemeName(tauriExtracted.theme),
+      customThemeSeedColor:
+        tauriExtracted.customThemeSeedColor ?? normalizeHexColor(null),
+    };
   }
 
   const localState = parseJsonSafely(
@@ -147,25 +148,13 @@ function persistUiPrefsAppearance(params: {
   customThemeSeedColor: string;
   customThemeVars: Record<string, string> | null;
 }) {
-  try {
-    const uiPrefs = parseJsonSafely(
-      localStorage.getItem(UI_PREFS_STORAGE_KEY),
-    ) as Record<string, unknown> | null;
-
-    const next: Record<string, unknown> = {
-      ...(uiPrefs ?? {}),
-      designTheme: params.designTheme,
-      customThemeSeedColor: params.customThemeSeedColor,
-    };
-
-    if (params.customThemeVars) {
-      next.customThemeVars = params.customThemeVars;
-    }
-
-    localStorage.setItem(UI_PREFS_STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // Ignore localStorage parsing errors.
-  }
+  patchUiPrefs({
+    designTheme: params.designTheme,
+    customThemeSeedColor: params.customThemeSeedColor,
+    ...(params.customThemeVars
+      ? { customThemeVars: params.customThemeVars }
+      : {}),
+  });
 }
 
 async function bootstrap() {

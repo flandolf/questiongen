@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
+import { patchUiPrefs } from '@/lib/ui-prefs';
+
 type Theme = 'dark' | 'light' | 'system';
 
 type ThemeProviderProps = {
@@ -20,6 +22,22 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+function syncRootThemeClass(theme: Theme) {
+  const root = window.document.documentElement;
+  root.classList.remove('light', 'dark');
+
+  if (theme === 'system') {
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+      .matches
+      ? 'dark'
+      : 'light';
+    root.classList.add(systemTheme);
+    return;
+  }
+
+  root.classList.add(theme);
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = 'system',
@@ -31,41 +49,16 @@ export function ThemeProvider({
   );
 
   useEffect(() => {
-    const root = window.document.documentElement;
-
-    root.classList.remove('light', 'dark');
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light';
-
-      root.classList.add(systemTheme);
-      return;
-    }
-
-    root.classList.add(theme);
+    syncRootThemeClass(theme);
   }, [theme]);
 
-  const value = {
+  const value: ThemeProviderState = {
     theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-
-      // Update ui-prefs for the synchronous injector script
-      try {
-        const stored = localStorage.getItem('questiongen-ui-prefs');
-        const prefs = stored
-          ? (JSON.parse(stored) as Record<string, string>)
-          : {};
-        prefs.mode = theme;
-        localStorage.setItem('questiongen-ui-prefs', JSON.stringify(prefs));
-      } catch {
-        // Ignore parsing errors
-      }
-
-      setTheme(theme);
+    setTheme: (next: Theme) => {
+      localStorage.setItem(storageKey, next);
+      // Mirror to ui-prefs so the index.html inline injector picks the same mode on next boot.
+      patchUiPrefs({ mode: next });
+      setTheme(next);
     },
   };
 

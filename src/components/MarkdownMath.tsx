@@ -27,6 +27,80 @@ function normalizeMarkdownLineBreaks(content: string): string {
   );
 }
 
+function readCssVariable(
+  rootStyle: CSSStyleDeclaration,
+  bodyStyle: CSSStyleDeclaration | null,
+  varName: string,
+): string | null {
+  // Tailwind 4 often uses --color-* for theme variables; fall back there too.
+  const candidates = varName.startsWith('--color-')
+    ? [varName]
+    : [varName, `--color-${varName.slice(2)}`];
+
+  for (const name of candidates) {
+    const fromRoot = rootStyle.getPropertyValue(name).trim();
+    if (fromRoot) return fromRoot;
+    const fromBody = bodyStyle?.getPropertyValue(name).trim();
+    if (fromBody) return fromBody;
+  }
+  return null;
+}
+
+function pickMermaidFallbackColor(
+  varName: string,
+  isDarkMode: boolean,
+): string {
+  const fallbacks: Record<string, string> = isDarkMode
+    ? {
+        '--background': '#0a0a0a',
+        '--foreground': '#ffffff',
+        '--primary': '#3b82f6',
+        '--muted-foreground': '#a1a1aa',
+        '--card': '#1a1a1a',
+        '--chart-2': '#e11d48',
+        '--chart-3': '#f59e0b',
+      }
+    : {
+        '--background': '#ffffff',
+        '--foreground': '#0a0a0a',
+        '--primary': '#2563eb',
+        '--muted-foreground': '#71717a',
+        '--card': '#ffffff',
+        '--chart-2': '#e11d48',
+        '--chart-3': '#f59e0b',
+      };
+
+  return fallbacks[varName] ?? '#888888';
+}
+
+function toSrgbHex(value: string, contextLabel?: string): string {
+  // Handle raw components (e.g. "0 0% 100%") if not already wrapped.
+  let candidate = value;
+  if (
+    !candidate.includes('(') &&
+    !candidate.startsWith('#') &&
+    /[0-9.%\s]+/.test(candidate)
+  ) {
+    candidate = candidate.includes('%')
+      ? `hsl(${candidate})`
+      : `oklch(${candidate})`;
+  }
+
+  try {
+    return new Color(candidate).to('srgb').toString({ format: 'hex' });
+  } catch (err) {
+    try {
+      return new Color(value).to('srgb').toString({ format: 'hex' });
+    } catch (innerErr) {
+      console.error(
+        `Error converting ${contextLabel ?? value} (${value}) ${(err as Error).message}:`,
+        innerErr,
+      );
+      return '#888888';
+    }
+  }
+}
+
 const MathNode = memo(
   ({
     latex,
@@ -110,84 +184,21 @@ const Mermaid = ({ chart }: { chart: string }) => {
 
   useEffect(() => {
     const rootStyle = window.getComputedStyle(document.documentElement);
-    // eslint-disable-next-line complexity
+    const bodyStyle = document.body
+      ? window.getComputedStyle(document.body)
+      : null;
+    const isDarkMode =
+      theme === 'dark' ||
+      (theme === 'system' &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches);
+
     const resolveColor = (varName: string): string => {
-      const bodyStyle = document.body
-        ? window.getComputedStyle(document.body)
-        : null;
-
-      // Try multiple ways to find the variable
-      let computedValue = rootStyle.getPropertyValue(varName).trim();
-      if (!computedValue && bodyStyle) {
-        computedValue = bodyStyle.getPropertyValue(varName).trim();
-      }
-
-      // Tailwind 4 often uses --color-* for theme variables
-      if (!computedValue && !varName.startsWith('--color-')) {
-        const altName = `--color-${varName.slice(2)}`;
-        computedValue = rootStyle.getPropertyValue(altName).trim();
-        if (!computedValue && bodyStyle) {
-          computedValue = bodyStyle.getPropertyValue(altName).trim();
-        }
-      }
-
+      const computedValue = readCssVariable(rootStyle, bodyStyle, varName);
       if (!computedValue) {
-        // Fallback colors to prevent black-on-black or invisible diagrams
-        const isDarkMode =
-          theme === 'dark' ||
-          (theme === 'system' &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-        const fallbacks: Record<string, string> = isDarkMode
-          ? {
-              '--background': '#0a0a0a',
-              '--foreground': '#ffffff',
-              '--primary': '#3b82f6',
-              '--muted-foreground': '#a1a1aa',
-              '--card': '#1a1a1a',
-              '--chart-2': '#e11d48',
-              '--chart-3': '#f59e0b',
-            }
-          : {
-              '--background': '#ffffff',
-              '--foreground': '#0a0a0a',
-              '--primary': '#2563eb',
-              '--muted-foreground': '#71717a',
-              '--card': '#ffffff',
-              '--chart-2': '#e11d48',
-              '--chart-3': '#f59e0b',
-            };
-
-        return fallbacks[varName] || '#888888';
+        // Fallback colors prevent black-on-black or invisible diagrams.
+        return pickMermaidFallbackColor(varName, isDarkMode);
       }
-
-      try {
-        // Handle raw components (e.g. "0 0% 100%") if not already wrapped
-        let colorString = computedValue;
-        if (
-          !colorString.includes('(') &&
-          !colorString.startsWith('#') &&
-          /[0-9.%\s]+/.test(colorString)
-        ) {
-          colorString = colorString.includes('%')
-            ? `hsl(${colorString})`
-            : `oklch(${colorString})`;
-        }
-
-        return new Color(colorString).to('srgb').toString({ format: 'hex' });
-      } catch (error) {
-        try {
-          return new Color(computedValue)
-            .to('srgb')
-            .toString({ format: 'hex' });
-        } catch (innerError) {
-          console.error(
-            `Error converting ${varName} (${computedValue}) ${(error as Error).message}:`,
-            innerError,
-          );
-          return '#888888';
-        }
-      }
+      return toSrgbHex(computedValue, varName);
     };
 
     const primary = resolveColor('--primary');

@@ -244,17 +244,188 @@ function predictTokensLogRegression(
   return Math.round(Math.exp(linearPrediction));
 }
 
-// eslint-disable-next-line complexity
-export function trainLogRegressionModel(
+type Gradient = {
+  gradBias: number;
+  gradLogQ: number;
+  gradQ: number;
+  gradLogM: number;
+  gradM: number;
+  gradSub: number;
+  gradFocus: number;
+  gradMultiPass: number;
+  gradTopic: Record<string, number>;
+  gradDiff: Record<string, number>;
+  gradMode: Record<string, number>;
+  gradTech: Record<string, number>;
+};
+
+function emptyGradient(): Gradient {
+  return {
+    gradBias: 0,
+    gradLogQ: 0,
+    gradQ: 0,
+    gradLogM: 0,
+    gradM: 0,
+    gradSub: 0,
+    gradFocus: 0,
+    gradMultiPass: 0,
+    gradTopic: {},
+    gradDiff: {},
+    gradMode: {},
+    gradTech: {},
+  };
+}
+
+function predictFromFeatures(
+  coeffs: LogRegressionCoefficients,
+  features: Record<string, number>,
+): number {
+  let pred = coeffs.bias;
+  pred += coeffs.logQuestionCount * features.logQuestionCount;
+  pred += coeffs.questionCount * features.questionCount;
+  pred += coeffs.logTotalMarks * features.logTotalMarks;
+  pred += coeffs.totalMarks * features.totalMarks;
+  pred += features.topicCoeff;
+  pred += features.difficultyCoeff;
+  pred += features.questionModeCoeff;
+  pred += features.techModeCoeff;
+  pred += coeffs.subtopicsCoefficient * features.subtopicsLog;
+  pred += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
+  return pred;
+}
+
+function accumulateGradient(
+  trainingData: {
+    record: GenerationRecord;
+    features: Record<string, number>;
+    target: number;
+  }[],
+  coeffs: LogRegressionCoefficients,
+): Gradient {
+  const grad = emptyGradient();
+  for (const { record, features, target } of trainingData) {
+    const error = predictFromFeatures(coeffs, features) - target;
+    grad.gradBias += error;
+    grad.gradLogQ += error * features.logQuestionCount;
+    grad.gradQ += error * features.questionCount;
+    grad.gradLogM += error * features.logTotalMarks;
+    grad.gradM += error * features.totalMarks;
+    grad.gradSub += error * features.subtopicsLog;
+    grad.gradFocus += error * features.hasCustomFocus;
+    grad.gradMultiPass += error * features.isMultiPass;
+
+    const t = record.inputs.topic;
+    const d = record.inputs.difficulty as string;
+    const qm = record.inputs.questionMode as string;
+    const tm = record.inputs.techMode as string;
+    grad.gradTopic[t] = (grad.gradTopic[t] ?? 0) + error;
+    grad.gradDiff[d] = (grad.gradDiff[d] ?? 0) + error;
+    grad.gradMode[qm] = (grad.gradMode[qm] ?? 0) + error;
+    grad.gradTech[tm] = (grad.gradTech[tm] ?? 0) + error;
+  }
+  return grad;
+}
+
+function applyGradient(
+  coeffs: LogRegressionCoefficients,
+  grad: Gradient,
+  scale: number,
+): void {
+  coeffs.bias -= grad.gradBias * scale;
+  coeffs.logQuestionCount -= grad.gradLogQ * scale;
+  coeffs.questionCount -= grad.gradQ * scale * 0.001;
+  coeffs.logTotalMarks -= grad.gradLogM * scale;
+  coeffs.totalMarks -= grad.gradM * scale * 0.001;
+  coeffs.subtopicsCoefficient -= grad.gradSub * scale;
+  coeffs.hasCustomFocusCoefficient -= grad.gradFocus * scale;
+  coeffs.multiPassCoefficient -= grad.gradMultiPass * scale;
+
+  const catScale = scale * 0.1;
+  for (const [level, g] of Object.entries(grad.gradTopic)) {
+    coeffs.topicCoefficients[level] =
+      (coeffs.topicCoefficients[level] ?? 0) - g * catScale;
+  }
+  for (const [level, g] of Object.entries(grad.gradDiff)) {
+    coeffs.difficultyCoefficients[level] =
+      (coeffs.difficultyCoefficients[level] ?? 0) - g * catScale;
+  }
+  for (const [level, g] of Object.entries(grad.gradMode)) {
+    coeffs.questionModeCoefficients[level] =
+      (coeffs.questionModeCoefficients[level] ?? 0) - g * catScale;
+  }
+  for (const [level, g] of Object.entries(grad.gradTech)) {
+    coeffs.techModeCoefficients[level] =
+      (coeffs.techModeCoefficients[level] ?? 0) - g * catScale;
+  }
+}
+
+function filterValidRecords(
   records: GenerationRecord[],
-  existingCoeffs?: LogRegressionCoefficients,
-): { coefficients: LogRegressionCoefficients; rSquared: number } {
-  const validRecords = records.filter(
+): GenerationRecord[] {
+  return records.filter(
     (r) =>
       r.outputs.totalTokens != null &&
       r.outputs.totalTokens > 0 &&
       r.inputs.questionCount > 0,
   );
+}
+
+function buildTrainingData(
+  validRecords: GenerationRecord[],
+  coeffs: LogRegressionCoefficients,
+) {
+  return validRecords.map((record) => ({
+    record,
+    features: extractLogRegressionFeatures(
+      record.inputs.questionCount,
+      record.inputs.averageMarksPerQuestion,
+      record.inputs.topic,
+      record.inputs.difficulty,
+      record.inputs.questionMode,
+      record.inputs.techMode,
+      record.inputs.subtopics,
+      record.inputs.customFocusArea,
+      record.inputs.generationStrategy ?? 'single-pass',
+      coeffs,
+    ),
+    target: Math.log(record.outputs.totalTokens!),
+  }));
+}
+
+function computeRSquared(
+  data: { features: Record<string, number>; target: number }[],
+  coeffs: LogRegressionCoefficients,
+): number {
+  const meanTarget =
+    data.reduce((sum, d) => sum + d.target, 0) / data.length;
+  let ssRes = 0;
+  let ssTot = 0;
+  for (const { features, target } of data) {
+    const pred = Math.log(predictTokensLogRegression(coeffs, features));
+    ssRes += (pred - target) ** 2;
+    ssTot += (target - meanTarget) ** 2;
+  }
+  return ssTot > 0 ? 1 - ssRes / ssTot : 0;
+}
+
+function cloneCoeffs(
+  source?: LogRegressionCoefficients,
+): LogRegressionCoefficients {
+  const base = source
+    ? { ...source }
+    : { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
+  base.topicCoefficients = { ...base.topicCoefficients };
+  base.difficultyCoefficients = { ...base.difficultyCoefficients };
+  base.questionModeCoefficients = { ...base.questionModeCoefficients };
+  base.techModeCoefficients = { ...base.techModeCoefficients };
+  return base;
+}
+
+export function trainLogRegressionModel(
+  records: GenerationRecord[],
+  existingCoeffs?: LogRegressionCoefficients,
+): { coefficients: LogRegressionCoefficients; rSquared: number } {
+  const validRecords = filterValidRecords(records);
 
   if (validRecords.length < 5) {
     return {
@@ -267,128 +438,19 @@ export function trainLogRegressionModel(
     };
   }
 
-  const coeffs = existingCoeffs
-    ? { ...existingCoeffs }
-    : { ...DEFAULT_LOG_REGRESSION_COEFFICIENTS };
-  coeffs.topicCoefficients = { ...coeffs.topicCoefficients };
-  coeffs.difficultyCoefficients = { ...coeffs.difficultyCoefficients };
-  coeffs.questionModeCoefficients = { ...coeffs.questionModeCoefficients };
-  coeffs.techModeCoefficients = { ...coeffs.techModeCoefficients };
-
-  const buildTrainingData = () =>
-    validRecords.map((record) => ({
-      record,
-      features: extractLogRegressionFeatures(
-        record.inputs.questionCount,
-        record.inputs.averageMarksPerQuestion,
-        record.inputs.topic,
-        record.inputs.difficulty,
-        record.inputs.questionMode,
-        record.inputs.techMode,
-        record.inputs.subtopics,
-        record.inputs.customFocusArea,
-        record.inputs.generationStrategy ?? 'single-pass',
-        coeffs,
-      ),
-      target: Math.log(record.outputs.totalTokens!),
-    }));
-
+  const coeffs = cloneCoeffs(existingCoeffs);
   const learningRate = 0.01;
   const iterations = 200;
 
   for (let iter = 0; iter < iterations; iter++) {
-    const trainingData = buildTrainingData();
-
-    let gradBias = 0,
-      gradLogQ = 0,
-      gradQ = 0,
-      gradLogM = 0,
-      gradM = 0;
-    let gradSub = 0,
-      gradFocus = 0,
-      gradMultiPass = 0;
-
-    const gradTopic: Record<string, number> = {};
-    const gradDiff: Record<string, number> = {};
-    const gradMode: Record<string, number> = {};
-    const gradTech: Record<string, number> = {};
-
-    for (const { record, features, target } of trainingData) {
-      let pred = coeffs.bias;
-      pred += coeffs.logQuestionCount * features.logQuestionCount;
-      pred += coeffs.questionCount * features.questionCount;
-      pred += coeffs.logTotalMarks * features.logTotalMarks;
-      pred += coeffs.totalMarks * features.totalMarks;
-      pred += features.topicCoeff;
-      pred += features.difficultyCoeff;
-      pred += features.questionModeCoeff;
-      pred += features.techModeCoeff;
-      pred += coeffs.subtopicsCoefficient * features.subtopicsLog;
-      pred += coeffs.hasCustomFocusCoefficient * features.hasCustomFocus;
-
-      const error = pred - target;
-
-      gradBias += error;
-      gradLogQ += error * features.logQuestionCount;
-      gradQ += error * features.questionCount;
-      gradLogM += error * features.logTotalMarks;
-      gradM += error * features.totalMarks;
-      gradSub += error * features.subtopicsLog;
-      gradFocus += error * features.hasCustomFocus;
-      gradMultiPass += error * features.isMultiPass;
-
-      const t = record.inputs.topic;
-      const d = record.inputs.difficulty as string;
-      const qm = record.inputs.questionMode as string;
-      const tm = record.inputs.techMode as string;
-      gradTopic[t] = (gradTopic[t] ?? 0) + error;
-      gradDiff[d] = (gradDiff[d] ?? 0) + error;
-      gradMode[qm] = (gradMode[qm] ?? 0) + error;
-      gradTech[tm] = (gradTech[tm] ?? 0) + error;
-    }
-
-    const n = trainingData.length;
-    const scale = learningRate / n;
-
-    coeffs.bias -= gradBias * scale;
-    coeffs.logQuestionCount -= gradLogQ * scale;
-    coeffs.questionCount -= gradQ * scale * 0.001;
-    coeffs.logTotalMarks -= gradLogM * scale;
-    coeffs.totalMarks -= gradM * scale * 0.001;
-    coeffs.subtopicsCoefficient -= gradSub * scale;
-    coeffs.hasCustomFocusCoefficient -= gradFocus * scale;
-    coeffs.multiPassCoefficient -= gradMultiPass * scale;
-
-    const catScale = scale * 0.1;
-    for (const [level, grad] of Object.entries(gradTopic)) {
-      coeffs.topicCoefficients[level] =
-        (coeffs.topicCoefficients[level] ?? 0) - grad * catScale;
-    }
-    for (const [level, grad] of Object.entries(gradDiff)) {
-      coeffs.difficultyCoefficients[level] =
-        (coeffs.difficultyCoefficients[level] ?? 0) - grad * catScale;
-    }
-    for (const [level, grad] of Object.entries(gradMode)) {
-      coeffs.questionModeCoefficients[level] =
-        (coeffs.questionModeCoefficients[level] ?? 0) - grad * catScale;
-    }
-    for (const [level, grad] of Object.entries(gradTech)) {
-      coeffs.techModeCoefficients[level] =
-        (coeffs.techModeCoefficients[level] ?? 0) - grad * catScale;
-    }
+    const trainingData = buildTrainingData(validRecords, coeffs);
+    const grad = accumulateGradient(trainingData, coeffs);
+    const scale = learningRate / trainingData.length;
+    applyGradient(coeffs, grad, scale);
   }
 
-  const finalData = buildTrainingData();
-  const meanTarget =
-    finalData.reduce((sum, d) => sum + d.target, 0) / finalData.length;
-  let ssRes = 0,
-    ssTot = 0;
-  for (const { features, target } of finalData) {
-    const pred = Math.log(predictTokensLogRegression(coeffs, features));
-    ssRes += (pred - target) ** 2;
-    ssTot += (target - meanTarget) ** 2;
-  }
-  const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+  const finalData = buildTrainingData(validRecords, coeffs);
+  const rSquared = Math.max(0, computeRSquared(finalData, coeffs));
 
   return {
     coefficients: {
@@ -396,9 +458,9 @@ export function trainLogRegressionModel(
       modelVersion: '1.0.0',
       trainedAt: Date.now(),
       sampleSize: validRecords.length,
-      rSquared: Math.max(0, rSquared),
+      rSquared,
     },
-    rSquared: Math.max(0, rSquared),
+    rSquared,
   };
 }
 
