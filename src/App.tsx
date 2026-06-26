@@ -1,7 +1,7 @@
 import { type ComponentType, lazy, Suspense, useEffect } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 
-import { Layout } from '@/components/layout/Layout';
+import { AppShell } from '@/components/layout/AppShell';
 import { LoadingScreen, RouteFallback } from '@/components/LoadingScreen';
 import { ErrorBoundary, RouteErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { Toaster } from '@/components/ui/sonner';
@@ -304,7 +304,7 @@ function AppRoutes() {
     <HashRouter>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path='/' element={<Layout />}>
+          <Route path='/' element={<AppShell />}>
             <Route
               index
               element={

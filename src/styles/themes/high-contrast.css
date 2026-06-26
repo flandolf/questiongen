@@ -1,0 +1,142 @@
+/**
+ * QuestionGen 2.0 — High Contrast Theme
+ *
+ * An accessibility-first theme with maximum contrast ratios,
+ * strong borders, and clear visual distinctions. Meets WCAG AAA
+ * standards for text and UI element contrast.
+ */
+
+/* Light Mode */
+:root[data-design-theme='high-contrast'] {
+  --surface-primary: #ffffff;
+  --surface-secondary: #f5f5f5;
+  --surface-tertiary: #eeeeee;
+  --surface-hover: #e8e8e8;
+  --surface-active: #dddddd;
+  --surface-overlay: rgba(0, 0, 0, 0.6);
+
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --text-tertiary: #555555;
+  --text-inverted: #ffffff;
+  --text-accent: #0044cc;
+
+  --accent-primary: #0044cc;
+  --accent-hover: #003399;
+  --accent-subtle: #e6efff;
+  --accent-border: #0044cc;
+
+  --border-subtle: #666666;
+  --border-hover: #000000;
+  --border-focus: #0044cc;
+  --border-danger: #cc0000;
+
+  --status-success: #006600;
+  --status-success-foreground: #ffffff;
+  --status-warning: #cc6600;
+  --status-warning-foreground: #000000;
+  --status-danger: #cc0000;
+  --status-danger-foreground: #ffffff;
+
+  --chart-1: #0044cc;
+  --chart-2: #006600;
+  --chart-3: #cc6600;
+  --chart-4: #cc0000;
+  --chart-5: #6600cc;
+
+  --shadow-sm: 0px 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0px 2px 4px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0px 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0px 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Dark Mode */
+:root.dark[data-design-theme='high-contrast'] {
+  --surface-primary: #000000;
+  --surface-secondary: #1a1a1a;
+  --surface-tertiary: #2a2a2a;
+  --surface-hover: #333333;
+  --surface-active: #444444;
+  --surface-overlay: rgba(0, 0, 0, 0.8);
+
+  --text-primary: #ffffff;
+  --text-secondary: #e0e0e0;
+  --text-tertiary: #b0b0b0;
+  --text-inverted: #000000;
+  --text-accent: #66aaff;
+
+  --accent-primary: #66aaff;
+  --accent-hover: #99ccff;
+  --accent-subtle: #1a3366;
+  --accent-border: #66aaff;
+
+  --border-subtle: #888888;
+  --border-hover: #ffffff;
+  --border-focus: #66aaff;
+  --border-danger: #ff4444;
+
+  --status-success: #66ff66;
+  --status-success-foreground: #000000;
+  --status-warning: #ffcc66;
+  --status-warning-foreground: #000000;
+  --status-danger: #ff4444;
+  --status-danger-foreground: #000000;
+
+  --chart-1: #66aaff;
+  --chart-2: #66ff66;
+  --chart-3: #ffcc66;
+  --chart-4: #ff4444;
+  --chart-5: #cc99ff;
+
+  --shadow-sm: 0px 1px 2px rgba(255, 255, 255, 0.1);
+  --shadow-md: 0px 2px 4px rgba(255, 255, 255, 0.15);
+  --shadow-lg: 0px 4px 8px rgba(255, 255, 255, 0.2);
+  --shadow-xl: 0px 8px 16px rgba(255, 255, 255, 0.25);
+}
+
+/* -------------------------------------------------------------------------- */
+/* High Contrast Specifics                                                    */
+/* -------------------------------------------------------------------------- */
+
+[data-design-theme='high-contrast'] * {
+  scrollbar-width: auto;
+  scrollbar-color: var(--border-subtle) var(--surface-secondary);
+}
+
+[data-design-theme='high-contrast'] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+[data-design-theme='high-contrast'] ::-webkit-scrollbar-track {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+[data-design-theme='high-contrast'] ::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border: 2px solid var(--surface-secondary);
+  border-radius: 6px;
+}
+
+[data-design-theme='high-contrast'] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+[data-design-theme='high-contrast'] .question-card {
+  border-width: 2px;
+  border-color: var(--border-subtle);
+}
+
+[data-design-theme='high-contrast'] .question-card:hover {
+  border-color: var(--border-hover);
+}
+
+[data-design-theme='high-contrast'] .mc-option {
+  border-width: 2px;
+}
+
+[data-design-theme='high-contrast'] .mc-option-selected {
+  border-width: 3px;
+  border-color: var(--accent-primary);
+}

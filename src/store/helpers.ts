@@ -1,3 +1,4 @@
+import { resolveDesignThemeName } from '@/themes/designThemes';
 import type {
   GeneratedQuestion,
   MarkAnswerResponse,
@@ -39,11 +40,11 @@ export function isMcSessionComplete(
 
 export function normalizeThemeName(theme: unknown): string {
   if (typeof theme !== 'string') {
-    return 'claude';
+    return resolveDesignThemeName(null);
   }
 
   const normalized = theme.trim();
-  return normalized.length > 0 ? normalized : 'claude';
+  return resolveDesignThemeName(normalized.length > 0 ? normalized : null);
 }
 
 export function resolve<T>(update: Updater<T>, previous: T): T {

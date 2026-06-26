@@ -1,3 +1,4 @@
+![](banner.png)
 # QuestionGen
 
 A desktop application for generating VCE (Victorian Certificate of Education)
@@ -49,16 +50,16 @@ Specialist Mathematics, Chemistry, and Physical Education.
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Start development server
-npm run dev
+bun run dev
 
 # Build for production
-npm run build
+bun run build
 
 # Run Tauri desktop app
-npm run tauri
+bun run tauri
 ```
 
 ### Configuration

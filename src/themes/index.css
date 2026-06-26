@@ -1,12 +1,12 @@
-@import './academic.css';
-@import './blue.css';
-@import './claude.css';
-@import './forest.css';
-@import './midnight.css';
-@import './pink.css';
-@import './purple.css';
-@import './rose-pine.css';
-@import './slate.css';
-@import './sunset.css';
-@import './nord.css';
-@import './zen.css';
+/*
+ * QuestionGen 2.0 — Theme Index
+ *
+ * Imports the foundational token system followed by the 4 core themes.
+ * Old per-file themes are deprecated in favor of the token-based system.
+ */
+
+@import '../styles/tokens.css';
+@import '../styles/themes/light.css';
+@import '../styles/themes/dark.css';
+@import '../styles/themes/academic.css';
+@import '../styles/themes/high-contrast.css';

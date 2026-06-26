@@ -34,7 +34,7 @@ describe('persistence normalization', () => {
     expect(normalized.settings.model).toBe('openai/gpt-5.4-mini');
     expect(normalized.settings.markingModel).toBe('openai/gpt-5.4-mini');
     expect(normalized.settings.imageMarkingModel).toBe('openai/gpt-5.4-mini');
-    expect(normalized.settings.theme).toBe('claude');
+    expect(normalized.settings.theme).toBe('light');
     expect(normalized.settings.interfaceFont).toBe('Inter Variable');
     expect(normalized.settings.headingFont).toBe('Manrope Variable');
     expect(normalized.settings.tutorModel).toBe('openai/gpt-5.4-mini');

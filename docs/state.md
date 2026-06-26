@@ -27,7 +27,7 @@ const settings = useStore.getState().settings;
 
 // update
 useStore.setState((state) => ({
-  settings: { ...state.settings, theme: 'midnight' },
+  settings: { ...state.settings, theme: 'dark' },
 }));
 ```
 
