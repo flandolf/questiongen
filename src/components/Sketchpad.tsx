@@ -946,11 +946,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
       }
     }, [penOnlyMode]);
 
-    useEffect(() => {
-      if (sessionKey) {
-        console.log(`[Sketchpad] Rendered with sessionKey: ${sessionKey}`);
-      }
-    }, [sessionKey]);
 
     // Restore canvas from storage on mount/session changes.
     useEffect(() => {
@@ -991,9 +986,6 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         registeredAt: Date.now(),
       };
 
-      console.log(
-        `[Sketchpad] Registering API for: ${sessionKey} (api instance ${api.registeredAt})`,
-      );
       sketchpadLiveApis.set(sessionKey, api);
 
       return () => {
@@ -1002,14 +994,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         // a newer instance might have already registered itself.
         const current = sketchpadLiveApis.get(sessionKey);
         if (current === api) {
-          console.log(
-            `[Sketchpad] Unregistering API for: ${sessionKey} (api instance ${api.registeredAt})`,
-          );
           sketchpadLiveApis.delete(sessionKey);
-        } else {
-          console.log(
-            `[Sketchpad] Skipping unregister for: ${sessionKey} - newer instance detected.`,
-          );
         }
       };
     }, [sessionKey]);
@@ -1026,14 +1011,8 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const detail = (e as CustomEvent<SketchpadExportRequest>).detail;
         if (detail.sessionKey !== sessionKey) return;
 
-        console.log(
-          `[Sketchpad] Received export request for: ${sessionKey} (requestId: ${detail.requestId})`,
-        );
 
         void saveAsDataUrlRef.current(detail.options).then((dataUrl) => {
-          console.log(
-            `[Sketchpad] Responding to export request: ${dataUrl.length} chars`,
-          );
           window.dispatchEvent(
             new CustomEvent<SketchpadExportResponse>(
               'sketchpad-export-response',
@@ -1740,7 +1719,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const tool = activeToolRef.current;
         const settings = toolSettingsMapRef.current[tool];
         const newStroke: Stroke = {
-          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+          id: crypto.randomUUID(),
           tool,
           color: settings.color,
           size: settings.size,
@@ -1910,7 +1889,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
         const tool = activeToolRef.current;
         const settings = toolSettingsMapRef.current[tool];
         const newStroke: Stroke = {
-          id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+          id: crypto.randomUUID(),
           tool,
           color: settings.color,
           size: settings.size,
@@ -2395,7 +2374,7 @@ export const Sketchpad = forwardRef<SketchpadHandle, SketchpadProps>(
             onKeyDown={(e) => {
               if (e.key === 'Enter' && textInput.value) {
                 const newStroke: Stroke = {
-                  id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+                  id: crypto.randomUUID(),
                   tool: 'text',
                   color: currentColor,
                   size: currentSize,

@@ -493,7 +493,7 @@ export const createHistorySlice: StateCreator<
       logs: [
         {
           ...entry,
-          id: Math.random().toString(36).substring(7),
+          id: crypto.randomUUID(),
           timestamp: Date.now(),
         },
         ...s.logs,

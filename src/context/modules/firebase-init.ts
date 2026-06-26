@@ -20,7 +20,6 @@ const firebaseConfig = {
 let app = getApps()[0];
 if (!app) {
   app = initializeApp(firebaseConfig);
-  console.log('Firebase app initialized');
 }
 
 const auth = getAuth(app);
@@ -45,15 +44,6 @@ const db = (() => {
     return getFirestore(app);
   }
 })();
-
-console.log(
-  'Firebase initialized, auth:',
-  !!auth,
-  'db:',
-  !!db,
-  'storage:',
-  !!storage,
-);
 
 export { app, auth, db, storage };
 export type { User as FirebaseUser } from 'firebase/auth';

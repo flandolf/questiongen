@@ -71,13 +71,6 @@ export type Topic =
   | 'Physical Education'
   | 'General Mathematics';
 
-export type MathMethodsSubtopic = string;
-export type SpecialistMathSubtopic = string;
-export type ChemistrySubtopic = string;
-export type BiologySubtopic = string;
-export type PhysicalEducationSubtopic = string;
-export type GeneralMathematicsSubtopic = string;
-
 export const MATH_METHODS_SUBTOPICS = getSubtopics('Mathematical Methods');
 export const SPECIALIST_MATH_SUBTOPICS = getSubtopics('Specialist Mathematics');
 export const CHEMISTRY_SUBTOPICS = getSubtopics('Chemistry');
