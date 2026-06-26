@@ -3,31 +3,16 @@ import { Command, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 import { useGenerationStatus } from '@/AppContext';
+import { isEditableTarget } from '@/lib/keyboard-targets';
 
 const SHORTCUTS = [
   { key: '← / P', label: 'Previous Question', category: 'Navigation' },
   { key: '→ / N', label: 'Next Question', category: 'Navigation' },
   { key: 'Ctrl + Enter', label: 'Submit Answer', category: 'Action' },
   { key: 'Esc', label: 'Exit Session / Reset', category: 'Action' },
+  { key: 'Cmd / Ctrl + K', label: 'Open Command Palette', category: 'General' },
   { key: '?', label: 'Show / Hide Shortcuts', category: 'General' },
 ];
-
-export function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tagName = target.tagName.toUpperCase();
-  const editableSelectors = [
-    'INPUT',
-    'TEXTAREA',
-    'SELECT',
-    'BUTTON',
-    '[contenteditable="true"]',
-  ];
-  return (
-    editableSelectors.includes(tagName) ||
-    target.isContentEditable ||
-    Boolean(target.closest('[contenteditable="true"]'))
-  );
-}
 
 export function KeyboardShortcutsOverlay() {
   const {

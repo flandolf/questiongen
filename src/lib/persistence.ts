@@ -55,7 +55,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   syncApiKey: false,
   localBackupFolderPath: '',
   localBackupIntervalMinutes: 0,
-  theme: 'claude',
+  theme: 'light',
   customThemeSeedColor: DEFAULT_CUSTOM_THEME_SEED_COLOR,
   interfaceFont: 'Inter Variable',
   headingFont: 'Manrope Variable',

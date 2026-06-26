@@ -1,0 +1,223 @@
+/**
+ * QuestionGen 2.0 — Design Token System
+ *
+ * This file defines the foundational CSS custom property token system.
+ * All design tokens are semantic and theme-agnostic. Color values here
+ * are light-mode defaults. Theme files in src/styles/themes/ override
+ * specific tokens for their aesthetic.
+ *
+ * Old Shadcn variable names are aliased to new semantic tokens for
+ * backward compatibility with existing components.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Font Defaults                                                              */
+/* -------------------------------------------------------------------------- */
+:root {
+  --interface-font: 'Spline Sans Variable', sans-serif;
+  --heading-font: Georgia, serif;
+  --mono-font: 'JetBrains Mono Variable', monospace;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Global Settings                                                            */
+/* -------------------------------------------------------------------------- */
+:root {
+  --global-radius: 0.5rem;
+  --tracking-normal: -0.01em;
+  --spacing: 0.25rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Surface Tokens                                                             */
+/* -------------------------------------------------------------------------- */
+:root {
+  --surface-primary: oklch(0.985 0.01 90);
+  --surface-secondary: oklch(0.996 0.004 90);
+  --surface-tertiary: oklch(0.94 0.015 90);
+  --surface-hover: oklch(0.95 0.01 90 / 0.6);
+  --surface-active: oklch(0.93 0.01 90 / 0.8);
+  --surface-overlay: oklch(0.1 0.01 90 / 0.4);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Text Tokens                                                                */
+/* -------------------------------------------------------------------------- */
+:root {
+  --text-primary: oklch(0.25 0.02 90);
+  --text-secondary: oklch(0.4 0.025 90);
+  --text-tertiary: oklch(0.55 0.02 90);
+  --text-inverted: oklch(0.985 0.01 90);
+  --text-accent: oklch(0.5 0.15 250);
+  --text-danger: oklch(0.55 0.15 25);
+  --text-success: oklch(0.5 0.12 165);
+  --text-warning: oklch(0.6 0.14 45);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Accent Tokens                                                              */
+/* -------------------------------------------------------------------------- */
+:root {
+  --accent-primary: oklch(0.5 0.15 250);
+  --accent-hover: oklch(0.42 0.14 250);
+  --accent-subtle: oklch(0.93 0.02 90);
+  --accent-border: oklch(0.5 0.15 250 / 0.3);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Border Tokens                                                              */
+/* -------------------------------------------------------------------------- */
+:root {
+  --border-subtle: oklch(0.88 0.015 90);
+  --border-hover: oklch(0.78 0.02 90);
+  --border-focus: oklch(0.5 0.15 250);
+  --border-danger: oklch(0.75 0.1 25);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Status Tokens                                                              */
+/* -------------------------------------------------------------------------- */
+:root {
+  --status-success: oklch(0.5 0.12 165);
+  --status-success-foreground: oklch(0.98 0.02 165);
+  --status-warning: oklch(0.6 0.14 45);
+  --status-warning-foreground: oklch(0.2 0.02 45);
+  --status-danger: oklch(0.55 0.15 25);
+  --status-danger-foreground: oklch(1 0 0);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shadow Tokens                                                              */
+/* -------------------------------------------------------------------------- */
+:root {
+  --shadow-sm: 0px 2px 4px 0px oklch(0.2 0.01 90 / 0.03);
+  --shadow-md: 0px 8px 16px 0px oklch(0.2 0.01 90 / 0.05);
+  --shadow-lg: 0px 12px 24px 0px oklch(0.2 0.01 90 / 0.06);
+  --shadow-xl: 0px 20px 40px 0px oklch(0.2 0.01 90 / 0.07);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Spacing Tokens                                                             */
+/* -------------------------------------------------------------------------- */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Radius Tokens                                                              */
+/* -------------------------------------------------------------------------- */
+:root {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Typography Tokens                                                          */
+/* -------------------------------------------------------------------------- */
+:root {
+  --text-3xl: 30px;
+  --text-2xl: 24px;
+  --text-xl: 20px;
+  --text-lg: 18px;
+  --text-base: 16px;
+  --text-sm: 14px;
+  --text-xs: 12px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Chart Tokens                                                               */
+/* -------------------------------------------------------------------------- */
+:root {
+  --chart-1: oklch(0.5 0.15 250);
+  --chart-2: oklch(0.6 0.12 270);
+  --chart-3: oklch(0.7 0.1 290);
+  --chart-4: oklch(0.8 0.08 310);
+  --chart-5: oklch(0.4 0.18 230);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Old Variable Aliases (Backward Compatibility)                              */
+/* -------------------------------------------------------------------------- */
+/* These map legacy Shadcn variable names to the new semantic token system.   */
+/* Existing components using bg-background, text-foreground, etc. continue    */
+/* to work without modification.                                              */
+/* -------------------------------------------------------------------------- */
+:root {
+  --background: var(--surface-primary);
+  --foreground: var(--text-primary);
+
+  --card: var(--surface-secondary);
+  --card-foreground: var(--text-primary);
+
+  --popover: var(--surface-tertiary);
+  --popover-foreground: var(--text-primary);
+
+  --primary: var(--accent-primary);
+  --primary-foreground: var(--text-inverted);
+
+  --secondary: var(--surface-tertiary);
+  --secondary-foreground: var(--text-secondary);
+
+  --muted: var(--surface-tertiary);
+  --muted-foreground: var(--text-tertiary);
+
+  --accent: var(--accent-subtle);
+  --accent-foreground: var(--text-primary);
+
+  --destructive: var(--status-danger);
+  --destructive-foreground: var(--status-danger-foreground);
+
+  --border: var(--border-subtle);
+  --input: var(--border-subtle);
+  --ring: var(--accent-primary);
+
+  --success: var(--status-success);
+  --success-foreground: var(--status-success-foreground);
+  --warning: var(--status-warning);
+  --warning-foreground: var(--status-warning-foreground);
+
+  --sidebar: var(--surface-secondary);
+  --sidebar-foreground: var(--text-secondary);
+  --sidebar-primary: var(--accent-primary);
+  --sidebar-primary-foreground: var(--text-inverted);
+  --sidebar-accent: var(--surface-tertiary);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-ring: var(--accent-primary);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Legacy Shadow Aliases                                                      */
+/* -------------------------------------------------------------------------- */
+:root {
+  --shadow-2xs: 0px 1px 2px 0px oklch(0.2 0.01 90 / 0.02);
+  --shadow-xs: 0px 1px 2px 0px oklch(0.2 0.01 90 / 0.02);
+  --shadow: var(--shadow-sm);
+  --shadow-2xl: 0px 32px 64px 0px oklch(0.2 0.01 90 / 0.08);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Legacy Radius Alias                                                        */
+/* -------------------------------------------------------------------------- */
+:root {
+  --radius: var(--global-radius);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Legacy Font Aliases                                                        */
+/* -------------------------------------------------------------------------- */
+:root {
+  --font-sans: var(--interface-font);
+  --font-serif: var(--heading-font);
+  --font-mono: var(--mono-font);
+}

@@ -38,13 +38,30 @@
               designTheme = appState.settings?.theme;
             } catch (e) {}
           }
+
+          // Migrate deprecated theme names for instant first-paint correctness
+          const migrationMap = {
+            claude: 'light',
+            blue: 'light',
+            purple: 'light',
+            pink: 'light',
+            zen: 'light',
+            nord: 'light',
+            slate: 'light',
+            midnight: 'dark',
+            forest: 'dark',
+            'rose-pine': 'dark',
+            sunset: 'dark',
+          };
+          const resolvedTheme = migrationMap[designTheme] || designTheme || 'light';
+
           document.documentElement.setAttribute(
             'data-design-theme',
-            designTheme || 'claude',
+            resolvedTheme,
           );
 
           // Apply cached custom theme CSS vars immediately for true first-paint custom theming.
-          if (designTheme === 'custom' && uiPrefs.customThemeVars) {
+          if (resolvedTheme === 'custom' && uiPrefs.customThemeVars) {
             Object.entries(uiPrefs.customThemeVars).forEach(([key, value]) => {
               if (typeof key === 'string' && typeof value === 'string') {
                 document.documentElement.style.setProperty(key, value);
@@ -53,15 +70,15 @@
           }
 
           // 3. Set background color immediately to avoid white flash
-          // These match Claude defaults unless custom cached vars are available.
+          // Matches the new Light theme token defaults.
           document.documentElement.style.backgroundColor =
-            designTheme === 'custom' &&
+            resolvedTheme === 'custom' &&
             uiPrefs.customThemeVars &&
             typeof uiPrefs.customThemeVars['--background'] === 'string'
               ? uiPrefs.customThemeVars['--background']
               : isDark
                 ? 'oklch(0.2 0.02 90)'
-                : 'oklch(0.99 0.005 90)';
+                : 'oklch(0.985 0.01 90)';
         } catch (e) {
           console.error('Theme injector failed', e);
         }
