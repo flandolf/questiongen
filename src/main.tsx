@@ -8,7 +8,6 @@ import App from './App';
 import { ThemeProvider } from './components/theme-provider';
 import { normalizeHexColor } from './lib/color-helpers';
 import { generateM3Theme } from './lib/color-utils';
-import { initLogger } from './lib/logger';
 import { resolveDesignThemeName } from './themes/designThemes';
 
 const APP_STATE_STORAGE_KEY = 'questiongen.appState';
@@ -108,8 +107,7 @@ async function resolveInitialAppearance(): Promise<ResolvedInitialAppearance> {
     };
   }
 
-  const isTauriRuntime =
-    '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
+  const isTauriRuntime = '__TAURI_INTERNALS__' in window;
 
   if (isTauriRuntime) {
     try {
@@ -139,7 +137,7 @@ async function resolveInitialAppearance(): Promise<ResolvedInitialAppearance> {
   const extractedLocal = extractPersistedSettings(localState);
 
   return {
-    designTheme: resolveDesignThemeName(extractedLocal.theme ?? 'claude'),
+    designTheme: resolveDesignThemeName(extractedLocal.theme ?? 'light'),
     customThemeSeedColor: extractedLocal.customThemeSeedColor ?? '#3b82f6',
   };
 }
@@ -171,8 +169,6 @@ function persistUiPrefsAppearance(params: {
 }
 
 async function bootstrap() {
-  initLogger();
-
   const initialAppearance = await resolveInitialAppearance();
   const mode = resolveCurrentMode();
   const isDark = mode === 'dark';

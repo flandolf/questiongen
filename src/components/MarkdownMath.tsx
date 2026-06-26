@@ -225,7 +225,7 @@ const Mermaid = ({ chart }: { chart: string }) => {
 
   useEffect(() => {
     let isMounted = true;
-    const id = `mermaid-svg-${Math.random().toString(36).slice(2, 11)}`;
+    const id = `mermaid-svg-${crypto.randomUUID()}`;
 
     const renderChart = async () => {
       try {

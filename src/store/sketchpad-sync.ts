@@ -97,9 +97,6 @@ function requestLiveExport(
       if (settled) return;
       settled = true;
       window.removeEventListener('sketchpad-export-response', handleResponse);
-      console.log(
-        `[SketchpadSync] Live export timed out for ${sessionKey} after ${timeoutMs}ms`,
-      );
       resolve(undefined);
     }, timeoutMs);
   });
@@ -113,32 +110,22 @@ export async function getLatestSketch(
   sessionKey: string,
   options?: ExportOptions,
 ): Promise<string | undefined> {
-  console.log(`[SketchpadSync] getLatestSketch: ${sessionKey}`);
-
   // 1. Try the event-based live export (preferred, no stale closures)
   const liveResult = await requestLiveExport(sessionKey, options);
   if (liveResult) {
-    console.log(
-      `[SketchpadSync] Live export success: ${liveResult.length} chars`,
-    );
     return liveResult;
   }
 
   // 2. Fallback: Restore from storage and render manually if the Sketchpad is unmounted
-  console.log(
-    `[SketchpadSync] No live response for ${sessionKey}, checking storage.`,
-  );
   try {
     const storageKey = `sketchpad-canvas-${sessionKey}`;
     const payload = await getStoreItem<{ strokeSvg?: string }>(storageKey);
     if (!payload?.strokeSvg) {
-      console.log(`[SketchpadSync] No storage found for ${sessionKey}`);
       return undefined;
     }
 
     const strokes = parseStrokesFromSvgString(payload.strokeSvg);
     if (strokes.length === 0) {
-      console.log(`[SketchpadSync] Stored SVG is empty for ${sessionKey}`);
       return undefined;
     }
 
@@ -198,9 +185,6 @@ export async function getLatestSketch(
     ctx.drawImage(strokeLayer, 0, 0);
 
     const dataUrl = canvas.toDataURL('image/png');
-    console.log(
-      `[SketchpadSync] Storage fallback success: ${dataUrl.length} chars`,
-    );
     return dataUrl;
   } catch (err) {
     console.warn(

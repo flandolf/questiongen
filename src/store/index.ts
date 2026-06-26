@@ -15,7 +15,6 @@ import { createSessionSlice } from './slices/session-slice';
 import { createSettingsSlice } from './slices/settings-slice';
 import type { AppActions, AppState } from './types';
 
-export { buildPersistedSnapshot, snapshotToState } from './persistence';
 export type { AppActions, AppState } from './types';
 
 export const useAppStore = create<AppState & AppActions>()(

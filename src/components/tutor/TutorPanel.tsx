@@ -1678,18 +1678,10 @@ export function TutorPanel({
 
     // Always export fresh from the live canvas at send time — never use sketchDataUrl
     // state, which was captured at "Attach Sketch" button press and may be stale.
-    console.log(`[Tutor] Requesting sketch for key: ${effectiveSessionKey}`);
     const retrieveLatestSketch = getLatestSketch;
     const dataUrl = await retrieveLatestSketch(effectiveSessionKey, {
       forceLightTheme: true,
     });
-    if (dataUrl) {
-      console.log(`[Tutor] Received sketch: ${dataUrl.length} chars`);
-    } else {
-      console.warn(
-        `[Tutor] No sketch received for key: ${effectiveSessionKey}`,
-      );
-    }
     return dataUrl;
   };
 
@@ -1734,7 +1726,7 @@ export function TutorPanel({
     setStreamedContent('');
 
     try {
-      console.log(`[Tutor] Starting chat with model: ${activeModel}`);
+      // (debug log removed)
       setSketchStatus('processing');
 
       const sketchpadDataUrl = await loadTutorSketchpadDataUrl(
@@ -2130,7 +2122,7 @@ export function TutorPanel({
             initial={{ opacity: 0, scale: 0.8, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 20 }}
-            className='fixed bottom-6 left-6 z-50'
+            className='fixed bottom-6 right-6 z-50'
           >
             <Button
               onClick={() => setIsOpen(true)}
@@ -2145,8 +2137,8 @@ export function TutorPanel({
       </AnimatePresence>
       <div
         className={cn(
-          'fixed top-4 bottom-4 left-4 z-50 flex flex-col bg-background/95 border border-border/60 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-xl transition-all duration-300 ease-in-out',
-          !isOpen && '-translate-x-[calc(100%+2rem)] pointer-events-none',
+          'fixed top-4 bottom-4 right-4 z-50 flex flex-col bg-background/95 border border-border/60 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-xl transition-all duration-300 ease-in-out',
+          !isOpen && 'translate-x-[calc(100%+2rem)] pointer-events-none',
           className,
         )}
         style={{
