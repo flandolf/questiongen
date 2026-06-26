@@ -48,3 +48,11 @@ storage.rules
 .codex/
 .opencode/
 .vscode/
+
+# Windows reserved device names (NUL, CON, PRN, AUX, COM1-9, LPT1-9)
+nul
+con
+prn
+aux
+com[1-9]
+lpt[1-9]
