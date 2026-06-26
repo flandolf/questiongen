@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react';
 
 import { useTheme } from '@/components/theme-provider';
 import { generateM3Theme } from '@/lib/color-utils';
+import { M3_THEME_VARS } from '@/lib/theme-constants';
+import { updateUiPrefs } from '@/lib/ui-prefs';
 import { useAppStore } from '@/store';
 
 export function useAppearanceSettings() {
@@ -28,81 +30,29 @@ export function useAppearanceSettings() {
   useEffect(() => {
     const root = document.documentElement;
 
-    // Apply M3 Colors
+    // Apply / wipe M3 tokens.
     if (m3Colors) {
-      Object.entries(m3Colors).forEach(([key, value]) => {
+      for (const [key, value] of Object.entries(m3Colors)) {
         root.style.setProperty(key, value);
-      });
+      }
     } else {
-      const m3Keys = [
-        '--background',
-        '--foreground',
-        '--card',
-        '--card-foreground',
-        '--popover',
-        '--popover-foreground',
-        '--primary',
-        '--primary-foreground',
-        '--secondary',
-        '--secondary-foreground',
-        '--muted',
-        '--muted-foreground',
-        '--accent',
-        '--accent-foreground',
-        '--destructive',
-        '--destructive-foreground',
-        '--border',
-        '--input',
-        '--ring',
-        '--sidebar',
-        '--sidebar-foreground',
-        '--sidebar-primary',
-        '--sidebar-primary-foreground',
-        '--sidebar-accent',
-        '--sidebar-accent-foreground',
-        '--sidebar-border',
-        '--sidebar-ring',
-        '--tracking-normal',
-        '--tracking-tight',
-        '--tracking-wide',
-        '--tracking-tighter',
-        '--tracking-wider',
-        '--tracking-widest',
-        '--shadow-2xs',
-        '--shadow-xs',
-        '--shadow-sm',
-        '--shadow',
-        '--shadow-md',
-        '--shadow-lg',
-        '--shadow-xl',
-        '--shadow-2xl',
-      ];
-      m3Keys.forEach((key) => root.style.removeProperty(key));
+      for (const key of M3_THEME_VARS) {
+        root.style.removeProperty(key);
+      }
     }
 
-    // Apply Fonts
     root.style.setProperty('--interface-font', `"${interfaceFont}"`);
     root.style.setProperty('--heading-font', `"${headingFont}"`);
 
-    // Keep the prepaint theme injector cache in sync for next startup.
-    try {
-      const stored = localStorage.getItem('questiongen-ui-prefs');
-      const prefs = stored
-        ? (JSON.parse(stored) as Record<string, unknown>)
-        : {};
-
-      prefs.designTheme = theme;
-      prefs.customThemeSeedColor = customThemeSeedColor;
-
-      if (m3Colors) {
-        prefs.customThemeVars = m3Colors;
-      } else if ('customThemeVars' in prefs) {
-        delete prefs.customThemeVars;
-      }
-
-      localStorage.setItem('questiongen-ui-prefs', JSON.stringify(prefs));
-    } catch {
-      // Ignore parsing errors.
-    }
+    // Mirror tokens into ui-prefs so the index.html inline injector stays in sync for next boot.
+    // Single read-modify-write that also handles stale-key cleanup when theme leaves 'custom'.
+    updateUiPrefs(
+      {
+        designTheme: theme,
+        customThemeSeedColor,
+        ...(m3Colors ? { customThemeVars: m3Colors } : {}),
+      },
+      m3Colors ? [] : ['customThemeVars'],
+    );
   }, [theme, customThemeSeedColor, m3Colors, interfaceFont, headingFont]);
 }
