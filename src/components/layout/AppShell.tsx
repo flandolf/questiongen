@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { isEditableTarget, isMetaCommand } from '@/lib/keyboard-targets';
 import { useAppStore } from '@/store';
 import { applyDesignTheme } from '@/themes/designThemes';
@@ -58,30 +60,35 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className='flex flex-col h-dvh bg-background text-foreground overflow-hidden'>
-      {/* Tauri custom titlebar — desktop only */}
-      {!isAndroid && <Titlebar />}
+    <TooltipProvider delayDuration={120}>
+      <div className='flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground'>
+        {!isAndroid && <Titlebar />}
 
-      {/* Main layout row: sidebar (desktop) + content */}
-      <div className='flex flex-1 min-h-0'>
-        {/* Desktop sidebar — hidden on mobile */}
-        <div className='hidden md:flex h-full shrink-0'>
+        <SidebarProvider
+          className='min-h-0 flex-1'
+          style={
+            {
+              '--sidebar-top': isAndroid ? '0px' : '2.25rem',
+            } as React.CSSProperties
+          }
+        >
           <Sidebar />
+
+          <SidebarInset className='min-h-0 overflow-y-auto'>
+            <Outlet />
+          </SidebarInset>
+        </SidebarProvider>
+
+        <div className='md:hidden'>
+          <MobileNav />
         </div>
 
-        {/* Main content area */}
-        <main className='flex-1 overflow-y-auto min-w-0 min-h-0 md:border-l border-border/40'>
-          <Outlet />
-        </main>
+        <CommandPalette
+          open={isCommandPaletteOpen}
+          onClose={closeCommandPalette}
+        />
+        <KeyboardShortcutsOverlay />
       </div>
-
-      {/* Mobile bottom navigation — hidden on desktop */}
-      <div className='md:hidden'>
-        <MobileNav />
-      </div>
-
-      <CommandPalette open={isCommandPaletteOpen} onClose={closeCommandPalette} />
-      <KeyboardShortcutsOverlay />
-    </div>
+    </TooltipProvider>
   );
 }

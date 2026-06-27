@@ -38,6 +38,13 @@ function syncRootThemeClass(theme: Theme) {
   root.classList.add(theme);
 }
 
+function watchSystemTheme(theme: Theme, onChange: () => void) {
+  if (theme !== 'system') return undefined;
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = 'system',
@@ -50,6 +57,7 @@ export function ThemeProvider({
 
   useEffect(() => {
     syncRootThemeClass(theme);
+    return watchSystemTheme(theme, () => syncRootThemeClass(theme));
   }, [theme]);
 
   const value: ThemeProviderState = {

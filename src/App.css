@@ -74,12 +74,12 @@
   --shadow-xl: var(--shadow-xl, 0px 20px 40px 0px oklch(0 0 0 / 0.07));
   --shadow-2xl: var(--shadow-2xl, 0px 32px 64px 0px oklch(0 0 0 / 0.08));
 
-  --tracking-normal: var(--tracking-normal, -0.01em);
-  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
-  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
-  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
-  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
-  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+  --tracking-normal: 0;
+  --tracking-tighter: 0;
+  --tracking-tight: 0;
+  --tracking-wide: 0;
+  --tracking-wider: 0;
+  --tracking-widest: 0;
 }
 
 html,
@@ -129,18 +129,7 @@ body,
 @layer components {
   body {
     min-height: 100vh;
-    background:
-      radial-gradient(
-        circle at 10% 0%,
-        color-mix(in oklab, var(--chart-1) 20%, transparent),
-        transparent 45%
-      ),
-      radial-gradient(
-        circle at 90% 100%,
-        color-mix(in oklab, var(--chart-2) 18%, transparent),
-        transparent 40%
-      ),
-      var(--color-background);
+    background: var(--color-background);
   }
 
   .platform-android .android-header-safe-top {
@@ -155,7 +144,7 @@ body,
 
   /* Question content containers */
   .question-card {
-    @apply bg-card rounded-xl border border-border/40 p-5 sm:p-6 shadow-sm;
+    @apply bg-card rounded-lg border p-5 sm:p-6 shadow-sm;
   }
 
   .question-prompt {
@@ -168,7 +157,7 @@ body,
 
   /* MC option cards */
   .mc-option {
-    @apply p-4 sm:p-5 rounded-lg border border-border/10 hover:bg-muted/50 hover:border-border/30 cursor-pointer transition-all duration-150;
+    @apply cursor-pointer rounded-lg border p-4 transition-colors duration-150 hover:bg-muted/50 sm:p-5;
   }
 
   .mc-option-selected {
@@ -176,11 +165,11 @@ body,
   }
 
   .mc-option-correct {
-    @apply border-emerald-500/40 bg-emerald-500/10;
+    @apply border-success/40 bg-success/10;
   }
 
   .mc-option-label {
-    @apply w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-sm font-bold bg-muted/50 text-muted-foreground;
+    @apply flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-sm font-bold text-muted-foreground;
   }
 
   .mc-option-selected .mc-option-label {
@@ -189,7 +178,7 @@ body,
 
   /* Written response */
   .written-textarea {
-    @apply min-h-40 sm:min-h-50 text-base p-4 sm:p-5 rounded-lg border-border/30 focus-visible:ring-primary/30 focus-visible:border-primary/30 bg-card/50;
+    @apply min-h-40 rounded-lg bg-card/50 p-4 text-base focus-visible:border-ring focus-visible:ring-ring/30 sm:min-h-50 sm:p-5;
   }
 
   /* Feedback panel sections */
@@ -207,7 +196,7 @@ body,
   }
 
   .rubric-row-full {
-    @apply bg-emerald-500/5 border-emerald-500/30;
+    @apply border-success/30 bg-success/5;
   }
 
   .rubric-row-partial {
@@ -220,7 +209,7 @@ body,
 
   /* Score display */
   .score-ring {
-    @apply relative flex items-center justify-center w-20 h-20 shrink-0;
+    @apply relative flex size-20 shrink-0 items-center justify-center;
   }
 
   /* Responsive session grid */
