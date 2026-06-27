@@ -40,7 +40,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxMTc3NTYwQzRDQjBCODMKUldTREM4dkVZSFVYY2JqaGFGTDF6QUg2SjNGdVZ3MkFVRUthUHMrR3l0UzBtRmdFYTV1NG5EUFYK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI2MUQzRTZCRTk4NzYxNDcKUldSSFlZZnBhejRkSnE1cVFOaUY3UVk0SlN4WkVyNEljU3lheDNaRlQ4UWFmVHcyOHU2ZWU1V20K",
       "endpoints": [
         "https://github.com/flandolf/questiongen/releases/latest/download/latest.json"
       ]
