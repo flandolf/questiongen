@@ -5,59 +5,16 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/release.yml"
-      - "src/**"
-      - "!src/views/settings/types.ts"
-      - "src-tauri/**"
-      - "!src-tauri/Cargo.lock"
-      - "!src-tauri/Cargo.toml"
-      - "!src-tauri/tauri.conf.json"
-      - "scripts/version.ts"
+      - '.github/workflows/release.yml'
+      - 'src/**'
+      - 'src-tauri/**'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.bump.outputs.version }}
-      tag: ${{ steps.bump.outputs.tag }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Bump app version
-        id: bump
-        shell: bash
-        run: |
-          set -euo pipefail
-          bun scripts/version.ts patch
-          version="$(node -p "require('./package.json').version")"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
-
-      - name: Commit version bump
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock src/views/settings/types.ts
-          git commit -m "Bump version to v${{ steps.bump.outputs.version }}"
-          git tag "${{ steps.bump.outputs.tag }}"
-          git push origin HEAD:main
-          git push origin "${{ steps.bump.outputs.tag }}"
-
   release:
-    needs: version
     strategy:
       fail-fast: false
       matrix:
@@ -65,9 +22,9 @@ jobs:
           - platform: macos-latest
             args: --target universal-apple-darwin
           - platform: ubuntu-22.04
-            args: ""
+            args: ''
           - platform: windows-latest
-            args: ""
+            args: ''
 
     runs-on: ${{ matrix.platform }}
 
@@ -93,7 +50,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets:
+            ${{ matrix.platform == 'macos-latest' &&
+            'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -108,11 +67,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+            ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ needs.version.outputs.tag }}
           releaseName: QuestionGen ${{ needs.version.outputs.tag }}
           releaseBody: See the assets below to download this version.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
