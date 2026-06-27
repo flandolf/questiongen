@@ -164,6 +164,7 @@ pub struct StudentAnswerImage {
 
 // ─── Written questions ────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateQuestionsRequest {
@@ -435,6 +436,7 @@ pub struct ExportQuestionToAnkiResponse {
 
 // ─── PDF Marker ────────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkPdfRequest {

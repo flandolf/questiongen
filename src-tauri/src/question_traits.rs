@@ -19,44 +19,7 @@ impl TechAllowed for McQuestion {
     }
 }
 
-pub trait QuestionWithMarkdown {
-    fn get_id(&self) -> &str;
-    fn get_prompt(&self) -> &str;
-    fn get_explanation(&self) -> Option<&str>;
-    fn get_subtopic(&self) -> Option<&str>;
-}
-
-impl QuestionWithMarkdown for GeneratedQuestion {
-    fn get_id(&self) -> &str {
-        &self.id
-    }
-    fn get_prompt(&self) -> &str {
-        &self.prompt_markdown
-    }
-    fn get_explanation(&self) -> Option<&str> {
-        None
-    }
-    fn get_subtopic(&self) -> Option<&str> {
-        self.subtopic.as_deref()
-    }
-}
-
-impl QuestionWithMarkdown for McQuestion {
-    fn get_id(&self) -> &str {
-        &self.id
-    }
-    fn get_prompt(&self) -> &str {
-        &self.prompt_markdown
-    }
-    fn get_explanation(&self) -> Option<&str> {
-        Some(&self.explanation_markdown)
-    }
-    fn get_subtopic(&self) -> Option<&str> {
-        self.subtopic.as_deref()
-    }
-}
-
-pub trait NormalizableQuestion: QuestionWithMarkdown + TechAllowed {
+pub trait NormalizableQuestion: TechAllowed {
     fn normalize(questions: &mut [Self], topics: &[String], subtopics: Option<&Vec<String>>)
     where
         Self: Sized;
@@ -67,8 +30,6 @@ pub trait NormalizableQuestion: QuestionWithMarkdown + TechAllowed {
     where
         Self: Sized;
     fn apply_metrics(&mut self, metrics: &quality::QuestionQualityMetrics);
-    fn get_max_marks(&self) -> u8;
-    fn get_distinctness(&self) -> Option<f32>;
     fn adjust_marks(questions: &mut [Self], total_marks: usize)
     where
         Self: Sized;
@@ -92,12 +53,6 @@ impl NormalizableQuestion for GeneratedQuestion {
         self.multi_step_depth = Some(m.depth);
         self.verb_diversity_count = Some(m.verb_diversity);
         self.scaffold_pattern = Some(m.scaffold_pattern.clone());
-    }
-    fn get_max_marks(&self) -> u8 {
-        self.max_marks
-    }
-    fn get_distinctness(&self) -> Option<f32> {
-        self.distinctness_score
     }
     fn adjust_marks(questions: &mut [Self], total_marks: usize) {
         if questions.is_empty() {
@@ -159,12 +114,6 @@ impl NormalizableQuestion for McQuestion {
         self.multi_step_depth = Some(m.depth);
         self.verb_diversity_count = Some(m.verb_diversity);
         self.scaffold_pattern = Some(m.scaffold_pattern.clone());
-    }
-    fn get_max_marks(&self) -> u8 {
-        1
-    }
-    fn get_distinctness(&self) -> Option<f32> {
-        self.distinctness_score
     }
     fn adjust_marks(_questions: &mut [Self], _total_marks: usize) {
         // MC questions are always 1 mark each, no adjustment.

@@ -9,6 +9,7 @@ pub fn difficulty_guidance(level: &str) -> &'static str {
     }
 }
 
+#[allow(dead_code)]
 pub fn adjust_difficulty(
     base_difficulty: &str,
     scaling_enabled: bool,

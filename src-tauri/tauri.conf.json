@@ -27,7 +27,6 @@
     "targets": "all",
     "createUpdaterArtifacts": true,
     "resources": [
-      "../exams/*",
       "../reports/*"
     ],
     "icon": [

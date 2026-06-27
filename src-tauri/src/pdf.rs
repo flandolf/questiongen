@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 
+#[allow(dead_code)]
 pub fn extract_pages_from_pdf(pdf_base64: &str, page_indices: &[usize]) -> Result<String, String> {
     let data = if let Some(stripped) = pdf_base64.strip_prefix("data:application/pdf;base64,") {
         general_purpose::STANDARD
@@ -63,6 +64,7 @@ pub fn extract_pages_from_pdf(pdf_base64: &str, page_indices: &[usize]) -> Resul
     ))
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 struct CachedPdfPart {
     size: u64,
@@ -70,6 +72,7 @@ struct CachedPdfPart {
     part: serde_json::Value,
 }
 
+#[allow(dead_code)]
 static PDF_PART_CACHE: Lazy<Mutex<HashMap<String, CachedPdfPart>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
@@ -200,16 +203,4 @@ pub fn build_report_file_parts(
     build_pdf_file_parts(app, "reports", &filenames)
 }
 
-pub fn plugins_for_model(supports_files: Option<bool>) -> serde_json::Value {
-    if supports_files.is_none() || supports_files == Some(true) {
-        serde_json::json!([{ "id": "response-healing" }])
-    } else {
-        serde_json::json!([
-            { "id": "response-healing" },
-            {
-                "id": "file-parser",
-                "pdf": { "engine": "cloudflare-ai" }
-            }
-        ])
-    }
-}
+

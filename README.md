@@ -91,7 +91,6 @@ src-tauri/
 │   └── quality.rs      # Question distinctness scoring
 └── Cargo.toml          # Rust dependencies
 
-exams/                  # Reference exam PDFs (PDFs excluded from git)
 reports/                # VCAA examiners' reports (PDFs excluded from git)
 ```
 

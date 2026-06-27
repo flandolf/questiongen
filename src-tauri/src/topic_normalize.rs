@@ -133,7 +133,7 @@ fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> Canonicali
             tie_count = 1;
         } else if (score - best_score).abs() <= 0.001
             && score.is_finite()
-            && score > crate::cleanup::AUTO_MAP_CONFIDENCE_THRESHOLD
+            && score > crate::constants::AUTO_MAP_CONFIDENCE_THRESHOLD
         {
             tie_count += 1;
         }
@@ -141,7 +141,7 @@ fn canonicalize_subtopic(value: &str, sole_subtopic: Option<&str>) -> Canonicali
 
     if let Some(matched) = best_match {
         if best_score.is_finite()
-            && best_score > crate::cleanup::AUTO_MAP_CONFIDENCE_THRESHOLD
+            && best_score > crate::constants::AUTO_MAP_CONFIDENCE_THRESHOLD
             && tie_count == 1
         {
             return CanonicalizeResult::Mapped(matched.to_string());

@@ -41,7 +41,7 @@ want to understand, maintain, or extend the app.
 
 - Root-level assets / config:
   - `public/`, `icons/` — static assets
-  - `exams/`, `gen/` — generated/exported artifacts and schemas
+  - `gen/` — generated/exported artifacts and schemas
   - `firebase.json`, `firestore.rules`, `firestore.indexes.json` — Firebase
     configuration
 

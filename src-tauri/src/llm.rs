@@ -5,6 +5,7 @@ use futures_util::StreamExt;
 use tauri::Emitter;
 
 /// Configuration for LLM API requests (OpenRouter, DeepSeek, OpenAI-compatible).
+#[derive(Clone)]
 pub struct OpenRouterRequestConfig {
     pub base_url: String,
     pub api_key: String,
@@ -18,9 +19,9 @@ pub struct OpenRouterRequestConfig {
     pub app: Option<tauri::AppHandle>,
     pub topic: Option<String>,
     pub abort_signal: Option<AbortSignal>,
+    pub temperature: Option<f32>,
     pub reasoning_enabled: bool,
     pub reasoning_effort: Option<String>,
-    pub reasoning_exclude: bool,
 }
 
 impl OpenRouterRequestConfig {
@@ -47,9 +48,9 @@ impl OpenRouterRequestConfig {
             app: None,
             topic: None,
             abort_signal: None,
+            temperature: None,
             reasoning_enabled: false,
             reasoning_effort: None,
-            reasoning_exclude: false,
         }
     }
 
@@ -72,6 +73,11 @@ impl OpenRouterRequestConfig {
 
     pub fn with_abort_signal(mut self, abort_signal: AbortSignal) -> Self {
         self.abort_signal = Some(abort_signal);
+        self
+    }
+
+    pub fn with_temperature(mut self, temp: f32) -> Self {
+        self.temperature = Some(temp);
         self
     }
 
@@ -106,23 +112,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
         }
 
         let result = if config.stream {
-            let retry_config = OpenRouterRequestConfig {
-                base_url: config.base_url.clone(),
-                api_key: config.api_key.clone(),
-                model: config.model.clone(),
-                system_prompt: config.system_prompt.clone(),
-                user_content: config.user_content.clone(),
-                response_format: config.response_format.clone(),
-                max_tokens: config.max_tokens,
-                plugins: config.plugins.clone(),
-                stream: config.stream,
-                app: config.app.clone(),
-                topic: config.topic.clone(),
-                abort_signal: config.abort_signal.clone(),
-                reasoning_enabled: config.reasoning_enabled,
-                reasoning_effort: config.reasoning_effort.clone(),
-                reasoning_exclude: config.reasoning_exclude,
-            };
+            let retry_config = config.clone();
             if attempt > 0 {
                 if let Some(ref app) = retry_config.app {
                     let _ = app.emit(
@@ -133,24 +123,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
             }
             call_openrouter_streaming(retry_config).await
         } else {
-            let retry_config = OpenRouterRequestConfig {
-                base_url: config.base_url.clone(),
-                api_key: config.api_key.clone(),
-                model: config.model.clone(),
-                system_prompt: config.system_prompt.clone(),
-                user_content: config.user_content.clone(),
-                response_format: config.response_format.clone(),
-                max_tokens: config.max_tokens,
-                plugins: config.plugins.clone(),
-                stream: config.stream,
-                app: config.app.clone(),
-                topic: config.topic.clone(),
-                abort_signal: config.abort_signal.clone(),
-                reasoning_enabled: config.reasoning_enabled,
-                reasoning_effort: config.reasoning_effort.clone(),
-                reasoning_exclude: config.reasoning_exclude,
-            };
-            call_openrouter_non_streaming(retry_config).await
+            call_openrouter_non_streaming(config.clone()).await
         };
 
         match result {
@@ -207,6 +180,10 @@ async fn call_openrouter_non_streaming(
     );
     body_map.insert("plugins".to_string(), config.plugins.clone());
 
+    if let Some(temp) = config.temperature {
+        body_map.insert("temperature".to_string(), serde_json::json!(temp));
+    }
+
     if is_deepseek_direct_model(&config.model) {
         if config.reasoning_enabled {
             body_map.insert(
@@ -229,9 +206,6 @@ async fn call_openrouter_non_streaming(
                 "effort".to_string(),
                 serde_json::Value::String(effort.clone()),
             );
-        }
-        if config.reasoning_exclude {
-            reasoning_obj.insert("exclude".to_string(), serde_json::Value::Bool(true));
         }
         body_map.insert(
             "reasoning".to_string(),
@@ -361,6 +335,10 @@ async fn call_openrouter_streaming(
         serde_json::json!({ "include_usage": true }),
     );
 
+    if let Some(temp) = config.temperature {
+        body_map.insert("temperature".to_string(), serde_json::json!(temp));
+    }
+
     if is_deepseek_direct_model(&config.model) {
         if config.reasoning_enabled {
             body_map.insert(
@@ -383,9 +361,6 @@ async fn call_openrouter_streaming(
                 "effort".to_string(),
                 serde_json::Value::String(effort.clone()),
             );
-        }
-        if config.reasoning_exclude {
-            reasoning_obj.insert("exclude".to_string(), serde_json::Value::Bool(true));
         }
         body_map.insert(
             "reasoning".to_string(),

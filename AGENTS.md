@@ -38,8 +38,8 @@
 ## Quirks & Constraints
 
 - **Lockfiles**: `bun.lock` exists. ALWAYS use `bun` for package operations.
-- **PDFs**: `exams/` and `reports/` are reference directories (excluded from
-  git).
+- **PDFs**: `reports/` is the reference directory for examiners' reports
+  (excluded from git). Exam-paper references have been intentionally removed.
 - **Anki**: Native `.apkg` generation via `genanki-rs` in
   `src-tauri/src/anki.rs`.
 - **Firebase**: Sync logic in `src/context/FirebaseSyncContext.tsx`.

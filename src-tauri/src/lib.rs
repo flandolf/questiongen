@@ -1,12 +1,11 @@
 mod anki;
 pub use anki::export_deck_to_file;
 mod catalog;
-mod cleanup;
 mod constants;
 mod deepseek_info;
 mod difficulty;
+mod engine;
 mod envelope;
-mod generation;
 mod http_client;
 mod json_input;
 mod latex;
@@ -17,7 +16,6 @@ mod openrouter_info;
 mod parsing;
 mod pdf;
 mod persistence;
-mod prompts;
 mod quality;
 mod question_traits;
 mod schemas;
@@ -25,7 +23,6 @@ mod text_clean;
 mod topic_normalize;
 
 use once_cell::sync::OnceCell;
-use std::collections::HashMap;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 use std::process::Command;
 
@@ -46,10 +43,9 @@ async fn generate_questions(
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
     state.reset();
-    generation::GenerationService::new(app)
-        .with_abort_signal(state.inner().clone())
-        .generate_written(request)
-        .await
+    let ctx = engine::context::EngineContext::new(app)
+        .with_abort_signal(state.inner().clone());
+    engine::generate_written_questions(&ctx, request).await
 }
 
 #[tauri::command]
@@ -59,10 +55,9 @@ async fn generate_mc_questions(
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     state.reset();
-    generation::GenerationService::new(app)
-        .with_abort_signal(state.inner().clone())
-        .generate_mc(request)
-        .await
+    let ctx = engine::context::EngineContext::new(app)
+        .with_abort_signal(state.inner().clone());
+    engine::generate_mc_questions(&ctx, request).await
 }
 
 #[tauri::command]
@@ -72,10 +67,9 @@ async fn mark_answer(
     request: MarkAnswerRequest,
 ) -> CommandResult<MarkAnswerResponse> {
     state.reset();
-    generation::GenerationService::new(app)
-        .with_abort_signal(state.inner().clone())
-        .mark_answer(request)
-        .await
+    let ctx = engine::context::EngineContext::new(app)
+        .with_abort_signal(state.inner().clone());
+    engine::mark_answer(&ctx, request).await
 }
 
 #[tauri::command]
@@ -84,38 +78,10 @@ async fn batch_mark_answers(
     state: tauri::State<'_, AbortSignal>,
     request: BatchMarkRequest,
 ) -> CommandResult<BatchMarkResponse> {
-    use futures_util::stream::{self, StreamExt};
     state.reset();
-
-    let results: Vec<BatchMarkItem> = stream::iter(request.items)
-        .map(|item| {
-            let app = app.clone();
-            let state = state.inner().clone();
-            async move {
-                let question_id = item.question.id.clone();
-                match generation::GenerationService::new(app)
-                    .with_abort_signal(state)
-                    .mark_answer(item)
-                    .await
-                {
-                    Ok(response) => BatchMarkItem {
-                        question_id,
-                        response: Some(response),
-                        error: None,
-                    },
-                    Err(e) => BatchMarkItem {
-                        question_id,
-                        response: None,
-                        error: Some(e.message),
-                    },
-                }
-            }
-        })
-        .buffer_unordered(4)
-        .collect()
-        .await;
-
-    Ok(BatchMarkResponse { results })
+    let ctx = engine::context::EngineContext::new(app)
+        .with_abort_signal(state.inner().clone());
+    engine::batch_mark_answers(&ctx, request).await
 }
 
 #[tauri::command]
@@ -125,9 +91,9 @@ async fn tutor_chat(
     request: TutorChatRequest,
 ) -> CommandResult<TutorChatResponse> {
     state.reset();
-    generation::GenerationService::new(app)
-        .tutor_chat(request)
-        .await
+    let ctx = engine::context::EngineContext::new(app)
+        .with_abort_signal(state.inner().clone());
+    engine::tutor_chat(&ctx, request).await
 }
 
 #[tauri::command]
@@ -137,10 +103,9 @@ async fn mark_pdf(
     request: MarkPdfRequest,
 ) -> CommandResult<MarkPdfResponse> {
     state.reset();
-    generation::GenerationService::new(app)
-        .with_abort_signal(state.inner().clone())
-        .mark_pdf(request)
-        .await
+    let ctx = engine::context::EngineContext::new(app)
+        .with_abort_signal(state.inner().clone());
+    engine::mark_pdf(&ctx, request).await
 }
 
 #[tauri::command]
@@ -150,10 +115,9 @@ async fn discover_pdf_questions(
     request: DiscoverPdfQuestionsRequest,
 ) -> CommandResult<DiscoverPdfQuestionsResponse> {
     state.reset();
-    generation::GenerationService::new(app)
-        .with_abort_signal(state.inner().clone())
-        .discover_pdf_questions(request)
-        .await
+    let ctx = engine::context::EngineContext::new(app)
+        .with_abort_signal(state.inner().clone());
+    engine::discover_pdf_questions(&ctx, request).await
 }
 
 #[tauri::command]
@@ -166,9 +130,8 @@ async fn analyze_image(
     app: tauri::AppHandle,
     request: AnalyzeImageRequest,
 ) -> CommandResult<AnalyzeImageResponse> {
-    generation::GenerationService::new(app)
-        .analyze_image(request)
-        .await
+    let ctx = engine::context::EngineContext::new(app);
+    engine::analyze_image(&ctx, request).await
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
@@ -205,33 +168,12 @@ fn auto_open_exported_anki_deck(app: &tauri::AppHandle, file_path: &str) -> Resu
 }
 
 #[tauri::command]
-async fn cleanup_topics(request: CleanupTopicsRequest) -> CommandResult<CleanupTopicsResponse> {
-    if request.api_key.trim().is_empty() || request.model.trim().is_empty() {
-        return Err(AppError::new(
-            "VALIDATION_ERROR",
-            "API key and model required.",
-        ));
-    }
-    if request.unknown_topics.is_empty() {
-        return Ok(CleanupTopicsResponse {
-            topic_mapping: HashMap::new(),
-        });
-    }
-    let canonical_topics: Vec<String> = request
-        .canonical_topics
-        .iter()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
-    let topic_mapping = cleanup::CleanupService::batch_cleanup(
-        &request.unknown_topics,
-        &canonical_topics,
-        &request.api_key,
-        &request.model,
-        request.base_url.as_deref(),
-    )
-    .await?;
-    Ok(CleanupTopicsResponse { topic_mapping })
+async fn cleanup_topics(
+    app: tauri::AppHandle,
+    request: CleanupTopicsRequest,
+) -> CommandResult<CleanupTopicsResponse> {
+    let ctx = engine::context::EngineContext::new(app);
+    engine::cleanup_topics(&ctx, request).await
 }
 
 // cleanup_subtopics removed — subject normalization is now performed on frontend
@@ -335,134 +277,11 @@ async fn export_question_to_anki(
 
 #[tauri::command]
 async fn generate_subtopics(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     request: GenerateSubtopicsRequest,
 ) -> CommandResult<GenerateSubtopicsResponse> {
-    use crate::llm::{call_openrouter, OpenRouterRequestConfig};
-
-    use crate::prompts::{subtopic_generation_system, subtopic_generation_user_prompt};
-
-    if request.api_key.trim().is_empty() {
-        return Err(AppError::new(
-            "NO_API_KEY",
-            "OpenRouter API key is required",
-        ));
-    }
-
-    let exam_guidance = catalog::topic_exam_guidance(&request.topic);
-    if exam_guidance.is_empty() {
-        return Err(AppError::new("INVALID_TOPIC", "Topic not found in catalog"));
-    }
-
-    let user_prompt = subtopic_generation_user_prompt(
-        &request.topic,
-        exam_guidance,
-        &request.existing_subtopics.unwrap_or_default(),
-        request.focus_area.as_deref().unwrap_or(""),
-    );
-
-    let response_format = serde_json::json!({ "type": "json_object" });
-
-    let mut content_parts = vec![serde_json::json!({ "type": "text", "text": user_prompt })];
-
-    if let Some(ref pdf_content) = request.pdf_content {
-        if !pdf_content.trim().is_empty() {
-            let data_url = if pdf_content.starts_with("data:application/pdf;base64,") {
-                pdf_content.clone()
-            } else {
-                format!("data:application/pdf;base64,{}", pdf_content)
-            };
-            content_parts.push(serde_json::json!({
-                "type": "file",
-                "file": {
-                    "filename": "reference.pdf",
-                    "file_data": data_url
-                }
-            }));
-        }
-    }
-
-    let mut config = OpenRouterRequestConfig::new(
-        &request.api_key,
-        &request.model,
-        subtopic_generation_system(),
-        serde_json::json!(content_parts),
-        response_format,
-        4000,
-    );
-    if let Some(url) = request.base_url.as_deref() {
-        config = config.with_base_url(url);
-    }
-
-    let result = call_openrouter(config).await?;
-
-    let content = result.content.trim();
-    let json_start = content.find('{').or_else(|| content.find('['));
-    let json_str = if let Some(start) = json_start {
-        &content[start..]
-    } else {
-        content
-    };
-
-    let parsed: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
-        AppError::new(
-            "PARSE_ERROR",
-            format!(
-                "Failed to parse response: {}. Content: {}",
-                e,
-                &json_str[..json_str.len().min(200)]
-            ),
-        )
-    })?;
-
-    let subtopics: Vec<GeneratedSubtopic> = parsed
-        .get("subtopics")
-        .and_then(|s| s.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|item| {
-                    Some(GeneratedSubtopic {
-                        name: item.get("name")?.as_str()?.to_string(),
-                        group: item.get("group").and_then(|g| g.as_str()).map(String::from),
-                        technique_notes: item
-                            .get("techniqueNotes")
-                            .or_else(|| item.get("technique_notes"))
-                            .map(|tn| crate::models::TechniqueNotes {
-                                core_concepts: tn
-                                    .get("coreConcepts")
-                                    .or_else(|| tn.get("core_concepts"))
-                                    .and_then(|c| c.as_str())
-                                    .map(String::from),
-                                exam_style_guidelines: tn
-                                    .get("examStyleGuidelines")
-                                    .or_else(|| tn.get("exam_style_guidelines"))
-                                    .and_then(|e| e.as_str())
-                                    .map(String::from),
-                                anti_prompts: tn
-                                    .get("antiPrompts")
-                                    .or_else(|| tn.get("anti_prompts"))
-                                    .and_then(|a| a.as_array())
-                                    .map(|arr| {
-                                        arr.iter()
-                                            .filter_map(|p| p.as_str().map(String::from))
-                                            .collect()
-                                    })
-                                    .unwrap_or_default(),
-                            }),
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    if subtopics.is_empty() {
-        return Err(AppError::new(
-            "NO_SUBTOPICS",
-            "No valid subtopics found in response",
-        ));
-    }
-
-    Ok(GenerateSubtopicsResponse { subtopics })
+    let ctx = engine::context::EngineContext::new(app);
+    engine::generate_subtopics(&ctx, request).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
