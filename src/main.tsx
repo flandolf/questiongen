@@ -138,7 +138,7 @@ async function resolveInitialAppearance(): Promise<ResolvedInitialAppearance> {
   const extractedLocal = extractPersistedSettings(localState);
 
   return {
-    designTheme: resolveDesignThemeName(extractedLocal.theme ?? 'light'),
+    designTheme: resolveDesignThemeName(extractedLocal.theme ?? 'default'),
     customThemeSeedColor: extractedLocal.customThemeSeedColor ?? '#3b82f6',
   };
 }

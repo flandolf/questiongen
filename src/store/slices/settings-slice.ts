@@ -1,6 +1,10 @@
 import type { StateCreator } from 'zustand';
 
-import { updateApiKey, updatePresets } from '@/context/modules/sync/mutations';
+import {
+  clearSyncedApiKeys,
+  updateProviderApiKeys,
+  updatePresets,
+} from '@/context/modules/sync/mutations';
 import { normalizeHexColor } from '@/lib/color-helpers';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { cleanPresetSubtopics } from '@/lib/preset-utils';
@@ -270,6 +274,19 @@ export const createSettingsSlice: StateCreator<
         [providerId]: { ...s.providers[providerId], apiKey: key },
       },
     }));
+    const state = get();
+    if (state.syncApiKey) {
+      const providerKeys = Object.fromEntries(
+        Object.entries(state.providers).map(([id, p]) => [
+          id,
+          id === providerId ? key : p.apiKey,
+        ]),
+      );
+      void updateProviderApiKeys(
+        state.activeProviderId === providerId ? key : state.apiKey,
+        providerKeys,
+      );
+    }
   },
   addCustomProvider: (name, baseUrl) => {
     const id = `custom-${crypto.randomUUID()}`;
@@ -313,6 +330,13 @@ export const createSettingsSlice: StateCreator<
         tutorModel: activeProvider.modelSelections.tutorModel,
       };
     });
+    const state = get();
+    if (state.syncApiKey) {
+      const providerKeys = Object.fromEntries(
+        Object.entries(state.providers).map(([id, p]) => [id, p.apiKey]),
+      );
+      void updateProviderApiKeys(state.apiKey, providerKeys);
+    }
   },
 
   // Actions
@@ -328,7 +352,15 @@ export const createSettingsSlice: StateCreator<
         },
       },
     });
-    void updateApiKey(key);
+    if (state.syncApiKey) {
+      const providerKeys = Object.fromEntries(
+        Object.entries(state.providers).map(([id, p]) => [
+          id,
+          id === state.activeProviderId ? key : p.apiKey,
+        ]),
+      );
+      void updateProviderApiKeys(key, providerKeys);
+    }
   },
   setShowApiKey: (show) => set({ showApiKey: show }),
   setModel: (model) =>
@@ -408,7 +440,18 @@ export const createSettingsSlice: StateCreator<
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
   setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) =>
     set({ autoSyncIntervalMinutes }),
-  setSyncApiKey: (syncApiKey) => set({ syncApiKey }),
+  setSyncApiKey: (syncApiKey) => {
+    set({ syncApiKey });
+    const state = get();
+    if (syncApiKey) {
+      const providerKeys = Object.fromEntries(
+        Object.entries(state.providers).map(([id, p]) => [id, p.apiKey]),
+      );
+      void updateProviderApiKeys(state.apiKey, providerKeys);
+    } else {
+      void clearSyncedApiKeys();
+    }
+  },
   setLocalBackupFolderPath: (localBackupFolderPath) =>
     set({ localBackupFolderPath }),
   setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) =>
@@ -444,16 +487,28 @@ export const createSettingsSlice: StateCreator<
   setMarkingReasoningEffort: (markingReasoningEffort) =>
     set({ markingReasoningEffort }),
   clearApiKey: () =>
-    set((s) => ({
-      apiKey: '',
-      providers: {
-        ...s.providers,
-        [s.activeProviderId]: {
-          ...s.providers[s.activeProviderId],
-          apiKey: '',
+    set((s) => {
+      const next = {
+        apiKey: '',
+        providers: {
+          ...s.providers,
+          [s.activeProviderId]: {
+            ...s.providers[s.activeProviderId],
+            apiKey: '',
+          },
         },
-      },
-    })),
+      };
+      if (s.syncApiKey) {
+        const providerKeys = Object.fromEntries(
+          Object.entries(s.providers).map(([id, p]) => [
+            id,
+            id === s.activeProviderId ? '' : p.apiKey,
+          ]),
+        );
+        void updateProviderApiKeys('', providerKeys);
+      }
+      return next;
+    }),
 
   setPresets: (presets) => set({ presets }),
   addPreset: (preset) =>

@@ -55,7 +55,7 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   syncApiKey: false,
   localBackupFolderPath: '',
   localBackupIntervalMinutes: 0,
-  theme: 'light',
+  theme: 'default',
   customThemeSeedColor: DEFAULT_CUSTOM_THEME_SEED_COLOR,
   interfaceFont: 'Inter Variable',
   headingFont: 'Manrope Variable',
@@ -228,8 +228,65 @@ export async function savePersistedAppState(
   }
 }
 
+function migrateStripFirebaseImageFields(
+  raw: Record<string, unknown>,
+): void {
+  /**
+   * Migration v2 → v3: removes Firebase Storage fields that are no longer
+   * used after the cloud image storage feature was removed.
+   */
+  const writtenSession = isRecord(raw.writtenSession)
+    ? raw.writtenSession
+    : {};
+  const imagesByQuestionId = isRecord(writtenSession.imagesByQuestionId)
+    ? writtenSession.imagesByQuestionId
+    : {};
+  for (const img of Object.values(imagesByQuestionId)) {
+    if (isRecord(img)) {
+      delete img.storagePath;
+      delete img.downloadUrl;
+    }
+  }
+
+  const questionHistory = Array.isArray(raw.questionHistory)
+    ? raw.questionHistory
+    : [];
+  for (const entry of questionHistory) {
+    if (isRecord(entry) && isRecord(entry.uploadedAnswerImage)) {
+      delete entry.uploadedAnswerImage.storagePath;
+      delete entry.uploadedAnswerImage.downloadUrl;
+    }
+  }
+
+  const savedSets = Array.isArray(raw.savedSets) ? raw.savedSets : [];
+  for (const set of savedSets) {
+    if (!isRecord(set)) continue;
+    const setWrittenSession = isRecord(set.writtenSession)
+      ? set.writtenSession
+      : {};
+    const setImages = isRecord(setWrittenSession.imagesByQuestionId)
+      ? setWrittenSession.imagesByQuestionId
+      : {};
+    for (const img of Object.values(setImages)) {
+      if (isRecord(img)) {
+        delete img.storagePath;
+        delete img.downloadUrl;
+      }
+    }
+  }
+}
+
 export function normalizePersistedAppState(raw: unknown): PersistedAppState {
   const data = isRecord(raw) ? raw : {};
+
+  // Run one-shot migrations before normalization
+  if (
+    typeof data.version !== 'number' ||
+    data.version < PERSISTED_APP_STATE_VERSION
+  ) {
+    migrateStripFirebaseImageFields(data);
+  }
+
   return {
     version: PERSISTED_APP_STATE_VERSION,
     settings: normalizeSettings(data.settings),

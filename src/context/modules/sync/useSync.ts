@@ -537,6 +537,7 @@ export function useSync(): UseSyncReturn {
             if (snapshot.exists()) {
               const data = snapshot.data() as {
                 apiKey?: string;
+                providerKeys?: Record<string, string>;
                 studyGoals?: StudyGoals;
                 streakData?: StreakData;
                 presets?: Preset[];
@@ -547,8 +548,10 @@ export function useSync(): UseSyncReturn {
 
               if (remoteLastModified > localLastModified) {
                 const updates: SettingsProfileUpdates = {};
+                const syncApiKey = useAppStore.getState().syncApiKey;
 
-                if ('apiKey' in data) updates.apiKey = data.apiKey ?? '';
+                if (syncApiKey && 'apiKey' in data)
+                  updates.apiKey = data.apiKey ?? '';
                 if ('studyGoals' in data && data.studyGoals)
                   updates.studyGoals = data.studyGoals;
                 if ('streakData' in data && data.streakData)
@@ -556,7 +559,32 @@ export function useSync(): UseSyncReturn {
                 if ('presets' in data && data.presets)
                   updates.presets = data.presets;
 
-                if (Object.keys(updates).length > 0) {
+                // Restore provider keys if API key sync is enabled
+                if (
+                  syncApiKey &&
+                  data.providerKeys &&
+                  typeof data.providerKeys === 'object'
+                ) {
+                  const state = useAppStore.getState();
+                  const nextProviders = { ...state.providers };
+                  for (const [id, key] of Object.entries(data.providerKeys)) {
+                    if (nextProviders[id]) {
+                      nextProviders[id] = {
+                        ...nextProviders[id],
+                        apiKey: key,
+                      };
+                    }
+                  }
+                  const activeProvider =
+                    nextProviders[state.activeProviderId];
+                  if (activeProvider) {
+                    updates.apiKey = activeProvider.apiKey;
+                  }
+                  useAppStore.setState({
+                    ...updates,
+                    providers: nextProviders,
+                  });
+                } else if (Object.keys(updates).length > 0) {
                   useAppStore.setState(updates);
                 }
               }

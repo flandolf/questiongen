@@ -83,7 +83,7 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
       {image && (
         <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
           <img
-            src={image.downloadUrl || image.dataUrl}
+            src={image.dataUrl}
             alt='Saved sketch'
             className='w-full h-auto max-h-64 object-contain rounded-lg'
           />
@@ -103,7 +103,7 @@ export const McSketchpadPanel = memo(function McSketchpadPanel({
   );
 });
 
-// eslint-disable-next-line complexity
+ 
 export const McAnswerCard = memo(function McAnswerCard({
   questionId,
   options,
@@ -193,7 +193,7 @@ export const McAnswerCard = memo(function McAnswerCard({
             {image && (
               <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
                 <img
-                  src={image.downloadUrl || image.dataUrl}
+                  src={image.dataUrl}
                   alt='Uploaded sketch'
                   className='w-full h-auto max-h-64 object-contain rounded-lg'
                 />
