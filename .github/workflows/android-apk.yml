@@ -12,6 +12,9 @@ on:
       - 'bun.lock'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build signed APK
@@ -74,6 +77,21 @@ jobs:
 
       - name: Build signed APK
         run: bun tauri android build --apk --ci
+
+      - name: Publish APK to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(bun -e 'console.log(require("./package.json").version)')"
+          APK_PATH="$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' -type f | head -n 1)"
+          test -n "$APK_PATH"
+          RELEASE_APK="$RUNNER_TEMP/questiongen-${TAG}-android.apk"
+          cp "$APK_PATH" "$RELEASE_APK"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
+            --title "QuestionGen $TAG" \
+            --notes "See the assets below to download this version." \
+            --target "$GITHUB_SHA"
+          gh release upload "$TAG" "$RELEASE_APK" --clobber
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
