@@ -26,7 +26,8 @@ vi.mock('@/context/modules/sync/mutations', () => ({
   saveMcHistoryEntry: vi.fn(),
   saveQuestionHistoryEntry: vi.fn(),
   saveSavedSet: vi.fn(),
-  updateApiKey: vi.fn(),
+  clearSyncedApiKeys: vi.fn(),
+  updateProviderApiKeys: vi.fn(),
   updatePresets: vi.fn(),
   updateStudyGoals: vi.fn(),
 }));

@@ -20,7 +20,8 @@ Quick links:
 - Schemas: [src-tauri/src/schemas.rs](src-tauri/src/schemas.rs#L1)
 - State: Zustand stores located in `src/store.ts` and `src/store/*` slices;
   persistence to local storage and optional Firestore sync via
-  `src/context/FirebaseSyncContext.tsx`.
+  `src/context/FirebaseSyncContext.tsx` (question data, history, and settings;
+  images are stored locally and not synced to cloud storage).
 - Generation flow: Frontend orchestration in `src/lib/generator-batch.ts` ->
   `src-tauri/src/generation.rs` (native execution) with JSON schema validation
   in `src-tauri/src/schemas.rs`.

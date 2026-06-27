@@ -29,6 +29,7 @@ import type { Preset, StreakData, StudyGoals } from '@/types/study';
 
 type PendingSettingsUpdate = {
   apiKey?: string;
+  providerKeys?: Record<string, string>;
   studyGoals?: StudyGoals;
   streakData?: StreakData;
   presets?: Preset[];
@@ -42,6 +43,7 @@ const flushPendingSettingsUpdate = debounce(async () => {
 
   if (
     patch.apiKey === undefined &&
+    patch.providerKeys === undefined &&
     patch.studyGoals === undefined &&
     patch.streakData === undefined &&
     patch.presets === undefined
@@ -249,14 +251,49 @@ export function updatePresets(presets: Preset[]) {
 }
 
 /**
- * Update the stored API key for the user under `users/{uid}/settings/profile`.
+ * Update the stored API keys for the user under `users/{uid}/settings/profile`.
+ * Syncs both the active provider's key (as `apiKey` for backward compatibility)
+ * and a `providerKeys` map containing all provider API keys.
+ *
  * Uses the shared settings queue so rapid changes across settings only emit a
  * single merged Firestore write.
  *
- * @param apiKey - The API key string to persist.
+ * @param activeApiKey - The active provider's API key (for backward compat).
+ * @param providerKeys - Record mapping provider ID to API key.
  */
-export function updateApiKey(apiKey: string) {
-  queueSettingsUpdate({ apiKey });
+export function updateProviderApiKeys(
+  activeApiKey: string,
+  providerKeys: Record<string, string>,
+) {
+  queueSettingsUpdate({ apiKey: activeApiKey, providerKeys });
+}
+
+/**
+ * Clear synced API keys from the user's Firestore profile.
+ * Called when the user disables API key sync to ensure their key is removed
+ * from the cloud. Also cancels any pending queued key updates to prevent a
+ * race where a debounced write re-populates the remote profile.
+ */
+export async function clearSyncedApiKeys() {
+  // Cancel any pending settings update that might contain API keys
+  pendingSettingsUpdate = {};
+  const uid = getUid();
+  if (!uid) return;
+  try {
+    await setDoc(
+      doc(db, `users/${uid}/settings`, 'profile'),
+      {
+        apiKey: '',
+        providerKeys: {},
+        updatedAt: serverTimestamp(),
+        lastModified: Date.now(),
+      },
+      { merge: true },
+    );
+    localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
+  } catch (error) {
+    console.error('[Sync] Failed to clear synced API keys:', error);
+  }
 }
 
 /**

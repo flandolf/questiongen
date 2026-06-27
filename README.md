@@ -25,7 +25,7 @@ Specialist Mathematics, Chemistry, and Physical Education.
 - **Spaced Repetition**: Practice mode with Leitner system for retention
 - **Analytics Dashboard**: Track performance, generation history, and
   distinctness metrics
-- **Cloud Sync**: Firebase integration for cross-device synchronization
+- **Cloud Sync**: Firebase integration for cross-device synchronization of question data, history, and settings (images remain local-only)
 - **Progressive Web App**: Installable desktop app built with Tauri
 
 ## Tech Stack
@@ -102,7 +102,7 @@ The app follows a hybrid architecture:
 - **Tauri Backend**: File system access, PDF I/O, API proxying
 - **OpenRouter**: AI model inference with streaming
 - **Local-first**: Persistent storage via Tauri's filesystem APIs
-- **Optional Cloud**: Firebase for sync across devices
+- **Optional Cloud**: Firebase for sync across devices (data only; images are stored locally)
 
 ## Key Components
 
@@ -114,7 +114,7 @@ The app follows a hybrid architecture:
 4. Backend constructs prompt with VCE-specific rules and constraints
 5. OpenRouter streams response with JSON schema enforcement
 6. Questions are parsed, validated, and scored for distinctness
-7. Results stored locally and optionally synced to Firebase
+7. Results stored locally and optionally synced to Firebase (question data and history; images are kept locally)
 
 ### Quality Assurance
 

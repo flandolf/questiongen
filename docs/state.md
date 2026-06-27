@@ -9,7 +9,8 @@ Overview:
   [src/lib/store-helpers.ts](src/lib/store-helpers.ts#L1).
 - Persistence: [src/store/persistence.ts](src/store/persistence.ts#L1) handles
   saving/restoring local snapshots; optional Firestore sync handled via
-  [src/context/FirebaseSyncContext.tsx](src/context/FirebaseSyncContext.tsx#L1).
+  [src/context/FirebaseSyncContext.tsx](src/context/FirebaseSyncContext.tsx#L1)
+  (syncs question data, history, and settings; images remain local-only).
 
 Developer notes:
 

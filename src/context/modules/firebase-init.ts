@@ -5,15 +5,11 @@ import {
   initializeFirestore,
   memoryLocalCache,
 } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string,
-  messagingSenderId: import.meta.env
-    .VITE_FIREBASE_MESSAGING_SENDER_ID as string,
   appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
 };
 
@@ -23,11 +19,10 @@ if (!app) {
 }
 
 const auth = getAuth(app);
-const storage = getStorage(app);
 
 /**
- * Firebase initialization helper: configures app, auth, firestore and
- * storage. Uses a persistent Firestore cache.
+ * Firebase initialization helper: configures app, auth and firestore.
+ * Uses a persistent Firestore cache.
  */
 
 const db = (() => {
@@ -45,5 +40,5 @@ const db = (() => {
   }
 })();
 
-export { app, auth, db, storage };
+export { app, auth, db };
 export type { User as FirebaseUser } from 'firebase/auth';

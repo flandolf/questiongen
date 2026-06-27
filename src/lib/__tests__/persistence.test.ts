@@ -6,6 +6,7 @@ import {
   normalizePersistedAppState,
   normalizeSavedSet,
 } from '@/lib/persistence';
+import { PERSISTED_APP_STATE_VERSION } from '@/types';
 
 describe('persistence normalization', () => {
   it('defaults an invalid question mode to written', () => {
@@ -34,7 +35,7 @@ describe('persistence normalization', () => {
     expect(normalized.settings.model).toBe('openai/gpt-5.4-mini');
     expect(normalized.settings.markingModel).toBe('openai/gpt-5.4-mini');
     expect(normalized.settings.imageMarkingModel).toBe('openai/gpt-5.4-mini');
-    expect(normalized.settings.theme).toBe('light');
+    expect(normalized.settings.theme).toBe('default');
     expect(normalized.settings.interfaceFont).toBe('Inter Variable');
     expect(normalized.settings.headingFont).toBe('Manrope Variable');
     expect(normalized.settings.tutorModel).toBe('openai/gpt-5.4-mini');
@@ -114,5 +115,122 @@ describe('persistence normalization', () => {
       createdAt: 1713600000000,
       updatedAt: 1713603600000,
     });
+  });
+
+  it('strips storagePath and downloadUrl from images during migration', () => {
+    const normalized = normalizePersistedAppState({
+      version: 2,
+      writtenSession: {
+        imagesByQuestionId: {
+          q1: {
+            id: 'img-1',
+            dataUrl: 'data:image/png;base64,abc',
+            storagePath: 'users/uid/questions/q1/img-1',
+            downloadUrl: 'https://firebasestorage.googleapis.com/...',
+            timestamp: '2026-01-01T00:00:00Z',
+          },
+        },
+      },
+      questionHistory: [
+        {
+          id: 'hist-1',
+          question: { id: 'q1', promptMarkdown: 'Test', maxMarks: 1 },
+          createdAt: '2026-01-01T00:00:00Z',
+          uploadedAnswerImage: {
+            id: 'img-2',
+            dataUrl: 'data:image/png;base64,def',
+            storagePath: 'users/uid/images/img-2',
+            downloadUrl: 'https://firebasestorage.googleapis.com/...',
+            timestamp: '2026-01-01T00:00:00Z',
+          },
+        },
+      ],
+      savedSets: [
+        {
+          id: 'set-1',
+          title: 'Test set',
+          questionMode: 'written',
+          preferences: {},
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+          writtenSession: {
+            imagesByQuestionId: {
+              q2: {
+                id: 'img-3',
+                dataUrl: 'data:image/png;base64,ghi',
+                storagePath: 'users/uid/questions/q2/img-3',
+                downloadUrl: 'https://firebasestorage.googleapis.com/...',
+                timestamp: '2026-01-01T00:00:00Z',
+              },
+            },
+          },
+        },
+      ],
+    });
+
+    expect(normalized.version).toBe(PERSISTED_APP_STATE_VERSION);
+
+    const writtenImg = normalized.writtenSession.imagesByQuestionId.q1;
+    expect(writtenImg).toBeDefined();
+    expect(writtenImg).not.toHaveProperty('storagePath');
+    expect(writtenImg).not.toHaveProperty('downloadUrl');
+    expect(writtenImg?.dataUrl).toBe('data:image/png;base64,abc');
+
+    const historyImg = normalized.questionHistory[0]?.uploadedAnswerImage;
+    expect(historyImg).toBeDefined();
+    expect(historyImg).not.toHaveProperty('storagePath');
+    expect(historyImg).not.toHaveProperty('downloadUrl');
+    expect(historyImg?.dataUrl).toBe('data:image/png;base64,def');
+
+    const savedSetImg = normalized.savedSets[0]?.writtenSession?.imagesByQuestionId.q2;
+    expect(savedSetImg).toBeDefined();
+    expect(savedSetImg).not.toHaveProperty('storagePath');
+    expect(savedSetImg).not.toHaveProperty('downloadUrl');
+    expect(savedSetImg?.dataUrl).toBe('data:image/png;base64,ghi');
+  });
+
+  it('does not strip fields when version is already current', () => {
+    const normalized = normalizePersistedAppState({
+      version: PERSISTED_APP_STATE_VERSION,
+      writtenSession: {
+        imagesByQuestionId: {
+          q1: {
+            id: 'img-1',
+            dataUrl: 'data:image/png;base64,abc',
+            storagePath: 'users/uid/questions/q1/img-1',
+            downloadUrl: 'https://firebasestorage.googleapis.com/...',
+            timestamp: '2026-01-01T00:00:00Z',
+          },
+        },
+      },
+    });
+
+    // When version is already current, migration should not run,
+    // so extra fields are still present (they just won't be typed).
+    const img = normalized.writtenSession.imagesByQuestionId.q1 as unknown as Record<string, unknown>;
+    expect(img.storagePath).toBe('users/uid/questions/q1/img-1');
+    expect(img.downloadUrl).toBe('https://firebasestorage.googleapis.com/...');
+  });
+
+  it('strips fields when version is missing entirely', () => {
+    const normalized = normalizePersistedAppState({
+      writtenSession: {
+        imagesByQuestionId: {
+          q1: {
+            id: 'img-1',
+            dataUrl: 'data:image/png;base64,abc',
+            storagePath: 'users/uid/questions/q1/img-1',
+            downloadUrl: 'https://firebasestorage.googleapis.com/...',
+            timestamp: '2026-01-01T00:00:00Z',
+          },
+        },
+      },
+    });
+
+    const img = normalized.writtenSession.imagesByQuestionId.q1;
+    expect(img).toBeDefined();
+    expect(img).not.toHaveProperty('storagePath');
+    expect(img).not.toHaveProperty('downloadUrl');
+    expect(img?.dataUrl).toBe('data:image/png;base64,abc');
   });
 });

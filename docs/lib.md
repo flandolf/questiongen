@@ -10,9 +10,9 @@ Key responsibilities:
   math normalization for consistent rendering and schema validation.
 - [src/lib/token-estimation.ts](src/lib/token-estimation.ts#L1) — Estimating
   token usage for prompts and batching.
-- [src/lib/persistence.ts](src/lib/persistence.ts#L1) /
-  [src/lib/firebase-storage.ts](src/lib/firebase-storage.ts#L1) — Local and
-  cloud persistence helpers.
+- [src/lib/persistence.ts](src/lib/persistence.ts#L1) — Local persistence
+  helpers and state migration logic. Images are stored locally (data URLs) and
+  are not synced to cloud storage.
 - [src/lib/question-cache.ts](src/lib/question-cache.ts#L1) — Cache layer for
   generated questions.
 - [src/lib/sketchpad-renderer.ts](src/lib/sketchpad-renderer.ts#L1) /

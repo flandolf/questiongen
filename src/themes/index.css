@@ -1,12 +1,12 @@
 /*
  * QuestionGen 2.0 — Theme Index
  *
- * Imports the foundational token system followed by the 4 core themes.
- * Old per-file themes are deprecated in favor of the token-based system.
+ * Imports the foundational token system followed by the core themes.
+ * light.css defines the base light palette; dark.css defines the base
+ * dark palette. high-contrast.css and custom M3 tokens override them.
  */
 
 @import '../styles/tokens.css';
 @import '../styles/themes/light.css';
 @import '../styles/themes/dark.css';
-@import '../styles/themes/academic.css';
 @import '../styles/themes/high-contrast.css';

@@ -5,36 +5,39 @@ export type DesignTheme = {
 
 /**
  * Core themes for the redesigned token-based system.
- * Reduced from 12 per-file themes to 4 semantic themes + custom.
+ * 'default' uses the base light/dark palettes. 'high-contrast' and 'custom'
+ * override specific tokens for their aesthetic.
  */
 export const themes = [
-  { name: 'light', label: 'Light' },
-  { name: 'dark', label: 'Dark' },
-  { name: 'academic', label: 'Academic' },
+  { name: 'default', label: 'Default' },
   { name: 'high-contrast', label: 'High Contrast' },
   { name: 'custom', label: 'Custom' },
 ] as const satisfies readonly DesignTheme[];
 
-export const DEFAULT_THEME_NAME = 'light';
+export const DEFAULT_THEME_NAME = 'default';
 
 /**
  * Maps deprecated theme names to their new equivalents.
  * Ensures users with old themes selected get a graceful fallback.
  */
 const THEME_MIGRATION_MAP: Record<string, string> = {
-  // Warm/neutral themes → light
-  claude: 'light',
-  blue: 'light',
-  purple: 'light',
-  pink: 'light',
-  zen: 'light',
-  nord: 'light',
-  slate: 'light',
-  // Darker themes → dark
-  midnight: 'dark',
-  forest: 'dark',
-  'rose-pine': 'dark',
-  sunset: 'dark',
+  // Legacy base themes → default
+  light: 'default',
+  dark: 'default',
+  academic: 'default',
+  // Warm/neutral themes → default
+  claude: 'default',
+  blue: 'default',
+  purple: 'default',
+  pink: 'default',
+  zen: 'default',
+  nord: 'default',
+  slate: 'default',
+  // Darker themes → default
+  midnight: 'default',
+  forest: 'default',
+  'rose-pine': 'default',
+  sunset: 'default',
 };
 
 function getThemeByName(name: string) {

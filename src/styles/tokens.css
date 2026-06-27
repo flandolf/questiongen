@@ -32,23 +32,23 @@
 /* Surface Tokens                                                             */
 /* -------------------------------------------------------------------------- */
 :root {
-  --surface-primary: oklch(0.985 0.01 90);
-  --surface-secondary: oklch(0.996 0.004 90);
-  --surface-tertiary: oklch(0.94 0.015 90);
-  --surface-hover: oklch(0.95 0.01 90 / 0.6);
-  --surface-active: oklch(0.93 0.01 90 / 0.8);
-  --surface-overlay: oklch(0.1 0.01 90 / 0.4);
+  --surface-primary: oklch(0.99 0.005 95);
+  --surface-secondary: oklch(0.995 0.003 95);
+  --surface-tertiary: oklch(0.94 0.01 95);
+  --surface-hover: oklch(0.95 0.01 95 / 0.6);
+  --surface-active: oklch(0.93 0.01 95 / 0.8);
+  --surface-overlay: oklch(0.1 0.01 95 / 0.4);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Text Tokens                                                                */
 /* -------------------------------------------------------------------------- */
 :root {
-  --text-primary: oklch(0.25 0.02 90);
-  --text-secondary: oklch(0.4 0.025 90);
-  --text-tertiary: oklch(0.55 0.02 90);
-  --text-inverted: oklch(0.985 0.01 90);
-  --text-accent: oklch(0.5 0.15 250);
+  --text-primary: oklch(0.22 0.02 95);
+  --text-secondary: oklch(0.4 0.025 95);
+  --text-tertiary: oklch(0.55 0.02 95);
+  --text-inverted: oklch(0.99 0.005 95);
+  --text-accent: oklch(0.55 0.18 185);
   --text-danger: oklch(0.55 0.15 25);
   --text-success: oklch(0.5 0.12 165);
   --text-warning: oklch(0.6 0.14 45);
@@ -58,19 +58,19 @@
 /* Accent Tokens                                                              */
 /* -------------------------------------------------------------------------- */
 :root {
-  --accent-primary: oklch(0.5 0.15 250);
-  --accent-hover: oklch(0.42 0.14 250);
-  --accent-subtle: oklch(0.93 0.02 90);
-  --accent-border: oklch(0.5 0.15 250 / 0.3);
+  --accent-primary: oklch(0.55 0.18 185);
+  --accent-hover: oklch(0.48 0.16 185);
+  --accent-subtle: oklch(0.93 0.03 185);
+  --accent-border: oklch(0.55 0.18 185 / 0.3);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Border Tokens                                                              */
 /* -------------------------------------------------------------------------- */
 :root {
-  --border-subtle: oklch(0.88 0.015 90);
-  --border-hover: oklch(0.78 0.02 90);
-  --border-focus: oklch(0.5 0.15 250);
+  --border-subtle: oklch(0.88 0.015 95);
+  --border-hover: oklch(0.78 0.02 95);
+  --border-focus: oklch(0.55 0.18 185);
   --border-danger: oklch(0.75 0.1 25);
 }
 
@@ -90,10 +90,10 @@
 /* Shadow Tokens                                                              */
 /* -------------------------------------------------------------------------- */
 :root {
-  --shadow-sm: 0px 2px 4px 0px oklch(0.2 0.01 90 / 0.03);
-  --shadow-md: 0px 8px 16px 0px oklch(0.2 0.01 90 / 0.05);
-  --shadow-lg: 0px 12px 24px 0px oklch(0.2 0.01 90 / 0.06);
-  --shadow-xl: 0px 20px 40px 0px oklch(0.2 0.01 90 / 0.07);
+  --shadow-sm: 0px 2px 4px 0px oklch(0.2 0.01 95 / 0.03);
+  --shadow-md: 0px 8px 16px 0px oklch(0.2 0.01 95 / 0.05);
+  --shadow-lg: 0px 12px 24px 0px oklch(0.2 0.01 95 / 0.06);
+  --shadow-xl: 0px 20px 40px 0px oklch(0.2 0.01 95 / 0.07);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -138,11 +138,11 @@
 /* Chart Tokens                                                               */
 /* -------------------------------------------------------------------------- */
 :root {
-  --chart-1: oklch(0.5 0.15 250);
-  --chart-2: oklch(0.6 0.12 270);
-  --chart-3: oklch(0.7 0.1 290);
-  --chart-4: oklch(0.8 0.08 310);
-  --chart-5: oklch(0.4 0.18 230);
+  --chart-1: oklch(0.55 0.18 185);
+  --chart-2: oklch(0.6 0.16 280);
+  --chart-3: oklch(0.65 0.15 30);
+  --chart-4: oklch(0.7 0.14 85);
+  --chart-5: oklch(0.5 0.18 220);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -200,10 +200,10 @@
 /* Legacy Shadow Aliases                                                      */
 /* -------------------------------------------------------------------------- */
 :root {
-  --shadow-2xs: 0px 1px 2px 0px oklch(0.2 0.01 90 / 0.02);
-  --shadow-xs: 0px 1px 2px 0px oklch(0.2 0.01 90 / 0.02);
+  --shadow-2xs: 0px 1px 2px 0px oklch(0.2 0.01 95 / 0.02);
+  --shadow-xs: 0px 1px 2px 0px oklch(0.2 0.01 95 / 0.02);
   --shadow: var(--shadow-sm);
-  --shadow-2xl: 0px 32px 64px 0px oklch(0.2 0.01 90 / 0.08);
+  --shadow-2xl: 0px 32px 64px 0px oklch(0.2 0.01 95 / 0.08);
 }
 
 /* -------------------------------------------------------------------------- */

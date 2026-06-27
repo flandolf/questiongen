@@ -274,7 +274,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
           {image ? (
             <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
               <img
-                src={image.downloadUrl || image.dataUrl}
+                src={image.dataUrl}
                 alt='Uploaded working'
                 className='w-full h-auto max-h-96 object-contain rounded-lg'
               />
@@ -309,7 +309,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
       {image && (
         <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
           <img
-            src={image.downloadUrl || image.dataUrl}
+            src={image.dataUrl}
             alt='Saved sketch'
             className='w-full h-auto max-h-64 object-contain rounded-lg'
           />

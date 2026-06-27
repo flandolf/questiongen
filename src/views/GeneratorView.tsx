@@ -15,10 +15,8 @@ import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
 import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
-import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
 import { useTimer } from '@/hooks/useTimer';
 import { fileToDataUrl, readBackendError } from '@/lib/app-utils';
-import { deleteImage, uploadImageDataUrl } from '@/lib/firebase-storage';
 import {
   generateQuestionsOrchestrator,
   getCanGenerate,
@@ -75,7 +73,7 @@ function buildSketchpadSessionKey(
 // eslint-disable-next-line complexity
 export function GeneratorView() {
   const location = useLocation();
-  const { user } = useFirebaseSyncContext();
+
 
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
@@ -513,7 +511,7 @@ export function GeneratorView() {
       const timestamp = new Date().toISOString();
 
       void fileToDataUrl(file)
-        .then(async (dataUrl) => {
+        .then((dataUrl) => {
           setImagesByQuestionId((prev) => ({
             ...prev,
             [questionId]: { id: imageId, dataUrl, timestamp },
@@ -523,29 +521,6 @@ export function GeneratorView() {
               ? prev
               : { ...prev, [questionId]: Date.now() },
           );
-
-          if (user) {
-            try {
-              const { storagePath, downloadUrl } = await uploadImageDataUrl(
-                dataUrl,
-                questionId,
-                imageId,
-              );
-              setImagesByQuestionId((prev) => ({
-                ...prev,
-                [questionId]: {
-                  id: imageId,
-                  dataUrl,
-                  storagePath,
-                  downloadUrl,
-                  timestamp,
-                },
-              }));
-            } catch (error) {
-              console.error('Firebase upload failed:', error);
-              toast.error('Failed to upload image to cloud storage.');
-            }
-          }
         })
         .catch(() => {
           setErrorMessage('Unable to read the selected image file.');
@@ -556,18 +531,13 @@ export function GeneratorView() {
       setErrorMessage,
       setImagesByQuestionId,
       setWrittenResponseEnteredAtById,
-      user,
     ],
   );
 
   const handleWrittenImageRemove = useCallback(() => {
     if (!activeQuestion) return;
-    const currentImage = imagesByQuestionId[activeQuestion.id];
-    if (currentImage?.storagePath) {
-      void deleteImage(currentImage.storagePath).catch(console.error);
-    }
     setImagesByQuestionId((prev) => removeKey(prev, activeQuestion.id));
-  }, [activeQuestion, imagesByQuestionId, setImagesByQuestionId]);
+  }, [activeQuestion, setImagesByQuestionId]);
 
   const handleAppealChange = useCallback(
     (value: string) => {
@@ -910,27 +880,7 @@ export function GeneratorView() {
     await generateQuestionsOrchestrator();
   }, [startStopwatch, setStreamText]);
 
-  const resolveWrittenMarkImage = useCallback(
-    async (
-      questionId: string,
-      image: StudentAnswerImage | undefined,
-    ): Promise<StudentAnswerImage | undefined> => {
-      if (!image) return undefined;
-      if (!user) return image;
-      try {
-        const { storagePath, downloadUrl } = await uploadImageDataUrl(
-          image.dataUrl,
-          questionId,
-          image.id,
-        );
-        return { ...image, storagePath, downloadUrl };
-      } catch (error) {
-        console.error('Firebase upload failed:', error);
-        return image;
-      }
-    },
-    [user],
-  );
+
 
   const handleSubmitForMarking = useCallback(
     async (payload?: { image?: StudentAnswerImage }) => {
@@ -951,18 +901,9 @@ export function GeneratorView() {
       setLastFailedAction(null);
       try {
         if (payload?.image) {
-          const image = payload.image;
           setImagesByQuestionId((prev) => ({
             ...prev,
-            [activeQuestion.id]: image,
-          }));
-          const resolved = await resolveWrittenMarkImage(
-            activeQuestion.id,
-            image,
-          );
-          setImagesByQuestionId((prev) => ({
-            ...prev,
-            [activeQuestion.id]: resolved,
+            [activeQuestion.id]: payload.image,
           }));
         }
         await submitWrittenAnswer(markModel);
@@ -984,7 +925,6 @@ export function GeneratorView() {
       setImagesByQuestionId,
       submitWrittenAnswer,
       writtenTimer,
-      resolveWrittenMarkImage,
     ],
   );
 
