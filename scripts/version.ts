@@ -88,6 +88,17 @@ async function updateCargoToml(version: string): Promise<void> {
   console.log(`src-tauri/Cargo.toml: ${version}`);
 }
 
+async function updateCargoLock(version: string): Promise<void> {
+  const cargoLockPath = fromRoot('src-tauri', 'Cargo.lock');
+  const content = await Bun.file(cargoLockPath).text();
+  const updated = content.replace(
+    /(\[\[package\]\]\nname = "questiongen"\nversion = ")[\d.]+(")/,
+    `$1${version}$2`,
+  );
+  await Bun.write(cargoLockPath, updated);
+  console.log(`src-tauri/Cargo.lock: ${version}`);
+}
+
 interface TauriConfig {
   version: string;
   [key: string]: unknown;
@@ -127,6 +138,7 @@ async function main(): Promise<void> {
 
   await updatePackageJson(versionStr);
   await updateCargoToml(versionStr);
+  await updateCargoLock(versionStr);
   await updateTauriConfJson(versionStr);
   await updateSettingsView(versionStr);
 

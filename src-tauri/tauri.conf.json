@@ -25,6 +25,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "resources": [
       "../exams/*",
       "../reports/*"
@@ -36,5 +37,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcxMTc3NTYwQzRDQjBCODMKUldTREM4dkVZSFVYY2JqaGFGTDF6QUg2SjNGdVZ3MkFVRUthUHMrR3l0UzBtRmdFYTV1NG5EUFYK",
+      "endpoints": [
+        "https://github.com/flandolf/questiongen/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
