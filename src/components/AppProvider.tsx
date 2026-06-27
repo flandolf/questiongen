@@ -9,6 +9,7 @@ import { listen } from '@tauri-apps/api/event';
 import { type ReactNode, useEffect } from 'react';
 
 import { useLocalBackupExport } from '../hooks/useLocalBackupExport';
+import { checkForAppUpdate } from '../lib/updater';
 import { useAppStore } from '../store';
 import type { GenerationStatusEvent, LogEntry } from '../types';
 
@@ -21,6 +22,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Hydrate from persisted storage on mount
   useEffect(() => {
     void hydrate();
+    void checkForAppUpdate();
   }, [hydrate]);
 
   // Forward backend SSE events into the store
