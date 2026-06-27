@@ -7,6 +7,7 @@ import {
 import {
   collection,
   doc,
+  type DocumentSnapshot,
   limit,
   onSnapshot,
   orderBy,
@@ -126,6 +127,72 @@ function mergeCustomSubtopics(
 type SettingsProfileUpdates = Partial<
   Pick<AppState, 'apiKey' | 'studyGoals' | 'streakData' | 'presets'>
 >;
+
+interface SettingsProfileData {
+  apiKey?: string;
+  providerKeys?: Record<string, string>;
+  studyGoals?: StudyGoals;
+  streakData?: StreakData;
+  presets?: Preset[];
+  lastModified?: number;
+}
+
+function applyProviderKeyUpdates(
+  providerKeys: Record<string, string>,
+  updates: SettingsProfileUpdates,
+) {
+  const state = useAppStore.getState();
+  const nextProviders = { ...state.providers };
+  for (const [id, key] of Object.entries(providerKeys)) {
+    if (nextProviders[id]) {
+      nextProviders[id] = {
+        ...nextProviders[id],
+        apiKey: key,
+      };
+    }
+  }
+
+  const activeProvider = nextProviders[state.activeProviderId];
+  if (activeProvider) updates.apiKey = activeProvider.apiKey;
+  useAppStore.setState({
+    ...updates,
+    providers: nextProviders,
+  });
+}
+
+function applySettingsProfileSnapshot(
+  snapshot: DocumentSnapshot,
+  getLocalWriteTimestamp: (key: string) => number,
+) {
+  console.info('[FirebaseSync] Received settings profile snapshot.');
+  if (!snapshot.exists()) return;
+
+  const data = snapshot.data() as SettingsProfileData;
+  const remoteLastModified = data.lastModified ?? 0;
+  const localLastModified = getLocalWriteTimestamp('settings');
+  if (remoteLastModified <= localLastModified) return;
+
+  const updates: SettingsProfileUpdates = {};
+  const syncApiKey = useAppStore.getState().syncApiKey;
+
+  if (syncApiKey && 'apiKey' in data) updates.apiKey = data.apiKey ?? '';
+  if ('studyGoals' in data && data.studyGoals)
+    updates.studyGoals = data.studyGoals;
+  if ('streakData' in data && data.streakData)
+    updates.streakData = data.streakData;
+  if ('presets' in data && data.presets) updates.presets = data.presets;
+
+  if (
+    syncApiKey &&
+    data.providerKeys &&
+    typeof data.providerKeys === 'object'
+  ) {
+    applyProviderKeyUpdates(data.providerKeys, updates);
+    return;
+  }
+
+  if (Object.keys(updates).length > 0) useAppStore.setState(updates);
+}
 
 export interface UseSyncReturn {
   user: FirebaseUser | null;
@@ -532,64 +599,8 @@ export function useSync(): UseSyncReturn {
         // 4. Consolidated Settings (replacing main, goals, presets)
         const settingsUnsub = onSnapshot(
           doc(db, `users/${uid}/settings`, 'profile'),
-          (snapshot) => {
-            console.info('[FirebaseSync] Received settings profile snapshot.');
-            if (snapshot.exists()) {
-              const data = snapshot.data() as {
-                apiKey?: string;
-                providerKeys?: Record<string, string>;
-                studyGoals?: StudyGoals;
-                streakData?: StreakData;
-                presets?: Preset[];
-                lastModified?: number;
-              };
-              const remoteLastModified = data.lastModified ?? 0;
-              const localLastModified = getLocalWriteTimestamp('settings');
-
-              if (remoteLastModified > localLastModified) {
-                const updates: SettingsProfileUpdates = {};
-                const syncApiKey = useAppStore.getState().syncApiKey;
-
-                if (syncApiKey && 'apiKey' in data)
-                  updates.apiKey = data.apiKey ?? '';
-                if ('studyGoals' in data && data.studyGoals)
-                  updates.studyGoals = data.studyGoals;
-                if ('streakData' in data && data.streakData)
-                  updates.streakData = data.streakData;
-                if ('presets' in data && data.presets)
-                  updates.presets = data.presets;
-
-                // Restore provider keys if API key sync is enabled
-                if (
-                  syncApiKey &&
-                  data.providerKeys &&
-                  typeof data.providerKeys === 'object'
-                ) {
-                  const state = useAppStore.getState();
-                  const nextProviders = { ...state.providers };
-                  for (const [id, key] of Object.entries(data.providerKeys)) {
-                    if (nextProviders[id]) {
-                      nextProviders[id] = {
-                        ...nextProviders[id],
-                        apiKey: key,
-                      };
-                    }
-                  }
-                  const activeProvider =
-                    nextProviders[state.activeProviderId];
-                  if (activeProvider) {
-                    updates.apiKey = activeProvider.apiKey;
-                  }
-                  useAppStore.setState({
-                    ...updates,
-                    providers: nextProviders,
-                  });
-                } else if (Object.keys(updates).length > 0) {
-                  useAppStore.setState(updates);
-                }
-              }
-            }
-          },
+          (snapshot) =>
+            applySettingsProfileSnapshot(snapshot, getLocalWriteTimestamp),
           (error) => {
             console.error(
               '[FirebaseSync] Settings profile listener error:',

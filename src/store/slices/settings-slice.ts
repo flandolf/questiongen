@@ -2,8 +2,8 @@ import type { StateCreator } from 'zustand';
 
 import {
   clearSyncedApiKeys,
-  updateProviderApiKeys,
   updatePresets,
+  updateProviderApiKeys,
 } from '@/context/modules/sync/mutations';
 import { normalizeHexColor } from '@/lib/color-helpers';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
