@@ -60,10 +60,13 @@ struct RawSubtopic {
 #[derive(Debug, Clone)]
 pub struct TopicEntry {
     pub name: String,
+    #[allow(dead_code)]
     pub exam_pdfs: Vec<String>,
+    #[allow(dead_code)]
     pub report_pdfs: Vec<String>,
     pub exam_guidance: String,
     pub marking_guidance: String,
+    #[allow(dead_code)]
     pub marking_scheme_style: String,
     pub out_of_scope: Vec<String>,
     pub subtopics: Vec<SubtopicEntry>,
@@ -181,18 +184,21 @@ pub fn topic_marking_guidance(name: &str) -> &'static str {
         .map(|t| t.marking_guidance.as_str())
         .unwrap_or("")
 }
+#[allow(dead_code)]
 pub fn topic_marking_scheme_style(name: &str) -> &'static str {
     find_topic(name)
         .map(|t| t.marking_scheme_style.as_str())
         .unwrap_or("criterion-per-mark")
 }
 
+#[allow(dead_code)]
 pub fn topic_exam_pdfs(name: &str) -> &'static [String] {
     find_topic(name)
         .map(|t| t.exam_pdfs.as_slice())
         .unwrap_or(&[])
 }
 
+#[allow(dead_code)]
 pub fn topic_report_pdfs(name: &str) -> &'static [String] {
     find_topic(name)
         .map(|t| t.report_pdfs.as_slice())

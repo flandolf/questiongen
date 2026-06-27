@@ -15,7 +15,6 @@ export default tseslint.config(
       '**/*.d.ts',
       'src/components/ui/**',
       'public/**',
-      'exams/**',
       'reports/**',
       'build/**',
       'scripts/**',

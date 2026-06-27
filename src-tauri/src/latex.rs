@@ -479,6 +479,7 @@ pub fn first_brace_group(content: &str) -> Option<(String, usize)> {
     None
 }
 
+#[allow(dead_code)]
 pub fn latex_semantic_issues(segment: &str) -> Vec<String> {
     let mut issues = Vec::new();
     issues.extend(table_rule_row_break_issues(segment));
@@ -500,6 +501,7 @@ pub fn latex_semantic_issues(segment: &str) -> Vec<String> {
     issues
 }
 
+#[allow(dead_code)]
 fn table_rule_row_break_issues(segment: &str) -> Vec<String> {
     static RE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"(^|[^\\])\\\s*\\(hline|cline|cmidrule|[atbm]rule)").unwrap());
@@ -513,6 +515,7 @@ fn table_rule_row_break_issues(segment: &str) -> Vec<String> {
         .collect()
 }
 
+#[allow(dead_code)]
 pub fn latex_issues_for_text(text: &str) -> Vec<String> {
     let nodes = lex(text);
     let mut issues = Vec::new();
