@@ -1,5 +1,4 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { invoke } from '@tauri-apps/api/core';
 import {
   BarChart3,
   BookOpen,
@@ -46,6 +45,12 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
+import {
+  buildMcAnkiPayload,
+  buildWrittenAnkiPayload,
+  exportQuestionToAnki,
+  surfaceAnkiExportToast,
+} from '@/lib/anki-export';
 import { formatDate } from '@/lib/app-utils';
 import { scoreColorBgClass } from '@/lib/score-utils';
 import type { McHistoryEntry, QuestionHistoryEntry, Topic } from '@/types';
@@ -63,12 +68,6 @@ type SortOrder =
   | 'score-low'
   | 'response-time-fast'
   | 'response-time-slow';
-
-interface ExportAnkiResponse {
-  success: boolean;
-  filePath?: string;
-  errorMessage?: string;
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -961,38 +960,12 @@ export function HistoryView() {
   }, []);
 
   const handleExportToAnki = useCallback(async (item: AnyEntry) => {
-    try {
-      let answerText = '';
-      if (item.kind === 'written') {
-        const mr = item.markResponse;
-        answerText = `${mr?.feedbackMarkdown ?? 'No feedback provided'}\n\n### Worked Solution\n${item.workedSolutionMarkdown}`;
-      } else {
-        answerText = `Correct Answer: ${item.question.correctAnswer}\n\n${item.question.explanationMarkdown}`;
-      }
-
-      const res = await invoke<ExportAnkiResponse>('export_question_to_anki', {
-        request: {
-          id: item.id,
-          question: item.question.promptMarkdown,
-          answer: answerText,
-          topic: item.question.topic,
-          subtopic: item.question.subtopic ?? '',
-          options: item.kind === 'mc' ? item.question.options : undefined,
-        },
-      });
-
-      if (res.success) {
-        toast.success(`Exported to Anki: ${res.filePath}`);
-        if (res.errorMessage) {
-          toast.warning(res.errorMessage);
-        }
-      } else {
-        toast.error(`Export failed: ${res.errorMessage}`);
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      toast.error(`Export error: ${message}`);
-    }
+    const payload =
+      item.kind === 'written'
+        ? buildWrittenAnkiPayload(item)
+        : buildMcAnkiPayload(item);
+    const result = await exportQuestionToAnki(payload);
+    surfaceAnkiExportToast(result);
   }, []);
 
   // Virtualizer setup

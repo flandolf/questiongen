@@ -38,12 +38,17 @@ import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBloc
 import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  buildMcAnkiPayload,
+  buildWrittenAnkiPayload,
+  exportQuestionToAnki,
+  surfaceAnkiExportToast,
+} from '@/lib/anki-export';
 import { fileToDataUrl, normalizeMarkResponse } from '@/lib/app-utils';
 import { useAppStore } from '@/store';
 // --- Generator parity reattempt view (restored full UI) ---
 import type {
   Difficulty,
-  ExportQuestionToAnkiResponse,
   MarkAnswerResponse,
   McHistoryEntry,
   QuestionHistoryEntry,
@@ -1133,43 +1138,12 @@ export default function WrongQuestionView() {
   );
 
   const handleExportToAnki = useCallback(async (entry: WrongEntry) => {
-    try {
-      let answerText = '';
-      if (entry.kind === 'written') {
-        answerText = `${entry.markResponse.feedbackMarkdown}\n\n### Worked Solution\n${entry.workedSolutionMarkdown}`;
-      } else {
-        answerText = `Correct Answer: ${entry.question.correctAnswer}\n\n${entry.question.explanationMarkdown}`;
-      }
-
-      const res = await invoke<ExportQuestionToAnkiResponse>(
-        'export_question_to_anki',
-        {
-          request: {
-            id: entry.id,
-            question: entry.question.promptMarkdown,
-            answer: answerText,
-            topic: entry.question.topic,
-            subtopic: entry.question.subtopic ?? '',
-            options:
-              entry.kind === 'multiple-choice'
-                ? entry.question.options
-                : undefined,
-          },
-        },
-      );
-
-      if (res.success) {
-        toast.success(`Exported to Anki: ${res.filePath}`);
-        if (res.errorMessage) {
-          toast.warning(res.errorMessage);
-        }
-      } else {
-        toast.error(`Export failed: ${res.errorMessage}`);
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      toast.error(`Export error: ${message}`);
-    }
+    const payload =
+      entry.kind === 'written'
+        ? buildWrittenAnkiPayload(entry)
+        : buildMcAnkiPayload(entry);
+    const result = await exportQuestionToAnki(payload);
+    surfaceAnkiExportToast(result);
   }, []);
 
   const handleMarkCorrect = useCallback(

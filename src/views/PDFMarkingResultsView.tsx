@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -23,6 +22,11 @@ import {
 } from '@/components/layout/primitives';
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
+import {
+  buildPdfMarkingAnkiPayload,
+  exportQuestionToAnki,
+  surfaceAnkiExportToast,
+} from '@/lib/anki-export';
 import { SPRING } from '@/lib/motion';
 import { scoreColorBgClass } from '@/lib/score-utils';
 import { useAppStore } from '@/store';
@@ -125,32 +129,9 @@ export function PDFMarkingResultsView() {
     question: GeneratedQuestion,
     result: MarkAnswerResponse,
   ) => {
-    try {
-      const answer = `${result.feedbackMarkdown}\n\n### Worked Solution\n${result.workedSolutionMarkdown}`;
-      const res = await invoke<{
-        success: boolean;
-        filePath?: string;
-        errorMessage?: string;
-      }>('export_question_to_anki', {
-        request: {
-          id: question.id,
-          question: question.promptMarkdown,
-          answer,
-          topic: question.topic,
-          subtopic: question.subtopic ?? '',
-        },
-      });
-      if (res.success) {
-        toast.success(`Exported: ${res.filePath}`);
-        if (res.errorMessage) toast.warning(res.errorMessage);
-      } else {
-        toast.error(`Export failed: ${res.errorMessage}`);
-      }
-    } catch (e) {
-      toast.error(
-        `Export error: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
+    const payload = buildPdfMarkingAnkiPayload(question, result);
+    const ankiResult = await exportQuestionToAnki(payload);
+    surfaceAnkiExportToast(ankiResult);
   };
 
   const copyFeedback = (text: string) => {

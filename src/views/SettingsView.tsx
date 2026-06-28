@@ -1,159 +1,32 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  Bug,
-  ChevronRight,
-  Clock,
-  Cloud,
-  Cpu,
-  CreditCard,
-  GraduationCap,
-  HardDriveDownload,
-  Key,
-  Layers,
-  Palette,
-  ScrollText,
-  Trash2,
-  TrendingUp,
-  Wand2,
-} from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
-import { ApiSection } from './settings/sections/ApiSection';
-import { AppearanceSection } from './settings/sections/AppearanceSection';
-import { CleanupSection } from './settings/sections/CleanupSection';
-import { CreditsSection } from './settings/sections/CreditsSection';
-import { DebugSection } from './settings/sections/DebugSection';
-import { GenerationSettingsSection } from './settings/sections/GenerationSettingsSection';
-import { GoalsSection } from './settings/sections/GoalsSection';
-import { ImportExportSection } from './settings/sections/ImportExportSection';
-import { LogsSection } from './settings/sections/LogsSection';
-import { ModelsSection } from './settings/sections/ModelsSection';
-import { SubtopicsSection } from './settings/sections/SubtopicsSection';
-import { SyncSection } from './settings/sections/SyncSection';
-import { TimeAllocationSection } from './settings/sections/TimeAllocationSection';
-import { TutorSection } from './settings/sections/TutorSection';
+import {
+  getSectionComponent,
+  SETTINGS_SIDEBAR_CATEGORIES,
+} from './settings/registry';
 import { SECTION_ANIMATION_VARIANTS } from './settings/SettingsUI';
 import { APP_VERSION, type Section } from './settings/types';
 
-const SIDEBAR_CATEGORIES: {
-  label: string;
-  items: { id: Section; label: string; icon: React.ReactNode }[];
-}[] = [
-  {
-    label: 'AI & Models',
-    items: [
-      { id: 'api', label: 'API Key', icon: <Key className='h-4 w-4' /> },
-      { id: 'models', label: 'Models', icon: <Cpu className='h-4 w-4' /> },
-      {
-        id: 'credits',
-        label: 'Credits',
-        icon: <CreditCard className='h-4 w-4' />,
-      },
-    ],
-  },
-  {
-    label: 'Study & Generation',
-    items: [
-      {
-        id: 'generation',
-        label: 'Generation',
-        icon: <Wand2 className='h-4 w-4' />,
-      },
-      {
-        id: 'tutor',
-        label: 'AI Tutor',
-        icon: <GraduationCap className='h-4 w-4' />,
-      },
-      {
-        id: 'goals',
-        label: 'Study Goals',
-        icon: <TrendingUp className='h-4 w-4' />,
-      },
-      {
-        id: 'time-allocation',
-        label: 'Time & Marks',
-        icon: <Clock className='h-4 w-4' />,
-      },
-      {
-        id: 'subtopics',
-        label: 'Custom Subtopics',
-        icon: <Layers className='h-4 w-4' />,
-      },
-    ],
-  },
-  {
-    label: 'Application',
-    items: [
-      {
-        id: 'appearance',
-        label: 'Appearance',
-        icon: <Palette className='h-4 w-4' />,
-      },
-      { id: 'sync', label: 'Cloud Sync', icon: <Cloud className='h-4 w-4' /> },
-    ],
-  },
-  {
-    label: 'Data & System',
-    items: [
-      {
-        id: 'import-export',
-        label: 'Import / Export',
-        icon: <HardDriveDownload className='h-4 w-4' />,
-      },
-      {
-        id: 'cleanup',
-        label: 'Data Cleanup',
-        icon: <Trash2 className='h-4 w-4' />,
-      },
-      { id: 'debug', label: 'Debug', icon: <Bug className='h-4 w-4' /> },
-      { id: 'logs', label: 'Logs', icon: <ScrollText className='h-4 w-4' /> },
-    ],
-  },
-];
-
-function renderSection(activeSection: Section) {
-  switch (activeSection) {
-    case 'api':
-      return <ApiSection />;
-    case 'models':
-      return <ModelsSection />;
-    case 'credits':
-      return <CreditsSection />;
-    case 'appearance':
-      return <AppearanceSection />;
-    case 'goals':
-      return <GoalsSection />;
-    case 'generation':
-      return <GenerationSettingsSection />;
-    case 'tutor':
-      return <TutorSection />;
-    case 'time-allocation':
-      return <TimeAllocationSection />;
-    case 'debug':
-      return <DebugSection />;
-    case 'logs':
-      return <LogsSection />;
-    case 'sync':
-      return <SyncSection />;
-    case 'cleanup':
-      return <CleanupSection />;
-    case 'import-export':
-      return <ImportExportSection />;
-    case 'subtopics':
-      return <SubtopicsSection />;
-  }
-}
-
+/**
+ * Settings page shell.
+ *
+ * The page is a thin orchestrator: it manages local section state and
+ * renders the sidebar + the active section component. Sidebar categories
+ * and section→component mappings live in `./settings/registry`.
+ */
 export function SettingsView() {
   const [activeSection, setActiveSection] = useState<Section>('api');
+  const ActiveSectionComponent = getSectionComponent(activeSection);
 
   return (
     <div className='flex h-full min-h-0 backdrop-blur-3xl'>
       <nav className='w-64 shrink-0 border-r border-border/50 flex flex-col py-6 px-3 overflow-y-auto overflow-x-hidden bg-muted/20'>
         <div className='flex flex-col gap-8'>
-          {SIDEBAR_CATEGORIES.map((category) => (
+          {SETTINGS_SIDEBAR_CATEGORIES.map((category) => (
             <div key={category.label} className='flex flex-col gap-1'>
               <div className='flex items-center gap-2 px-3 mb-2'>
                 <div className='h-px flex-1 bg-linear-to-r from-border/50 to-transparent' />
@@ -255,7 +128,7 @@ export function SettingsView() {
               exit='exit'
               className='w-full'
             >
-              {renderSection(activeSection)}
+              <ActiveSectionComponent />
             </motion.div>
           </AnimatePresence>
         </div>

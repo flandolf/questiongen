@@ -1,6 +1,5 @@
-import { listen } from '@tauri-apps/api/event';
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -26,14 +25,12 @@ import {
   isMathTopic,
   removeKey,
 } from '@/lib/generator-helpers';
+import { buildSketchpadSessionKey } from '@/lib/sketchpad-session-keys';
 import { useAppStore } from '@/store';
 import { useTutorStore } from '@/store/tutor';
 import type {
-  GeneratedQuestion,
-  GenerationTokenEvent,
   MarkAnswerResponse,
   MarkingCriterion,
-  McQuestion,
   PresetPreferences,
   StudentAnswerImage,
   Topic,
@@ -48,6 +45,9 @@ import {
   TOPICS,
 } from '@/types';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
+import { useGeneratorConfirmModals } from '@/views/generator/hooks/useGeneratorConfirmModals';
+import { useGeneratorStreamSubscription } from '@/views/generator/hooks/useGeneratorStreamSubscription';
+import { useTimerAutoPause } from '@/views/generator/hooks/useTimerAutoPause';
 import { McAnswerCard } from '@/views/generator/McAnswerCard';
 import { SetupPanel } from '@/views/generator/SetupPanel';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
@@ -56,24 +56,11 @@ import { QuestionSplitLayout } from './generator/QuestionSplitLayout';
 import { SessionHeader } from './generator/SessionHeader';
 import { WrittenAnswerCard } from './generator/WrittenAnswerCard';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function buildSketchpadSessionKey(
-  mode: 'written' | 'multiple-choice',
-  question: Pick<GeneratedQuestion, 'id'> | Pick<McQuestion, 'id'>,
-): string {
-  // Keep the sketch session key stable across view/page transitions.
-  // Including mutable content-derived hashes can cause keys to drift after
-  // hydration/normalization and make sketches appear to reset.
-  return `sketch-${mode}-${question.id}`;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line complexity
 export function GeneratorView() {
   const location = useLocation();
-
 
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [hasShownCompletionScreen, setHasShownCompletionScreen] =
@@ -87,11 +74,6 @@ export function GeneratorView() {
       return true;
     }
   });
-
-  const wasMarkingRef = useRef(false);
-  const autoPausedTimersRef = useRef({ written: false, mc: false });
-  const streamBufferRef = useRef<Record<string, string>>({});
-  const streamFlushRafRef = useRef<number | null>(null);
 
   const [, setWrittenSketchpadActive] = useState(false);
   const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
@@ -193,25 +175,34 @@ export function GeneratorView() {
     setStreamText,
   } = useGenerationStatus();
 
+  const {
+    cancelOpen,
+    cancelMessage,
+    openWrittenCancel,
+    openMcCancel,
+    cancelCancel,
+    confirmCancel,
+    bindRemoveHandler,
+    failureOpen,
+    reportFailure,
+    dismissFailure,
+    confirmFailure,
+    bindFailureHandler,
+    clearFailure,
+  } = useGeneratorConfirmModals();
+
   const aggregatedStreamText = useMemo(() => {
     return Object.values(streamTexts).filter(Boolean).join('\n\n');
   }, [streamTexts]);
 
   const deleteSavedSet = useAppStore((s) => s.deleteSavedSet);
 
-  const [lastFailedAction, setLastFailedAction] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
-  const [pendingCancelType, setPendingCancelType] = useState<
-    null | 'written' | 'mc'
-  >(null);
-
   const writtenTimer = useTimer(questions, activeQuestionIndex, 'written');
   const mcTimer = useTimer(mcQuestions, activeMcQuestionIndex, 'mc');
-  const writtenTimerIsPaused = writtenTimer.isPaused;
-  const toggleWrittenTimerPause = writtenTimer.togglePause;
-  const mcTimerIsPaused = mcTimer.isPaused;
-  const toggleMcTimerPause = mcTimer.togglePause;
+
+  const { resetLocalBuffer } = useGeneratorStreamSubscription(setStreamText);
+
+  useTimerAutoPause(isMarking, writtenTimer, mcTimer);
 
   // ── Derived values ───────────────────────────────────────────────────────────
   const activeQuestion = questions[activeQuestionIndex];
@@ -566,36 +557,6 @@ export function GeneratorView() {
     mcTimer.reset();
   }, [writtenTimer, mcTimer]);
 
-  useEffect(() => {
-    if (isMarking && !wasMarkingRef.current) {
-      autoPausedTimersRef.current = {
-        written: !writtenTimerIsPaused,
-        mc: !mcTimerIsPaused,
-      };
-      if (autoPausedTimersRef.current.written) {
-        toggleWrittenTimerPause();
-      }
-      if (autoPausedTimersRef.current.mc) {
-        toggleMcTimerPause();
-      }
-    } else if (!isMarking && wasMarkingRef.current) {
-      if (autoPausedTimersRef.current.written && writtenTimerIsPaused) {
-        toggleWrittenTimerPause();
-      }
-      if (autoPausedTimersRef.current.mc && mcTimerIsPaused) {
-        toggleMcTimerPause();
-      }
-      autoPausedTimersRef.current = { written: false, mc: false };
-    }
-    wasMarkingRef.current = isMarking;
-  }, [
-    isMarking,
-    writtenTimerIsPaused,
-    toggleWrittenTimerPause,
-    mcTimerIsPaused,
-    toggleMcTimerPause,
-  ]);
-
   const togglePause = useCallback(() => {
     if (questionMode === 'written') writtenTimer.togglePause();
     else if (questionMode === 'multiple-choice') mcTimer.togglePause();
@@ -624,66 +585,6 @@ export function GeneratorView() {
     setShowKeyboardHint(false);
     localStorage.setItem('keyboard-hint-dismissed', '1');
   }, [setShowKeyboardHint]);
-
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-
-    void listen<{ topic?: string }>('generation-reset', (event) => {
-      const key = event.payload.topic || 'default';
-      delete streamBufferRef.current[key];
-      setStreamText('', event.payload.topic);
-    })
-      .then((fn) => {
-        if (cancelled) fn();
-        else unlisten = fn;
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [setStreamText]);
-
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let cancelled = false;
-
-    const flushBufferedTokens = () => {
-      streamFlushRafRef.current = null;
-      const buffered = streamBufferRef.current;
-      streamBufferRef.current = {};
-      for (const [key, chunk] of Object.entries(buffered)) {
-        if (!chunk) continue;
-        setStreamText(
-          (prev: string) => prev + chunk,
-          key === 'default' ? undefined : key,
-        );
-      }
-    };
-
-    void listen<GenerationTokenEvent>('generation-token', (event) => {
-      const key = event.payload.topic || 'default';
-      streamBufferRef.current[key] =
-        (streamBufferRef.current[key] || '') + event.payload.text;
-      if (streamFlushRafRef.current === null) {
-        streamFlushRafRef.current = requestAnimationFrame(flushBufferedTokens);
-      }
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    });
-    return () => {
-      cancelled = true;
-      if (streamFlushRafRef.current !== null) {
-        cancelAnimationFrame(streamFlushRafRef.current);
-        streamFlushRafRef.current = null;
-      }
-      streamBufferRef.current = {};
-      unlisten?.();
-    };
-  }, [setStreamText]);
 
   const handleNextWrittenQuestion = useCallback(() => {
     if (!canAdvanceWritten) return;
@@ -715,23 +616,13 @@ export function GeneratorView() {
 
   const handleCancelWrittenQuestion = useCallback(() => {
     if (!activeQuestion) return;
-    setConfirmMessage(
-      `Remove question ${activeQuestionIndex + 1} ("${activeQuestion.topic}")? It will be taken out of your current set.`,
-    );
-    setLastFailedAction(null);
-    setPendingCancelType('written');
-    setConfirmOpen(true);
-  }, [activeQuestion, activeQuestionIndex]);
+    openWrittenCancel(activeQuestion, activeQuestionIndex);
+  }, [activeQuestion, activeQuestionIndex, openWrittenCancel]);
 
   const handleCancelMcQuestion = useCallback(() => {
     if (!activeMcQuestion) return;
-    setConfirmMessage(
-      `Remove question ${activeMcQuestionIndex + 1} ("${activeMcQuestion.topic}")? It will be taken out of your current set.`,
-    );
-    setLastFailedAction(null);
-    setPendingCancelType('mc');
-    setConfirmOpen(true);
-  }, [activeMcQuestion, activeMcQuestionIndex]);
+    openMcCancel(activeMcQuestion, activeMcQuestionIndex);
+  }, [activeMcQuestion, activeMcQuestionIndex, openMcCancel]);
 
   const handleExitSession = useCallback(() => {
     setShowMarkingScreen(false);
@@ -794,93 +685,104 @@ export function GeneratorView() {
   );
   const deleteMcHistoryEntry = useAppStore((s) => s.deleteMcHistoryEntry);
 
-  const performConfirmedCancel = useCallback(() => {
-    if (pendingCancelType === 'written' && activeQuestion) {
-      const id = activeQuestion.id;
-      const next = questions.filter((q) => q.id !== id);
-      setQuestions(next);
-      setActiveWrittenSavedSetId(null);
-      setShowCompletionScreen(false);
-      setActiveQuestionIndex(
-        Math.min(activeQuestionIndex, Math.max(0, next.length - 1)),
-      );
-      setAnswersByQuestionId((p) => removeKey(p, id));
-      setImagesByQuestionId((p) => removeKey(p, id));
-      setFeedbackByQuestionId((p) => removeKey(p, id));
-      setMarkAppealByQuestionId((p) => removeKey(p, id));
-      setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
-      setWrittenResponseEnteredAtById((p) => removeKey(p, id));
-      writtenTimer.removeQuestion(id);
-      const historyEntry = questionHistory.find((e) => e.question.id === id);
-      if (historyEntry) deleteQuestionHistoryEntry(historyEntry.id);
-      setErrorMessage(null);
-    }
-    if (pendingCancelType === 'mc' && activeMcQuestion) {
-      const id = activeMcQuestion.id;
-      const next = mcQuestions.filter((q) => q.id !== id);
-      setMcQuestions(next);
-      setActiveMcSavedSetId(null);
-      setShowCompletionScreen(false);
-      setActiveMcQuestionIndex(
-        Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)),
-      );
-      setMcAnswersByQuestionId((p) => removeKey(p, id));
-      setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
-      mcTimer.removeQuestion(id);
-      const mcHistoryEntry = mcHistory.find((e) => e.question.id === id);
-      if (mcHistoryEntry) deleteMcHistoryEntry(mcHistoryEntry.id);
-      setErrorMessage(null);
-    }
-    setPendingCancelType(null);
-    setConfirmOpen(false);
-    setConfirmMessage(null);
-    toast.success('Question removed from set');
-  }, [
-    pendingCancelType,
-    activeQuestion,
-    activeQuestionIndex,
-    activeMcQuestion,
-    activeMcQuestionIndex,
-    questions,
-    mcQuestions,
-    setQuestions,
-    setActiveWrittenSavedSetId,
-    setActiveMcSavedSetId,
-    setActiveQuestionIndex,
-    setAnswersByQuestionId,
-    setImagesByQuestionId,
-    setFeedbackByQuestionId,
-    writtenTimer,
-    setMcQuestions,
-    setActiveMcQuestionIndex,
-    setMcAnswersByQuestionId,
-    mcTimer,
-    setErrorMessage,
-    setMarkAppealByQuestionId,
-    setMarkOverrideInputByQuestionId,
-    setWrittenResponseEnteredAtById,
-    setMcAwardedMarksByQuestionId,
-    questionHistory,
-    deleteQuestionHistoryEntry,
-    mcHistory,
-    deleteMcHistoryEntry,
-  ]);
+  // Bound into the cancel-confirmation hook so the latest store setters
+  // are always reachable when the user confirms removal of a question.
+  const performRemoveByType = useCallback(
+    (type: 'written' | 'mc' | null) => {
+      if (type === 'written' && activeQuestion) {
+        const id = activeQuestion.id;
+        const next = questions.filter((q) => q.id !== id);
+        setQuestions(next);
+        setActiveWrittenSavedSetId(null);
+        setShowCompletionScreen(false);
+        setActiveQuestionIndex(
+          Math.min(activeQuestionIndex, Math.max(0, next.length - 1)),
+        );
+        setAnswersByQuestionId((p) => removeKey(p, id));
+        setImagesByQuestionId((p) => removeKey(p, id));
+        setFeedbackByQuestionId((p) => removeKey(p, id));
+        setMarkAppealByQuestionId((p) => removeKey(p, id));
+        setMarkOverrideInputByQuestionId((p) => removeKey(p, id));
+        setWrittenResponseEnteredAtById((p) => removeKey(p, id));
+        writtenTimer.removeQuestion(id);
+        const historyEntry = questionHistory.find(
+          (e) => e.question.id === id,
+        );
+        if (historyEntry) deleteQuestionHistoryEntry(historyEntry.id);
+        setErrorMessage(null);
+      }
+      if (type === 'mc' && activeMcQuestion) {
+        const id = activeMcQuestion.id;
+        const next = mcQuestions.filter((q) => q.id !== id);
+        setMcQuestions(next);
+        setActiveMcSavedSetId(null);
+        setShowCompletionScreen(false);
+        setActiveMcQuestionIndex(
+          Math.min(activeMcQuestionIndex, Math.max(0, next.length - 1)),
+        );
+        setMcAnswersByQuestionId((p) => removeKey(p, id));
+        setMcAwardedMarksByQuestionId((p) => removeKey(p, id));
+        mcTimer.removeQuestion(id);
+        const mcHistoryEntry = mcHistory.find((e) => e.question.id === id);
+        if (mcHistoryEntry) deleteMcHistoryEntry(mcHistoryEntry.id);
+        setErrorMessage(null);
+      }
+    },
+    [
+      activeQuestion,
+      activeQuestionIndex,
+      activeMcQuestion,
+      activeMcQuestionIndex,
+      questions,
+      mcQuestions,
+      setQuestions,
+      setActiveWrittenSavedSetId,
+      setActiveMcSavedSetId,
+      setActiveQuestionIndex,
+      setAnswersByQuestionId,
+      setImagesByQuestionId,
+      setFeedbackByQuestionId,
+      writtenTimer,
+      setMcQuestions,
+      setActiveMcQuestionIndex,
+      setMcAnswersByQuestionId,
+      mcTimer,
+      setErrorMessage,
+      setMarkAppealByQuestionId,
+      setMarkOverrideInputByQuestionId,
+      setWrittenResponseEnteredAtById,
+      setMcAwardedMarksByQuestionId,
+      questionHistory,
+      deleteQuestionHistoryEntry,
+      mcHistory,
+      deleteMcHistoryEntry,
+    ],
+  );
+
+  // Bind the actual removal callback so the latest store setters are
+  // always reachable when the user confirms a cancel. Refs inside the
+  // hook guarantee this never causes re-renders.
+  useEffect(() => {
+    bindRemoveHandler(performRemoveByType);
+  }, [bindRemoveHandler, performRemoveByType]);
 
   const handleGenerateQuestions = useCallback(async () => {
     startStopwatch();
-    streamBufferRef.current = {};
-    if (streamFlushRafRef.current !== null) {
-      cancelAnimationFrame(streamFlushRafRef.current);
-      streamFlushRafRef.current = null;
-    }
+    resetLocalBuffer();
     setStreamText('');
     const { setGenerationStatus } = useAppStore.getState();
     setGenerationStatus(null);
     useTutorStore.getState().clearAllSessions();
     await generateQuestionsOrchestrator();
-  }, [startStopwatch, setStreamText]);
+  }, [startStopwatch, resetLocalBuffer, setStreamText]);
 
-
+  // Bind the retry handler to the same generation call so the user can
+  // re-run the same parameters after a failed attempt.
+  useEffect(() => {
+    bindFailureHandler(() => {
+      void handleGenerateQuestions();
+    });
+  }, [bindFailureHandler, handleGenerateQuestions]);
 
   const handleSubmitForMarking = useCallback(
     async (payload?: { image?: StudentAnswerImage }) => {
@@ -898,7 +800,7 @@ export function GeneratorView() {
         return;
       setErrorMessage(null);
       setShowMarkingScreen(true);
-      setLastFailedAction(null);
+      clearFailure();
       try {
         if (payload?.image) {
           setImagesByQuestionId((prev) => ({
@@ -910,7 +812,7 @@ export function GeneratorView() {
         writtenTimer.markAnswered(activeQuestion.id);
       } catch (error) {
         setErrorMessage(readBackendError(error));
-        setLastFailedAction('mark-written');
+        reportFailure('mark-written');
       }
     },
     [
@@ -925,6 +827,8 @@ export function GeneratorView() {
       setImagesByQuestionId,
       submitWrittenAnswer,
       writtenTimer,
+      clearFailure,
+      reportFailure,
     ],
   );
 
@@ -934,12 +838,12 @@ export function GeneratorView() {
     if (!appealText || !apiKey.trim() || !markModel.trim()) return;
     setErrorMessage(null);
     setShowMarkingScreen(true);
-    setLastFailedAction(null);
+    clearFailure();
     try {
       await argueForWrittenMark(markModel);
     } catch (error) {
       setErrorMessage(readBackendError(error));
-      setLastFailedAction('mark-written');
+      reportFailure('mark-written');
     } finally {
       setShowMarkingScreen(true);
     }
@@ -951,6 +855,8 @@ export function GeneratorView() {
     markModel,
     argueForWrittenMark,
     setErrorMessage,
+    clearFailure,
+    reportFailure,
   ]);
 
   const handleMcAnswer = useCallback(
@@ -1315,22 +1221,21 @@ export function GeneratorView() {
       </div>
 
       <ConfirmModal
-        open={confirmOpen}
-        onCancel={() => setConfirmOpen(false)}
+        open={cancelOpen}
+        onCancel={cancelCancel}
         title='Remove Question?'
-        description={confirmMessage || ''}
-        onConfirm={performConfirmedCancel}
+        description={cancelMessage || ''}
+        onConfirm={confirmCancel}
         confirmText='Remove'
       />
 
       <ConfirmModal
-        open={Boolean(lastFailedAction) && !confirmOpen}
-        onCancel={() => setLastFailedAction(null)}
+        open={failureOpen}
+        onCancel={dismissFailure}
         title='Generation Failed'
         description='The generation request timed out or was interrupted. Would you like to retry the same parameters?'
         onConfirm={() => {
-          setLastFailedAction(null);
-          void handleGenerateQuestions();
+          void confirmFailure();
         }}
         confirmText='Retry'
       />
