@@ -1,26 +1,26 @@
+pub mod cleanup;
 pub mod context;
-pub mod provider;
-pub mod prompt;
-pub mod output;
 pub mod generation;
+pub mod image;
 pub mod marking;
+pub mod output;
+pub mod pdf;
+pub mod prompt;
+pub mod provider;
 pub mod subtopics;
 pub mod tutor;
-pub mod image;
-pub mod pdf;
-pub mod cleanup;
 
 use crate::models::{AppError, CommandResult};
 use context::EngineContext;
 
+pub use cleanup::cleanup_topics;
 /// Re-export high-level APIs matching Tauri command signatures.
-pub use generation::{generate_written_questions, generate_mc_questions};
-pub use marking::{mark_answer, mark_pdf, batch_mark_answers};
+pub use generation::{generate_mc_questions, generate_written_questions};
+pub use image::analyze_image;
+pub use marking::{batch_mark_answers, mark_answer, mark_pdf};
+pub use pdf::discover_pdf_questions;
 pub use subtopics::generate_subtopics;
 pub use tutor::tutor_chat;
-pub use image::analyze_image;
-pub use pdf::discover_pdf_questions;
-pub use cleanup::cleanup_topics;
 
 /// Shared helper: validate API key and model are non-empty.
 pub fn validate_credentials(api_key: &str, model: &str) -> CommandResult<()> {

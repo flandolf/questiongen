@@ -530,13 +530,19 @@ impl GenerationService {
         } else {
             prompts::written_system()
         };
+        // Resolve base URL once. Defaults to OpenRouter so legacy callers
+        // (no base_url supplied) still hit the OpenRouter json_schema path
+        // rather than silently regressing to json_object.
+        let request_base_url = request
+            .base_url()
+            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
         let format = if is_mc {
-            schemas::mc_format(request.model())
+            schemas::mc_format(request.model(), request_base_url)
         } else {
-            schemas::written_format(request.model())
+            schemas::written_format(request.model(), request_base_url)
         };
         // When json_object is used (no structured output), inject schema guidance
-        if !crate::llm::supports_json_schema_format(request.model()) {
+        if !crate::llm::supports_json_schema_format_for(request.model(), request_base_url) {
             let guidance = if is_mc {
                 prompts::mc_schema_guidance_text()
             } else {
@@ -1230,14 +1236,21 @@ impl GenerationService {
             serde_json::json!([{ "id": "response-healing" }])
         };
 
+        // Resolve base URL once for json_schema routing on marking too.
+        // Default to OpenRouter for legacy callers without an explicit URL.
+        let marking_base_url = base_url
+            .as_deref()
+            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
         let mut marking_system_prompt = prompts::marking_system(
             max_marks,
             marking_guidance,
             marking_scheme_style,
             marker_style.as_deref(),
             custom_marker_style.as_deref(),
+            model,
+            marking_base_url,
         );
-        if !crate::llm::supports_json_schema_format(model) {
+        if !crate::llm::supports_json_schema_format_for(model, marking_base_url) {
             marking_system_prompt.push_str("\n\n");
             marking_system_prompt.push_str(prompts::marking_schema_guidance_text());
         }
@@ -1247,7 +1260,7 @@ impl GenerationService {
             model,
             &marking_system_prompt,
             user_content,
-            schemas::marking_format(model),
+            schemas::marking_format(model, marking_base_url),
             max_tokens,
         )
         .with_plugins(plugins)

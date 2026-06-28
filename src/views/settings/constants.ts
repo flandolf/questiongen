@@ -1,62 +1,148 @@
+import type { PresetModel } from '@/types/provider';
+
 export const PRESET_MODELS = [
-  { id: 'google/gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro' },
-  { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash' },
-  { id: 'google/gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
-  { id: 'openai/gpt-5.5', name: 'GPT-5.5' },
-  { id: 'openai/gpt-5.4', name: 'GPT-5.4' },
-  { id: 'openai/gpt-5.4-nano', name: 'GPT-5.4 Nano' },
-  { id: 'openai/gpt-5.4-mini', name: 'GPT-5.4 Mini' },
-  { id: 'x-ai/grok-4.20', name: 'Grok 4.20' },
-  { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast' },
-  { id: 'xiaomi/mimo-v2.5-pro:nitro', name: 'MiMo V2.5 Pro' },
-  { id: 'xiaomi/mimo-v2.5-omni:nitro', name: 'MiMo V2.5 Omni' },
-  { id: 'minimax/minimax-m2.7:nitro', name: 'Minimax M2.7' },
-  { id: 'qwen/qwen3.6-plus:nitro', name: 'Qwen 3.6 Plus' },
-  { id: 'openai/gpt-oss-120b:nitro', name: 'GPT-OSS 120B (Nitro)' },
-  { id: 'deepseek/deepseek-v4-flash:nitro', name: 'DeepSeek V4 Flash (Nitro)' },
-  { id: 'deepseek/deepseek-v4-pro:nitro', name: 'DeepSeek V4 Pro (Nitro)' },
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
-  { id: 'custom', name: 'Custom…' },
+  {
+    id: 'google/gemini-3.5-flash',
+    name: 'Gemini 3.5 Flash',
+    providerId: 'openrouter',
+  },
+  {
+    id: 'google/gemini-3.1-flash-lite',
+    name: 'Gemini 3.1 Flash Lite',
+    providerId: 'openrouter',
+  },
+  { id: 'openai/gpt-5.5', name: 'GPT-5.5', providerId: 'openrouter' },
+  { id: 'openai/gpt-5.4-nano', name: 'GPT-5.4 Nano', providerId: 'openrouter' },
+  { id: 'openai/gpt-5.4-mini', name: 'GPT-5.4 Mini', providerId: 'openrouter' },
 ];
 
 export const PRESET_IMAGE_MODELS = [
-  { id: 'google/gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite' },
-  { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash' },
-  { id: 'openai/gpt-5.4-nano', name: 'GPT-5.4 Nano' },
-  { id: 'openai/gpt-5.4-mini', name: 'GPT-5.4 Mini' },
-  { id: 'x-ai/grok-4.20', name: 'Grok 4.20' },
-  { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast' },
-  { id: 'xiaomi/mimo-v2.5-omni:nitro', name: 'MiMo V2.5 Omni' },
-  { id: 'minimax/minimax-m2.7:nitro', name: 'Minimax M2.7' },
-  { id: 'qwen/qwen3.6-plus:nitro', name: 'Qwen 3.6 Plus' },
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  {
+    id: 'google/gemini-3.1-flash-lite-preview',
+    name: 'Gemini 3.1 Flash Lite',
+    providerId: 'openrouter',
+  },
+  {
+    id: 'google/gemini-3-flash-preview',
+    name: 'Gemini 3 Flash',
+    providerId: 'openrouter',
+  },
+  { id: 'openai/gpt-5.4-nano', name: 'GPT-5.4 Nano', providerId: 'openrouter' },
+  { id: 'openai/gpt-5.4-mini', name: 'GPT-5.4 Mini', providerId: 'openrouter' },
+  { id: 'x-ai/grok-4.20', name: 'Grok 4.20', providerId: 'openrouter' },
+  { id: 'x-ai/grok-4.1-fast', name: 'Grok 4.1 Fast', providerId: 'openrouter' },
+  {
+    id: 'xiaomi/mimo-v2.5-omni:nitro',
+    name: 'MiMo V2.5 Omni',
+    providerId: 'openrouter',
+  },
+  {
+    id: 'minimax/minimax-m2.7:nitro',
+    name: 'Minimax M2.7',
+    providerId: 'openrouter',
+  },
+  {
+    id: 'qwen/qwen3.6-plus:nitro',
+    name: 'Qwen 3.6 Plus',
+    providerId: 'openrouter',
+  },
   { id: 'custom', name: 'Custom…' },
 ];
 
-/** Model presets for the DeepSeek API (plain model IDs without provider prefix). */
+/** Model presets for the DeepSeek API. */
 export const DEEPSEEK_PRESET_MODELS = [
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
+  {
+    id: 'deepseek/deepseek-v4-flash',
+    name: 'DeepSeek V4 Flash',
+    providerId: 'deepseek',
+  },
+  {
+    id: 'deepseek/deepseek-v4-pro',
+    name: 'DeepSeek V4 Pro',
+    providerId: 'deepseek',
+  },
 ];
 
 export const DEEPSEEK_PRESET_IMAGE_MODELS = [
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  {
+    id: 'deepseek/deepseek-v4-flash',
+    name: 'DeepSeek V4 Flash',
+    providerId: 'deepseek',
+  },
   { id: 'custom', name: 'Custom…' },
 ];
 
-/** Extract a human-readable API provider label from a model ID. */
-export function getProviderLabel(modelId: string): string {
+/**
+ * Model presets for the NVIDIA NIM API. The leading `nvidia/`
+ * is an app-side provider prefix; it is stripped before requests.
+ *
+ * Models with `:thinking` or `-thinking` suffix expose chain-of-thought
+ * tokens natively — left here for users who want to copy them as-is.
+ */
+export const NVIDIA_PRESET_MODELS = [
+  {
+    id: 'nvidia/moonshotai/kimi-k2.6',
+    name: 'Kimi K 2.6',
+    providerId: 'nvidia',
+  },
+  {
+    id: 'nvidia/mistralai/mistral-large-3-675b-instruct-2512',
+    name: 'Mistral Large 3 675B Instruct 2512',
+    providerId: 'nvidia',
+  },
+  { id: 'custom', name: 'Custom…' },
+];
+
+export const NVIDIA_PRESET_IMAGE_MODELS = [
+  {
+    id: 'nvidia/moonshotai/kimi-k2.6',
+    name: 'Kimi K 2.6',
+    providerId: 'nvidia',
+  },
+  {
+    id: 'nvidia/mistralai/mistral-large-3-675b-instruct-2512',
+    name: 'Mistral Large 3 675B Instruct 2512',
+    providerId: 'nvidia',
+  },
+  { id: 'custom', name: 'Custom…' },
+];
+
+/**
+ * Extract a human-readable API provider label from a model id.
+ *
+ * The legacy shape-only logic has been preserved for places that
+ * don't have access to the providers store. Prefer
+ * `getProviderLabelForModel` from `@/types/provider` for accurate
+ * routing. This helper is kept as a fallback for render layers that
+ * only have the model id and an active provider id.
+ */
+export function getProviderLabel(
+  modelId: string,
+  activeProviderId?: string,
+): string {
   if (!modelId || modelId === 'custom') return '';
-  if (modelId.startsWith('deepseek-')) return 'DeepSeek';
-  if (modelId.includes('/')) return 'OpenRouter';
+  if (modelId.startsWith('deepseek/')) {
+    return 'DeepSeek';
+  }
+  if (modelId.split('/')[0] === 'nvidia' && modelId.split('/').length >= 3) {
+    return 'NVIDIA NIM';
+  }
+  if (modelId.includes('/')) {
+    if (activeProviderId === 'nvidia') return 'NVIDIA NIM';
+    return 'OpenRouter';
+  }
   return '';
 }
 
-/** All model presets, regardless of active provider. Auth resolves API key by model ID pattern. */
+/** Preset text models for the active provider. */
 export function getModelsForProvider(
-  _providerId?: string,
-): typeof PRESET_MODELS {
+  providerId = 'openrouter',
+): PresetModel[] {
+  if (providerId === 'nvidia') return NVIDIA_PRESET_MODELS;
+  if (providerId === 'deepseek') return DEEPSEEK_PRESET_MODELS;
+  if (providerId !== 'openrouter') {
+    return [{ id: 'custom', name: 'Custom…', providerId }];
+  }
   return PRESET_MODELS;
 }
 

@@ -178,40 +178,15 @@ async fn call_openrouter_non_streaming(
         "response_format".to_string(),
         config.response_format.clone(),
     );
-    body_map.insert("plugins".to_string(), config.plugins.clone());
+    if is_openrouter_endpoint(&config.base_url) {
+        body_map.insert("plugins".to_string(), config.plugins.clone());
+    }
 
     if let Some(temp) = config.temperature {
         body_map.insert("temperature".to_string(), serde_json::json!(temp));
     }
 
-    if is_deepseek_direct_model(&config.model) {
-        if config.reasoning_enabled {
-            body_map.insert(
-                "thinking".to_string(),
-                serde_json::json!({"type": "enabled"}),
-            );
-            if let Some(ref effort) = config.reasoning_effort {
-                body_map.insert("reasoning_effort".to_string(), serde_json::json!(effort));
-            }
-        } else {
-            body_map.insert(
-                "thinking".to_string(),
-                serde_json::json!({"type": "disabled"}),
-            );
-        }
-    } else if config.reasoning_enabled {
-        let mut reasoning_obj = serde_json::Map::new();
-        if let Some(ref effort) = config.reasoning_effort {
-            reasoning_obj.insert(
-                "effort".to_string(),
-                serde_json::Value::String(effort.clone()),
-            );
-        }
-        body_map.insert(
-            "reasoning".to_string(),
-            serde_json::Value::Object(reasoning_obj),
-        );
-    }
+    apply_reasoning_params(&mut body_map, &config);
 
     let body = serde_json::Value::Object(body_map);
 
@@ -328,45 +303,22 @@ async fn call_openrouter_streaming(
         "response_format".to_string(),
         config.response_format.clone(),
     );
-    body_map.insert("plugins".to_string(), config.plugins.clone());
+    if is_openrouter_endpoint(&config.base_url) {
+        body_map.insert("plugins".to_string(), config.plugins.clone());
+    }
     body_map.insert("stream".to_string(), serde_json::Value::Bool(true));
-    body_map.insert(
-        "stream_options".to_string(),
-        serde_json::json!({ "include_usage": true }),
-    );
+    if is_openrouter_endpoint(&config.base_url) || is_deepseek_endpoint(&config.base_url) {
+        body_map.insert(
+            "stream_options".to_string(),
+            serde_json::json!({ "include_usage": true }),
+        );
+    }
 
     if let Some(temp) = config.temperature {
         body_map.insert("temperature".to_string(), serde_json::json!(temp));
     }
 
-    if is_deepseek_direct_model(&config.model) {
-        if config.reasoning_enabled {
-            body_map.insert(
-                "thinking".to_string(),
-                serde_json::json!({"type": "enabled"}),
-            );
-            if let Some(ref effort) = config.reasoning_effort {
-                body_map.insert("reasoning_effort".to_string(), serde_json::json!(effort));
-            }
-        } else {
-            body_map.insert(
-                "thinking".to_string(),
-                serde_json::json!({"type": "disabled"}),
-            );
-        }
-    } else if config.reasoning_enabled {
-        let mut reasoning_obj = serde_json::Map::new();
-        if let Some(ref effort) = config.reasoning_effort {
-            reasoning_obj.insert(
-                "effort".to_string(),
-                serde_json::Value::String(effort.clone()),
-            );
-        }
-        body_map.insert(
-            "reasoning".to_string(),
-            serde_json::Value::Object(reasoning_obj),
-        );
-    }
+    apply_reasoning_params(&mut body_map, &config);
 
     let body = serde_json::Value::Object(body_map);
 
@@ -567,8 +519,16 @@ pub async fn call_openrouter_chat_streaming(
         "messages": config.messages,
         "max_tokens": config.max_tokens,
         "stream": true,
-        "stream_options": { "include_usage": true },
     });
+
+    if is_openrouter_endpoint(&config.base_url) || is_deepseek_endpoint(&config.base_url) {
+        if let Some(obj) = body_json.as_object_mut() {
+            obj.insert(
+                "stream_options".into(),
+                serde_json::json!({ "include_usage": true }),
+            );
+        }
+    }
 
     if let Some(temp) = config.temperature {
         if let Some(obj) = body_json.as_object_mut() {
@@ -769,17 +729,87 @@ pub fn is_deepseek_direct_model(model: &str) -> bool {
     model.starts_with("deepseek-")
 }
 
-/// Returns true if the model supports structured output with `json_schema` type.
-/// OpenRouter models (with `provider/name` format) support it. DeepSeek direct
-/// models and custom-provider models (no `/` prefix) only support `json_object`.
-pub fn supports_json_schema_format(model: &str) -> bool {
-    if is_deepseek_model(model) {
+/// True if the active endpoint is OpenRouter.ai specifically. Used to
+/// gate provider-specific wire params (e.g. `reasoning`/`thinking`).
+pub fn is_openrouter_endpoint(base_url: &str) -> bool {
+    let url = base_url.trim().trim_end_matches('/').to_ascii_lowercase();
+    url == "https://openrouter.ai/api/v1"
+        || url == "http://openrouter.ai/api/v1"
+        || url.starts_with("https://openrouter.ai/api/v1")
+}
+
+/// True if the active endpoint is the direct DeepSeek API. NVIDIA and
+/// custom OpenAI-compatible endpoints do not interpret `thinking` or
+/// `reasoning` params, so we never emit them for those routes.
+pub fn is_deepseek_endpoint(base_url: &str) -> bool {
+    let url = base_url.trim().trim_end_matches('/').to_ascii_lowercase();
+    url == "https://api.deepseek.com/v1"
+        || url == "https://api.deepseek.com"
+        || url.starts_with("https://api.deepseek.com/v1")
+}
+
+/// Inject provider-specific reasoning params into the request body.
+/// - OpenRouter: emits `reasoning` (object with `effort`).
+/// - Direct DeepSeek: emits `thinking` (`enabled`/`disabled`) + optional
+///   `reasoning_effort` for direct-only when reasoning is enabled.
+/// - NVIDIA + custom: emits nothing — these endpoints don't accept the
+///   OpenRouter/DeepSeek reasoning wire shapes.
+fn apply_reasoning_params(
+    body: &mut serde_json::Map<String, serde_json::Value>,
+    config: &OpenRouterRequestConfig,
+) {
+    if is_openrouter_endpoint(&config.base_url) {
+        if config.reasoning_enabled {
+            let mut reasoning_obj = serde_json::Map::new();
+            if let Some(ref effort) = config.reasoning_effort {
+                reasoning_obj.insert(
+                    "effort".to_string(),
+                    serde_json::Value::String(effort.clone()),
+                );
+            }
+            body.insert(
+                "reasoning".to_string(),
+                serde_json::Value::Object(reasoning_obj),
+            );
+        }
+        return;
+    }
+    if is_deepseek_endpoint(&config.base_url) && is_deepseek_direct_model(&config.model) {
+        if config.reasoning_enabled {
+            body.insert(
+                "thinking".to_string(),
+                serde_json::json!({"type": "enabled"}),
+            );
+            if let Some(ref effort) = config.reasoning_effort {
+                body.insert("reasoning_effort".to_string(), serde_json::json!(effort));
+            }
+        } else {
+            body.insert(
+                "thinking".to_string(),
+                serde_json::json!({"type": "disabled"}),
+            );
+        }
+        return;
+    }
+    // NVIDIA + custom OpenAI-compatible endpoints: do nothing.
+}
+
+/// Returns true if the model + endpoint should use strict `json_schema`
+/// structured outputs, or fall back to plain `json_object`.
+///
+/// `json_schema` is an OpenRouter-specific extension; DeepSeek direct,
+/// NVIDIA NIMs, and most custom OpenAI-compatible endpoints only honour
+/// `json_object`. We pass `base_url` so callers can route correctly.
+pub fn supports_json_schema_format_for(model: &str, base_url: &str) -> bool {
+    if is_deepseek_endpoint(base_url) {
         return false;
     }
-    // OpenRouter models use provider/model-name format (contain '/')
-    // Plain model IDs without '/' likely come from non-OpenRouter providers
-    // that only support basic json_object.
-    model.trim().contains('/')
+    // NVIDIA + custom OpenAI-compatible endpoints only support json_object.
+    if !is_openrouter_endpoint(base_url) {
+        return false;
+    }
+    // OpenRouter uses provider/model-name format (contain '/').
+    !is_deepseek_model(model) && model.trim().contains('/')
 }
 
 pub fn json_object_format() -> serde_json::Value {

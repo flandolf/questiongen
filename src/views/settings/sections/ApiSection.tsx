@@ -81,7 +81,13 @@ function ProviderCard({
           type={showKey ? 'text' : 'password'}
           value={localKey}
           onChange={(e) => handleKeyChange(e.target.value)}
-          placeholder={providerId === 'deepseek' ? 'sk-...' : 'sk-or-v1-...'}
+          placeholder={
+            providerId === 'deepseek'
+              ? 'sk-...'
+              : providerId === 'nvidia'
+                ? 'nvapi-...'
+                : 'sk-or-v1-...'
+          }
           className='pr-10 font-mono text-sm'
         />
         <button

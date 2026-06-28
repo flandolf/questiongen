@@ -1,6 +1,7 @@
 import type { BackendError, MarkAnswerResponse, MarkingCriterion } from '@/types';
 
 export {
+  normalizeMarkdownLineBreaks,
   normalizeMathDelimiters,
   shieldMathForMarkdown,
 } from './math-normalization';

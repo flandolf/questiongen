@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type { AppState } from '@/store/types';
 import type { GeneratedQuestion, MarkAnswerResponse } from '@/types';
+import type { ProviderState } from '@/types/provider';
 
 import { MARKER_STYLE_OPTIONS, PRESET_MODELS } from './settings/constants';
 import { ModelSearchPanel } from './settings/ModelSearchPanel';
@@ -353,6 +354,9 @@ interface MarkingSettingsProps {
   setCustomModelId: (v: string) => void;
   setShowCustomModel: (v: boolean) => void;
   setSearchOpen: (v: boolean) => void;
+  /** Provider context for accurate per-model badges. */
+  providers?: Record<string, ProviderState>;
+  activeProviderId?: string;
 }
 
 const MarkingSettings = ({
@@ -368,6 +372,8 @@ const MarkingSettings = ({
   setCustomModelId,
   setShowCustomModel,
   setSearchOpen,
+  providers,
+  activeProviderId,
 }: MarkingSettingsProps) => {
   return (
     <div className='p-4 space-y-4'>
@@ -377,6 +383,8 @@ const MarkingSettings = ({
           value={markingModel}
           models={PRESET_MODELS}
           disabled={!apiKey}
+          providers={providers}
+          activeProviderId={activeProviderId}
           onSelect={(v) => {
             if (v === 'custom') {
               setShowCustomModel(true);
@@ -494,6 +502,8 @@ export function PDFMarkerView() {
     discoverPdfQuestions,
     resetPdfMarker,
   } = useAppStore();
+  const providers = useAppStore((s) => s.providers);
+  const activeProviderId = useAppStore((s) => s.activeProviderId);
 
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -925,6 +935,8 @@ export function PDFMarkerView() {
                     setCustomModelId={setCustomModelId}
                     setShowCustomModel={setShowCustomModel}
                     setSearchOpen={setSearchOpen}
+                    providers={providers}
+                    activeProviderId={activeProviderId}
                   />
                 </motion.div>
               )}

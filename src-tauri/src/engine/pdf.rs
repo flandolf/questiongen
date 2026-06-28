@@ -4,8 +4,7 @@ use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{rust_log, validate_credentials};
 use crate::llm::json_object_format;
 use crate::models::{
-    CommandResult, DiscoverPdfQuestionsRequest, DiscoverPdfQuestionsResponse,
-    DiscoveredQuestion,
+    CommandResult, DiscoverPdfQuestionsRequest, DiscoverPdfQuestionsResponse, DiscoveredQuestion,
 };
 use std::time::Instant;
 
@@ -21,10 +20,13 @@ pub async fn discover_pdf_questions(
 
     let user_prompt = "Analyze the attached PDF. Identify each question, its full prompt text, its maximum marks, and the page numbers where the student's response is located.";
 
-    let data_url = if request.pdf_base64.starts_with("data:application/pdf;base64,") {
+    let data_url = if request
+        .pdf_base64
+        .starts_with("data:application/pdf;base64,")
+    {
         request.pdf_base64.clone()
     } else {
-        format!("data:application/pdf;base64,{}" , request.pdf_base64)
+        format!("data:application/pdf;base64,{}", request.pdf_base64)
     };
 
     let content_parts = vec![
@@ -38,8 +40,7 @@ pub async fn discover_pdf_questions(
         }),
     ];
 
-    let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
-        .with_max_tokens(6000);
+    let mut llm_config = LlmConfig::new(&request.api_key, &request.model).with_max_tokens(6000);
     if let Some(ref url) = request.base_url {
         llm_config = llm_config.with_base_url(url);
     }
@@ -59,7 +60,11 @@ pub async fn discover_pdf_questions(
     rust_log(
         ctx,
         "info",
-        &format!("Discovered {} PDF questions in {}ms", discovered.questions.len(), duration_ms),
+        &format!(
+            "Discovered {} PDF questions in {}ms",
+            discovered.questions.len(),
+            duration_ms
+        ),
         Some(serde_json::json!({
             "prompt_tokens": completion.prompt_tokens,
             "completion_tokens": completion.completion_tokens,

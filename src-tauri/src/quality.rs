@@ -364,9 +364,7 @@ pub fn cognitive_escalation(text: &str) -> Option<CognitiveEscalation> {
         }
     }
     if escalated {
-        escalated = tiers
-            .windows(2)
-            .all(|w| w[1] >= w[0].saturating_sub(1));
+        escalated = tiers.windows(2).all(|w| w[1] >= w[0].saturating_sub(1));
     }
     Some(CognitiveEscalation {
         part_count: parts.len(),
@@ -448,19 +446,11 @@ fn cog_tier(verb_or_phrase: &str) -> Option<u8> {
     // tier. The downstream caller's behaviour stays correct (no flag).
     match token {
         "state" | "define" | "list" | "identify" | "name" => Some(1),
-        "calculate" | "find" | "determine" | "solve" | "sketch" | "draw" | "compute" => {
-            Some(2)
-        }
+        "calculate" | "find" | "determine" | "solve" | "sketch" | "draw" | "compute" => Some(2),
         "show" | "describe" | "explain" | "compare" | "interpret" | "predict" | "outline" => {
             Some(3)
         }
-        "justify"
-        | "discuss"
-        | "estimate"
-        | "verify"
-        | "comment"
-        | "deduce"
-        | "suggest"
+        "justify" | "discuss" | "estimate" | "verify" | "comment" | "deduce" | "suggest"
         | "apply" => Some(4),
         "derive" | "prove" | "evaluate" | "analyze" | "synthesize" | "assess" => Some(5),
         _ => None,
@@ -507,8 +497,7 @@ pub fn compute_regen_anti_examples(
     metrics: &[QuestionQualityMetrics],
 ) -> (Vec<String>, Vec<String>) {
     let mut offender_prompts: Vec<String> = Vec::new();
-    let mut verb_counts: std::collections::HashMap<String, u32> =
-        std::collections::HashMap::new();
+    let mut verb_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     for (text, m) in texts.iter().zip(metrics.iter()) {
         if m.distinctness < crate::constants::REGENERATION_OFFENDER_DISTINCTNESS_FLOOR {
             offender_prompts.push(text.clone());
@@ -543,13 +532,13 @@ pub fn should_retry(
     batch_size: usize,
     attempts_used: u8,
 ) -> bool {
-    let distinctness_low = distinctness_avg
-        .map_or(false, |d| d < crate::constants::REGENERATION_DISTINCTNESS_THRESHOLD);
+    let distinctness_low = distinctness_avg.map_or(false, |d| {
+        d < crate::constants::REGENERATION_DISTINCTNESS_THRESHOLD
+    });
     let verb_diversity_low = command_verb_diversity.map_or(false, |v| {
         v < crate::constants::REGENERATION_VERB_DIVERSITY_THRESHOLD
     });
-    let batch_sized =
-        batch_size >= crate::constants::QUALITY_MIN_BATCH_FOR_REVIEW as usize;
+    let batch_sized = batch_size >= crate::constants::QUALITY_MIN_BATCH_FOR_REVIEW as usize;
     (distinctness_low || verb_diversity_low)
         && batch_sized
         && attempts_used < crate::constants::REGENERATION_MAX_ATTEMPTS
@@ -578,7 +567,8 @@ mod tests {
 
     #[test]
     fn test_cognitive_escalation() {
-        let good = "(a) State the domain.\n(b) Hence calculate the gradient.\n(c) Justify your answer.";
+        let good =
+            "(a) State the domain.\n(b) Hence calculate the gradient.\n(c) Justify your answer.";
         let r = cognitive_escalation(good).unwrap();
         assert!(r.escalated, "good multi-part must show escalation");
         let bad = "(a) Justify.\n(b) State.";
@@ -615,9 +605,21 @@ mod tests {
         let parts = split_into_parts(s);
         // Math expressions preserved verbatim inside the preamble besides the
         // first (a)/(b) split.
-        assert!(parts.iter().any(|p| p.contains("f(x)")), "parts = {:?}", parts);
-        assert!(parts.iter().any(|p| p.contains("(x+1)")), "parts = {:?}", parts);
-        assert!(parts.iter().any(|p| p.contains("P(X>0)")), "parts = {:?}", parts);
+        assert!(
+            parts.iter().any(|p| p.contains("f(x)")),
+            "parts = {:?}",
+            parts
+        );
+        assert!(
+            parts.iter().any(|p| p.contains("(x+1)")),
+            "parts = {:?}",
+            parts
+        );
+        assert!(
+            parts.iter().any(|p| p.contains("P(X>0)")),
+            "parts = {:?}",
+            parts
+        );
         // The marker labels themselves appear at the front of their own parts.
         assert!(parts.iter().any(|p| p.trim_start().starts_with("(b)")));
         // No spurious split on `f(` or `P(`.

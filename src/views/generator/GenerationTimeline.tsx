@@ -45,9 +45,13 @@ function phaseForStage(
   currentStage: string,
   isFailed: boolean,
 ): TimelinePhase {
-  const currentIdx = STAGE_ORDER.indexOf(currentStage as KnownStage);
+  const currentIdx =
+    currentStage === 'failed'
+      ? STAGE_ORDER.indexOf('generating')
+      : STAGE_ORDER.indexOf(currentStage as KnownStage);
   const thisIdx = STAGE_ORDER.indexOf(stage);
   if (isFailed && stage === currentStage) return 'error';
+  if (isFailed && thisIdx === currentIdx) return 'error';
   if (thisIdx < currentIdx) return 'done';
   if (thisIdx === currentIdx) return isFailed ? 'error' : 'active';
   return 'waiting';
@@ -417,7 +421,7 @@ export function GenerationTimeline({
   });
 
   return (
-    <div className='w-full py-2.5 space-y-2'>
+    <div className='w-full px-4 py-2.5 space-y-2'>
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-1.5'>
           {isGenerating ? (
@@ -547,7 +551,7 @@ export function BatchTimeline({
   });
 
   return (
-    <div className='w-full px-6 py-2.5 space-y-2'>
+    <div className='w-full px-4 py-2.5 space-y-2'>
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-1.5'>
           {isGenerating ? (

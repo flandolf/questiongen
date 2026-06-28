@@ -202,5 +202,3 @@ pub fn build_report_file_parts(
     let filenames = report_pdf_names_for_topics(topics);
     build_pdf_file_parts(app, "reports", &filenames)
 }
-
-

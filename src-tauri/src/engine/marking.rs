@@ -1,14 +1,12 @@
 use crate::catalog;
 use crate::engine::context::EngineContext;
 use crate::engine::output::parse_structured;
-use crate::engine::prompt::{
-    marking_system_prompt, marking_user_prompt,
-};
+use crate::engine::prompt::{marking_system_prompt, marking_user_prompt};
 use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{emit_status, rust_log, validate_credentials};
 use crate::models::{
-    BatchMarkItem, BatchMarkRequest, BatchMarkResponse, CommandResult,
-    MarkAnswerRequest, MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, MarkPdfResultItem,
+    BatchMarkItem, BatchMarkRequest, BatchMarkResponse, CommandResult, MarkAnswerRequest,
+    MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, MarkPdfResultItem,
 };
 use crate::schemas;
 use std::time::Instant;
@@ -35,6 +33,12 @@ pub async fn mark_answer(
     let marking_guidance = catalog::topic_marking_guidance(&topic);
     let marking_scheme_style = "criterion-per-mark"; // Default style
 
+    // Default to OpenRouter so legacy marking calls without an explicit
+    // base_url continue to send json_schema structured output.
+    let marking_base_url = request
+        .base_url
+        .as_deref()
+        .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
     let system_prompt = marking_system_prompt(
         max_marks,
         &marking_guidance,
@@ -42,6 +46,7 @@ pub async fn mark_answer(
         request.marker_style.clone(),
         request.custom_marker_style.clone(),
         &request.model,
+        marking_base_url,
     );
 
     let report_preamble = if let Some(ref image_url) = request.student_answer_image_data_url {
@@ -88,7 +93,7 @@ pub async fn mark_answer(
         }
     }
 
-    let response_format = schemas::marking_format(&request.model);
+    let response_format = schemas::marking_format(&request.model, marking_base_url);
 
     let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
         .with_max_tokens(estimate_marking_tokens(max_marks))

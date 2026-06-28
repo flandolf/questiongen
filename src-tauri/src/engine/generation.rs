@@ -6,12 +6,12 @@ use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{emit_status, rust_log, validate_credentials};
 use crate::models::{
     AppError, CommandResult, GenerateMcQuestionsRequest, GenerateMcQuestionsResponse,
-    GenerateQuestionsRequest, GenerateQuestionsResponse, GeneratedQuestion, GenerationQualityDiagnostics,
-    McQuestion,
+    GenerateQuestionsRequest, GenerateQuestionsResponse, GeneratedQuestion,
+    GenerationQualityDiagnostics, McQuestion,
 };
 use crate::openrouter_info::compute_generation_cost;
-use crate::question_traits::{NormalizableQuestion, TechAllowed};
 use crate::quality;
+use crate::question_traits::{NormalizableQuestion, TechAllowed};
 use crate::schemas;
 use std::collections::HashSet;
 use std::time::Instant;
@@ -80,15 +80,8 @@ pub async fn generate_written_questions(
         } else {
             Some(offender_prompts)
         };
-        result = run_written_attempt(
-            ctx,
-            &request,
-            &inputs,
-            prior_overrides,
-            anti_verbs,
-            "retry",
-        )
-        .await?;
+        result = run_written_attempt(ctx, &request, &inputs, prior_overrides, anti_verbs, "retry")
+            .await?;
     }
 
     let duration_ms = start.elapsed().as_millis() as u64;
@@ -100,7 +93,11 @@ pub async fn generate_written_questions(
             "Generated {} written questions in {}ms ({})",
             result.questions.len(),
             duration_ms,
-            if retry_fired { "with R5 retry" } else { "no retry" }
+            if retry_fired {
+                "with R5 retry"
+            } else {
+                "no retry"
+            }
         ),
         Some(serde_json::json!({
             "prompt_tokens": result.prompt_tokens,
@@ -143,12 +140,20 @@ async fn run_written_attempt(
         params.prior_question_prompts = Some(overrides);
     }
 
-    let system_prompt = crate::engine::prompt::written_system_prompt(&request.model);
+    let request_base_url = request
+        .base_url
+        .as_deref()
+        .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
+    let system_prompt =
+        crate::engine::prompt::written_system_prompt(&request.model, request_base_url);
     let user_prompt = params.build_written();
 
-    let response_format = schemas::written_format(&request.model);
-    let max_tokens =
-        estimate_max_tokens(request.question_count, request.average_marks_per_question, false);
+    let response_format = schemas::written_format(&request.model, request_base_url);
+    let max_tokens = estimate_max_tokens(
+        request.question_count,
+        request.average_marks_per_question,
+        false,
+    );
 
     let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
         .with_max_tokens(max_tokens)
@@ -170,9 +175,8 @@ async fn run_written_attempt(
         request.question_count,
     );
 
-    let completion_request =
-        CompletionRequest::new(&system_prompt, user_content, response_format)
-            .with_stream(request.question_count >= 3, request.topics.first().cloned());
+    let completion_request = CompletionRequest::new(&system_prompt, user_content, response_format)
+        .with_stream(request.question_count >= 3, request.topics.first().cloned());
 
     ctx.check_abort()?;
     emit_status(
@@ -321,15 +325,8 @@ pub async fn generate_mc_questions(
         } else {
             Some(offender_prompts)
         };
-        result = run_mc_attempt(
-            ctx,
-            &request,
-            &inputs,
-            prior_overrides,
-            anti_verbs,
-            "retry",
-        )
-        .await?;
+        result =
+            run_mc_attempt(ctx, &request, &inputs, prior_overrides, anti_verbs, "retry").await?;
     }
 
     let duration_ms = start.elapsed().as_millis() as u64;
@@ -341,7 +338,11 @@ pub async fn generate_mc_questions(
             "Generated {} MC questions in {}ms ({})",
             result.questions.len(),
             duration_ms,
-            if retry_fired { "with R5 retry" } else { "no retry" }
+            if retry_fired {
+                "with R5 retry"
+            } else {
+                "no retry"
+            }
         ),
         Some(serde_json::json!({
             "prompt_tokens": result.prompt_tokens,
@@ -383,10 +384,14 @@ async fn run_mc_attempt(
         params.prior_question_prompts = Some(overrides);
     }
 
-    let system_prompt = crate::engine::prompt::mc_system_prompt(&request.model);
+    let request_base_url = request
+        .base_url
+        .as_deref()
+        .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
+    let system_prompt = crate::engine::prompt::mc_system_prompt(&request.model, request_base_url);
     let user_prompt = params.build_mc();
 
-    let response_format = schemas::mc_format(&request.model);
+    let response_format = schemas::mc_format(&request.model, request_base_url);
     let max_tokens = estimate_max_tokens(request.question_count, None, true);
 
     let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
@@ -415,9 +420,8 @@ async fn run_mc_attempt(
         request.question_count,
     );
 
-    let completion_request =
-        CompletionRequest::new(&system_prompt, user_content, response_format)
-            .with_stream(request.question_count >= 3, request.topics.first().cloned());
+    let completion_request = CompletionRequest::new(&system_prompt, user_content, response_format)
+        .with_stream(request.question_count >= 3, request.topics.first().cloned());
 
     ctx.check_abort()?;
     emit_status(
@@ -437,14 +441,13 @@ async fn run_mc_attempt(
         serde_json::json!({"stage": "parsing", "mode": "mc", "topic": request.topics.first(), "attempt": attempt_label}),
     );
 
-    let structured: StructuredOutput<QuestionsPayload<McQuestion>> =
-        parse_structured_with_meta(
-            &completion.content,
-            completion.prompt_tokens,
-            completion.completion_tokens,
-            completion.total_tokens,
-            completion.reasoning_tokens,
-        )?;
+    let structured: StructuredOutput<QuestionsPayload<McQuestion>> = parse_structured_with_meta(
+        &completion.content,
+        completion.prompt_tokens,
+        completion.completion_tokens,
+        completion.total_tokens,
+        completion.reasoning_tokens,
+    )?;
 
     let mut questions = structured.data.questions;
 
@@ -525,10 +528,16 @@ fn validate_and_prepare_inputs(
 ) -> CommandResult<PreparedGenerationInputs> {
     let topics = normalize_unique_strings(&request.topics, false);
     if topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "At least one topic required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "At least one topic required.",
+        ));
     }
 
-    let mut subtopics = request.subtopics.as_ref().map(|s| normalize_unique_strings(s, true));
+    let mut subtopics = request
+        .subtopics
+        .as_ref()
+        .map(|s| normalize_unique_strings(s, true));
 
     // Merge custom_subtopics into selected subtopics
     if let Some(ref custom) = request.custom_subtopics {
@@ -537,7 +546,10 @@ fn validate_and_prepare_inputs(
                 let custom_subs = normalize_unique_strings(custom_list, true);
                 if let Some(ref mut subs) = subtopics {
                     for s in custom_subs {
-                        if !subs.iter().any(|existing| existing.eq_ignore_ascii_case(&s)) {
+                        if !subs
+                            .iter()
+                            .any(|existing| existing.eq_ignore_ascii_case(&s))
+                        {
                             subs.push(s);
                         }
                     }
@@ -550,11 +562,18 @@ fn validate_and_prepare_inputs(
 
     let custom_focus_area = normalize_optional_text(request.custom_focus_area.as_ref());
     let prior_question_prompts = request.prior_question_prompts.as_ref().map(|p| {
-        p.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<_>>()
+        p.iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
     });
 
-    if request.question_count == 0 || request.question_count > crate::constants::MAX_QUESTION_COUNT {
-        return Err(AppError::new("VALIDATION_ERROR", "question_count must be 1-20."));
+    if request.question_count == 0 || request.question_count > crate::constants::MAX_QUESTION_COUNT
+    {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "question_count must be 1-20.",
+        ));
     }
 
     let average_marks = request.average_marks_per_question;
@@ -573,10 +592,16 @@ fn validate_and_prepare_mc_inputs(
 ) -> CommandResult<PreparedGenerationInputs> {
     let topics = normalize_unique_strings(&request.topics, false);
     if topics.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "At least one topic required."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "At least one topic required.",
+        ));
     }
 
-    let mut subtopics = request.subtopics.as_ref().map(|s| normalize_unique_strings(s, true));
+    let mut subtopics = request
+        .subtopics
+        .as_ref()
+        .map(|s| normalize_unique_strings(s, true));
 
     // Merge custom_subtopics into selected subtopics
     if let Some(ref custom) = request.custom_subtopics {
@@ -585,7 +610,10 @@ fn validate_and_prepare_mc_inputs(
                 let custom_subs = normalize_unique_strings(custom_list, true);
                 if let Some(ref mut subs) = subtopics {
                     for s in custom_subs {
-                        if !subs.iter().any(|existing| existing.eq_ignore_ascii_case(&s)) {
+                        if !subs
+                            .iter()
+                            .any(|existing| existing.eq_ignore_ascii_case(&s))
+                        {
                             subs.push(s);
                         }
                     }
@@ -598,11 +626,18 @@ fn validate_and_prepare_mc_inputs(
 
     let custom_focus_area = normalize_optional_text(request.custom_focus_area.as_ref());
     let prior_question_prompts = request.prior_question_prompts.as_ref().map(|p| {
-        p.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect::<Vec<_>>()
+        p.iter()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
     });
 
-    if request.question_count == 0 || request.question_count > crate::constants::MAX_QUESTION_COUNT {
-        return Err(AppError::new("VALIDATION_ERROR", "question_count must be 1-20."));
+    if request.question_count == 0 || request.question_count > crate::constants::MAX_QUESTION_COUNT
+    {
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "question_count must be 1-20.",
+        ));
     }
 
     let average_marks = request.average_marks_per_question;
@@ -629,7 +664,10 @@ fn build_generation_params(
         average_marks: inputs.average_marks,
         subtopics: inputs.subtopics.clone(),
         custom_focus_area: inputs.custom_focus_area.clone(),
-        tech_mode: request.tech_mode.clone().unwrap_or_else(|| "tech-active".to_string()),
+        tech_mode: request
+            .tech_mode
+            .clone()
+            .unwrap_or_else(|| "tech-active".to_string()),
         include_exam_context: request.include_exam_context.unwrap_or(false),
         avoid_similar_questions: request.avoid_similar_questions.unwrap_or(false),
         diversity_enabled: request.diversity_enabled.unwrap_or(false),
@@ -650,7 +688,10 @@ fn build_mc_generation_params(
         average_marks: inputs.average_marks,
         subtopics: inputs.subtopics.clone(),
         custom_focus_area: inputs.custom_focus_area.clone(),
-        tech_mode: request.tech_mode.clone().unwrap_or_else(|| "tech-active".to_string()),
+        tech_mode: request
+            .tech_mode
+            .clone()
+            .unwrap_or_else(|| "tech-active".to_string()),
         include_exam_context: request.include_exam_context.unwrap_or(false),
         avoid_similar_questions: request.avoid_similar_questions.unwrap_or(false),
         diversity_enabled: request.diversity_enabled.unwrap_or(false),
@@ -765,8 +806,17 @@ fn build_quality_diagnostics(
         .filter(|sub| {
             let sub_low = sub.to_ascii_lowercase();
             topics.iter().any(|topic| {
-                catalog::topic_out_of_scope(topic).iter().any(|oos| oos.to_ascii_lowercase() == sub_low)
-                    || catalog::find_subtopic(topic, sub).map(|e| !e.out_of_scope.is_empty() && e.out_of_scope.iter().any(|o| o.to_ascii_lowercase() == sub_low)).unwrap_or(false)
+                catalog::topic_out_of_scope(topic)
+                    .iter()
+                    .any(|oos| oos.to_ascii_lowercase() == sub_low)
+                    || catalog::find_subtopic(topic, sub)
+                        .map(|e| {
+                            !e.out_of_scope.is_empty()
+                                && e.out_of_scope
+                                    .iter()
+                                    .any(|o| o.to_ascii_lowercase() == sub_low)
+                        })
+                        .unwrap_or(false)
             })
         })
         .cloned()

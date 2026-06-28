@@ -5,6 +5,7 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import {
+  normalizeMarkdownLineBreaks,
   normalizeMathDelimiters,
   shieldMathForMarkdown,
 } from '../lib/app-utils';
@@ -15,17 +16,6 @@ type MarkdownMathProps = {
   isStreaming?: boolean;
   className?: string;
 };
-
-function normalizeMarkdownLineBreaks(content: string): string {
-  return (
-    content
-      .replace(/\\r\\n/g, '\n')
-      // Decode escaped newlines, but keep LaTeX command prefixes such as \nabla.
-      .replace(/\\n(?![A-Za-z])/g, '\n')
-      // Ensure markdown reference-style [text] (a) renders on their own line.
-      .replace(/\n?(\[[\s\S]*?\]\s*\([a-z]\))\n?/gi, '$1\n')
-  );
-}
 
 function readCssVariable(
   rootStyle: CSSStyleDeclaration,

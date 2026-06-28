@@ -13,6 +13,14 @@ export function normalizeMathDelimiters(content: string): string {
   return content;
 }
 
+export function normalizeMarkdownLineBreaks(content: string): string {
+  return content
+    .replace(/\r\n?/g, '\n')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\[rn](?![A-Za-z])/g, '\n')
+    .replace(/(\[\d+\s*marks?\])[^\S\n]+(?=\S)/gi, '$1\n');
+}
+
 export type ShieldedMath = {
   markdown: string;
   placeholders: Array<readonly [token: string, value: string]>;
