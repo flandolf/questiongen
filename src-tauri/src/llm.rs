@@ -203,9 +203,11 @@ async fn call_openrouter_non_streaming(
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
+        let provider_label = provider_label_for_base_url(&config.base_url);
+        let friendly = try_extract_api_error_message(&err_body).unwrap_or_else(|| err_body.clone());
         return Err(AppError::new(
-            "OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {err_body}"),
+            "API_ERROR",
+            format!("{provider_label} request failed ({status}): {friendly}"),
         )
         .with_status(status.as_u16()));
     }
@@ -215,11 +217,12 @@ async fn call_openrouter_non_streaming(
         .await
         .map_err(|e| AppError::new("NETWORK_ERROR", format!("Invalid API response: {e}")))?;
 
+    let provider_label = provider_label_for_base_url(&config.base_url);
     let content = parsed
         .choices
         .first()
         .map(|c| c.message.content.clone())
-        .ok_or_else(|| AppError::new("EMPTY_RESULT", "OpenRouter returned no content."))?;
+        .ok_or_else(|| AppError::new("EMPTY_RESULT", format!("{provider_label} returned no content.")))?;
 
     let (prompt_tokens, completion_tokens, total_tokens, reasoning_tokens) = parsed
         .usage
@@ -335,9 +338,11 @@ async fn call_openrouter_streaming(
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
+        let provider_label = provider_label_for_base_url(&config.base_url);
+        let friendly = try_extract_api_error_message(&err_body).unwrap_or_else(|| err_body.clone());
         return Err(AppError::new(
-            "OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {err_body}"),
+            "API_ERROR",
+            format!("{provider_label} request failed ({status}): {friendly}"),
         )
         .with_status(status.as_u16()));
     }
@@ -472,9 +477,10 @@ async fn call_openrouter_streaming(
     }
 
     if assembled.is_empty() {
+        let provider_label = provider_label_for_base_url(&config.base_url);
         return Err(AppError::new(
             "EMPTY_RESULT",
-            "OpenRouter returned no content.",
+            format!("{provider_label} returned no content."),
         ));
     }
 
@@ -498,6 +504,38 @@ async fn call_openrouter_streaming(
         total_tokens: tt,
         reasoning_tokens: rt,
     })
+}
+
+/// Returns a human-readable label for a provider base URL.
+fn provider_label_for_base_url(base_url: &str) -> &'static str {
+    let url = base_url.trim().trim_end_matches('/').to_ascii_lowercase();
+    if url.starts_with("https://openrouter.ai") || url.starts_with("http://openrouter.ai") {
+        return "OpenRouter";
+    }
+    if url.starts_with("https://api.deepseek.com") {
+        return "DeepSeek";
+    }
+    if url.contains("integrate.api.nvidia.com") || url.contains("nvidia.com") {
+        return "NVIDIA NIM";
+    }
+    "API"
+}
+
+/// Try to extract a friendly message from a JSON error body returned by
+/// OpenRouter-compatible providers.
+fn try_extract_api_error_message(body: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(body).ok()?;
+    // OpenRouter: { "error": { "message": "...", "type": "..." } }
+    if let Some(err_obj) = value.get("error").and_then(|v| v.as_object()) {
+        if let Some(msg) = err_obj.get("message").and_then(|v| v.as_str()) {
+            return Some(msg.to_string());
+        }
+    }
+    // Some providers return { "message": "..." } directly
+    if let Some(msg) = value.get("message").and_then(|v| v.as_str()) {
+        return Some(msg.to_string());
+    }
+    None
 }
 
 pub struct OpenRouterChatConfig {
@@ -551,9 +589,11 @@ pub async fn call_openrouter_chat_streaming(
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
+        let provider_label = provider_label_for_base_url(&config.base_url);
+        let friendly = try_extract_api_error_message(&err_body).unwrap_or_else(|| err_body.clone());
         return Err(AppError::new(
-            "OPENROUTER_ERROR",
-            format!("OpenRouter request failed ({status}): {err_body}"),
+            "API_ERROR",
+            format!("{provider_label} request failed ({status}): {friendly}"),
         )
         .with_status(status.as_u16()));
     }
@@ -677,9 +717,10 @@ pub async fn call_openrouter_chat_streaming(
     }
 
     if assembled.is_empty() {
+        let provider_label = provider_label_for_base_url(&config.base_url);
         return Err(AppError::new(
             "EMPTY_RESULT",
-            "OpenRouter returned no content.",
+            format!("{provider_label} returned no content."),
         ));
     }
 

@@ -387,7 +387,9 @@ export const createSessionSlice: StateCreator<
         `Answer marked: ${response.achievedMarks}/${response.maxMarks} marks`,
       );
     } catch (error) {
-      set({ errorMessage: readBackendError(error) });
+      const msg = readBackendError(error);
+      toast.error(`Marking failed: ${msg}`);
+      set({ errorMessage: msg });
     } finally {
       set({ isMarking: false });
     }
@@ -483,7 +485,9 @@ export const createSessionSlice: StateCreator<
         `Re-mark complete: ${response.achievedMarks}/${response.maxMarks} marks`,
       );
     } catch (error) {
-      set({ errorMessage: readBackendError(error) });
+      const msg = readBackendError(error);
+      toast.error(`Re-mark failed: ${msg}`);
+      set({ errorMessage: msg });
     } finally {
       set({ isMarking: false });
     }

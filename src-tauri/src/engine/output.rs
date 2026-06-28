@@ -19,12 +19,32 @@ pub struct StructuredOutput<T> {
 ///
 /// Pipeline: protect LaTeX → extract JSON object/array → normalize envelope → deserialize.
 pub fn parse_structured<T: DeserializeOwned>(raw: &str) -> CommandResult<T> {
+    if raw.trim().is_empty() {
+        return Err(AppError::new(
+            "MODEL_PARSE_ERROR",
+            "The model returned an empty response. This often means the model does not support the requested output format (e.g. JSON schema) on this provider.",
+        ));
+    }
+
     let protected = protect_latex_in_raw_json(raw);
 
     let json_str = extract_json_object(&protected)
         .or_else(|| extract_json_array(&protected))
         .ok_or_else(|| {
-            AppError::new("MODEL_PARSE_ERROR", "No JSON object or array in response.")
+            let preview = if raw.len() > 200 {
+                format!("{}...", &raw[..200])
+            } else {
+                raw.to_string()
+            };
+            AppError::new(
+                "MODEL_PARSE_ERROR",
+                format!(
+                    "No JSON object or array found in the model response. \
+                     The model may have returned plain text or an unsupported format. \
+                     Response preview: {}",
+                    preview.replace('\n', " ")
+                ),
+            )
         })?;
 
     let value: serde_json::Value = serde_json::from_str(&json_str)

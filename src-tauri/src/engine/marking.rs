@@ -5,7 +5,7 @@ use crate::engine::prompt::{marking_system_prompt, marking_user_prompt};
 use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{emit_status, rust_log, validate_credentials};
 use crate::models::{
-    BatchMarkItem, BatchMarkRequest, BatchMarkResponse, CommandResult, MarkAnswerRequest,
+    AppError, BatchMarkItem, BatchMarkRequest, BatchMarkResponse, CommandResult, MarkAnswerRequest,
     MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, MarkPdfResultItem,
 };
 use crate::schemas;
@@ -114,11 +114,26 @@ pub async fn mark_answer(
     ctx.check_abort()?;
     emit_status(ctx, serde_json::json!({"stage": "calling_model"}));
 
-    let completion = complete(&llm_config, completion_request, &ctx.app, &ctx.abort_signal).await?;
+    let completion = complete(&llm_config, completion_request, &ctx.app, &ctx.abort_signal).await
+        .map_err(|e| AppError::new(
+            e.code,
+            format!("Marking failed while calling the model: {}", e.message),
+        ))?;
 
     emit_status(ctx, serde_json::json!({"stage": "parsing_marking"}));
 
-    let mut response: MarkAnswerResponse = parse_structured(&completion.content)?;
+    let mut response: MarkAnswerResponse = parse_structured(&completion.content).map_err(|e| {
+        AppError::new(
+            e.code,
+            format!(
+                "Marking failed while parsing the model response. \
+                 The model may not support structured outputs (JSON schema) for this endpoint. \
+                 Try switching to an OpenRouter-hosted model, or check your provider supports JSON mode. \
+                 Original error: {}",
+                e.message
+            ),
+        )
+    })?;
 
     // Ensure max_marks matches the question
     response.max_marks = max_marks;
