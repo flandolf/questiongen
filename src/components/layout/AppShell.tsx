@@ -61,14 +61,16 @@ export function AppShell() {
 
   return (
     <TooltipProvider delayDuration={120}>
-      <div className='flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground'>
+      <div className='app-shell flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground'>
         {!isAndroid && <Titlebar />}
 
         <SidebarProvider
           className='min-h-0 flex-1'
           style={
             {
-              '--sidebar-top': isAndroid ? '0px' : '2.25rem',
+              '--sidebar-top': isAndroid
+                ? 'var(--android-status-bar-offset)'
+                : '2.25rem',
             } as React.CSSProperties
           }
         >

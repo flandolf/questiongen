@@ -133,7 +133,7 @@ pub fn marking_format(model: &str, base_url: &str) -> serde_json::Value {
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
-        "required": ["verdict", "achievedMarks", "maxMarks", "vcaaMarkingScheme", "comparisonToSolutionMarkdown", "feedbackMarkdown", "workedSolutionMarkdown", "exemplarResponseMarkdown", "indicativeContentMarkdown", "mcOptionExplanations"],
+        "required": ["verdict", "achievedMarks", "maxMarks", "partialReason", "vcaaMarkingScheme", "comparisonToSolutionMarkdown", "feedbackMarkdown", "workedSolutionMarkdown", "exemplarResponseMarkdown", "indicativeContentMarkdown", "exemplarAnnotations", "mcOptionExplanations"],
         "properties": {
             "verdict": {
                 "type": "string",
@@ -157,7 +157,7 @@ pub fn marking_format(model: &str, base_url: &str) -> serde_json::Value {
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["criterion", "achievedMarks", "maxMarks", "rationale"],
+                    "required": ["criterion", "achievedMarks", "maxMarks", "rationale", "markType"],
                     "properties": {
                         "criterion": {
                             "type": "string",
@@ -239,5 +239,40 @@ pub fn marking_format(model: &str, base_url: &str) -> serde_json::Value {
         json_schema_format_anthropic("mark_answer", schema)
     } else {
         json_schema_format("mark_answer", schema)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marking_schema_requires_every_declared_property_for_strict_mode() {
+        let format = marking_format(
+            "openai/gpt-5.4-mini",
+            crate::constants::DEFAULT_OPENROUTER_BASE_URL,
+        );
+        let schema = &format["json_schema"]["schema"];
+        let properties = schema["properties"].as_object().unwrap();
+        let required = schema["required"].as_array().unwrap();
+
+        for key in properties.keys() {
+            assert!(
+                required.iter().any(|item| item.as_str() == Some(key)),
+                "{key} must be required for strict json_schema"
+            );
+        }
+
+        let criterion = &schema["properties"]["vcaaMarkingScheme"]["items"];
+        let criterion_properties = criterion["properties"].as_object().unwrap();
+        let criterion_required = criterion["required"].as_array().unwrap();
+        for key in criterion_properties.keys() {
+            assert!(
+                criterion_required
+                    .iter()
+                    .any(|item| item.as_str() == Some(key)),
+                "{key} must be required for strict criterion schema"
+            );
+        }
     }
 }
