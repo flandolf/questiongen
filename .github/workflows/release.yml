@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/android-apk.yml'
+      - '.github/workflows/release.yml'
       - 'src/**'
       - 'src-tauri/**'
       - 'package.json'
@@ -16,7 +16,23 @@ permissions:
   contents: write
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Read version
+        id: version
+        run: echo "tag=v$(bun -e 'console.log(require(\"./package.json\").version)')" >> "$GITHUB_OUTPUT"
+
   release:
+    needs: version
     strategy:
       fail-fast: false
       matrix:
@@ -33,8 +49,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.version.outputs.tag }}
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
