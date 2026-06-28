@@ -32,6 +32,4 @@ impl EngineContext {
         }
         Ok(())
     }
-
-
 }

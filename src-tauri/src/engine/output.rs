@@ -1,7 +1,7 @@
+use crate::envelope::normalise_envelope;
+use crate::json_input::{extract_json_array, extract_json_object};
 use crate::models::{AppError, CommandResult};
 use crate::parsing::protect_latex_in_raw_json;
-use crate::json_input::{extract_json_array, extract_json_object};
-use crate::envelope::normalise_envelope;
 use serde::de::DeserializeOwned;
 
 /// Result of a structured generation call, including the parsed data and metadata.

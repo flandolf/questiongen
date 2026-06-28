@@ -12,10 +12,12 @@ mod latex;
 mod llm;
 mod models;
 mod normalization;
+mod nvidia_info;
 mod openrouter_info;
 mod parsing;
 mod pdf;
 mod persistence;
+mod provider_models;
 mod quality;
 mod question_traits;
 mod schemas;
@@ -30,11 +32,13 @@ static APP_HANDLE: OnceCell<tauri::AppHandle> = OnceCell::new();
 
 use deepseek_info::{get_deepseek_balance, list_deepseek_models};
 use models::*;
+use nvidia_info::list_nvidia_models;
 use openrouter_info::{get_credits, get_model_stats};
 use persistence::{
     export_data_file, export_data_file_to_directory, list_json_files_in_directory,
     load_persisted_state, read_text_file, save_persisted_state, write_text_file,
 };
+use provider_models::{get_provider_model_stats, list_provider_models, validate_provider_key};
 
 #[tauri::command]
 async fn generate_questions(
@@ -43,8 +47,7 @@ async fn generate_questions(
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
     state.reset();
-    let ctx = engine::context::EngineContext::new(app)
-        .with_abort_signal(state.inner().clone());
+    let ctx = engine::context::EngineContext::new(app).with_abort_signal(state.inner().clone());
     engine::generate_written_questions(&ctx, request).await
 }
 
@@ -55,8 +58,7 @@ async fn generate_mc_questions(
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     state.reset();
-    let ctx = engine::context::EngineContext::new(app)
-        .with_abort_signal(state.inner().clone());
+    let ctx = engine::context::EngineContext::new(app).with_abort_signal(state.inner().clone());
     engine::generate_mc_questions(&ctx, request).await
 }
 
@@ -67,8 +69,7 @@ async fn mark_answer(
     request: MarkAnswerRequest,
 ) -> CommandResult<MarkAnswerResponse> {
     state.reset();
-    let ctx = engine::context::EngineContext::new(app)
-        .with_abort_signal(state.inner().clone());
+    let ctx = engine::context::EngineContext::new(app).with_abort_signal(state.inner().clone());
     engine::mark_answer(&ctx, request).await
 }
 
@@ -79,8 +80,7 @@ async fn batch_mark_answers(
     request: BatchMarkRequest,
 ) -> CommandResult<BatchMarkResponse> {
     state.reset();
-    let ctx = engine::context::EngineContext::new(app)
-        .with_abort_signal(state.inner().clone());
+    let ctx = engine::context::EngineContext::new(app).with_abort_signal(state.inner().clone());
     engine::batch_mark_answers(&ctx, request).await
 }
 
@@ -91,8 +91,7 @@ async fn tutor_chat(
     request: TutorChatRequest,
 ) -> CommandResult<TutorChatResponse> {
     state.reset();
-    let ctx = engine::context::EngineContext::new(app)
-        .with_abort_signal(state.inner().clone());
+    let ctx = engine::context::EngineContext::new(app).with_abort_signal(state.inner().clone());
     engine::tutor_chat(&ctx, request).await
 }
 
@@ -103,8 +102,7 @@ async fn mark_pdf(
     request: MarkPdfRequest,
 ) -> CommandResult<MarkPdfResponse> {
     state.reset();
-    let ctx = engine::context::EngineContext::new(app)
-        .with_abort_signal(state.inner().clone());
+    let ctx = engine::context::EngineContext::new(app).with_abort_signal(state.inner().clone());
     engine::mark_pdf(&ctx, request).await
 }
 
@@ -115,8 +113,7 @@ async fn discover_pdf_questions(
     request: DiscoverPdfQuestionsRequest,
 ) -> CommandResult<DiscoverPdfQuestionsResponse> {
     state.reset();
-    let ctx = engine::context::EngineContext::new(app)
-        .with_abort_signal(state.inner().clone());
+    let ctx = engine::context::EngineContext::new(app).with_abort_signal(state.inner().clone());
     engine::discover_pdf_questions(&ctx, request).await
 }
 
@@ -316,6 +313,10 @@ pub fn run() {
             get_credits,
             get_deepseek_balance,
             list_deepseek_models,
+            list_nvidia_models,
+            list_provider_models,
+            get_provider_model_stats,
+            validate_provider_key,
             cleanup_topics,
             export_question_to_anki,
             abort_generation,

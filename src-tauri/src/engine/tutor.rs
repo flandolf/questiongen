@@ -14,12 +14,21 @@ pub async fn tutor_chat(
     let start = Instant::now();
 
     if request.messages.is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "Messages cannot be empty."));
+        return Err(AppError::new(
+            "VALIDATION_ERROR",
+            "Messages cannot be empty.",
+        ));
     }
 
     let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
         .with_max_tokens(4000)
-        .with_temperature(request.diagnostic.unwrap_or(false).then_some(0.3).unwrap_or(0.7));
+        .with_temperature(
+            request
+                .diagnostic
+                .unwrap_or(false)
+                .then_some(0.3)
+                .unwrap_or(0.7),
+        );
     if let Some(ref url) = request.base_url {
         llm_config = llm_config.with_base_url(url);
     }

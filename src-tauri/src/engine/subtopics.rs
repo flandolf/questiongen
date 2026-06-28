@@ -1,14 +1,12 @@
 use crate::catalog;
 use crate::engine::context::EngineContext;
-use crate::engine::prompt::{
-    subtopic_generation_system, subtopic_generation_user_prompt,
-};
+use crate::engine::prompt::{subtopic_generation_system, subtopic_generation_user_prompt};
 use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{rust_log, validate_credentials};
 use crate::llm::json_object_format;
 use crate::models::{
-    AppError, CommandResult, GeneratedSubtopic, GenerateSubtopicsRequest,
-    GenerateSubtopicsResponse, TechniqueNotes,
+    AppError, CommandResult, GenerateSubtopicsRequest, GenerateSubtopicsResponse,
+    GeneratedSubtopic, TechniqueNotes,
 };
 use std::time::Instant;
 
@@ -29,12 +27,8 @@ pub async fn generate_subtopics(
     let focus_area = request.focus_area.unwrap_or_default();
 
     let system_prompt = subtopic_generation_system().to_string();
-    let user_prompt = subtopic_generation_user_prompt(
-        &request.topic,
-        exam_guidance,
-        &existing,
-        &focus_area,
-    );
+    let user_prompt =
+        subtopic_generation_user_prompt(&request.topic, exam_guidance, &existing, &focus_area);
 
     let mut content_parts = vec![serde_json::json!({ "type": "text", "text": user_prompt })];
 
@@ -56,8 +50,7 @@ pub async fn generate_subtopics(
         }
     }
 
-    let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
-        .with_max_tokens(4000);
+    let mut llm_config = LlmConfig::new(&request.api_key, &request.model).with_max_tokens(4000);
     if let Some(ref url) = request.base_url {
         llm_config = llm_config.with_base_url(url);
     }
@@ -69,7 +62,13 @@ pub async fn generate_subtopics(
     );
 
     _ctx.check_abort()?;
-    let completion = complete(&llm_config, completion_request, &_ctx.app, &_ctx.abort_signal).await?;
+    let completion = complete(
+        &llm_config,
+        completion_request,
+        &_ctx.app,
+        &_ctx.abort_signal,
+    )
+    .await?;
 
     let content = completion.content.trim();
     let json_start = content.find('{').or_else(|| content.find('['));
@@ -142,7 +141,11 @@ pub async fn generate_subtopics(
     rust_log(
         _ctx,
         "info",
-        &format!("Generated {} subtopics in {}ms", subtopics.len(), duration_ms),
+        &format!(
+            "Generated {} subtopics in {}ms",
+            subtopics.len(),
+            duration_ms
+        ),
         None,
     );
 

@@ -3,9 +3,7 @@ use crate::engine::output::parse_structured;
 use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{rust_log, validate_credentials};
 use crate::llm::json_object_format;
-use crate::models::{
-    CleanupTopicsRequest, CleanupTopicsResponse, CommandResult,
-};
+use crate::models::{CleanupTopicsRequest, CleanupTopicsResponse, CommandResult};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -38,8 +36,7 @@ pub async fn cleanup_topics(
         request.unknown_topics.join("\n")
     );
 
-    let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
-        .with_max_tokens(2000);
+    let mut llm_config = LlmConfig::new(&request.api_key, &request.model).with_max_tokens(2000);
     if let Some(ref url) = request.base_url {
         llm_config = llm_config.with_base_url(url);
     }
@@ -50,7 +47,13 @@ pub async fn cleanup_topics(
         json_object_format(),
     );
 
-    let completion = complete(&llm_config, completion_request, &_ctx.app, &_ctx.abort_signal).await?;
+    let completion = complete(
+        &llm_config,
+        completion_request,
+        &_ctx.app,
+        &_ctx.abort_signal,
+    )
+    .await?;
 
     let mappings: MappingsPayload = parse_structured(&completion.content)?;
 

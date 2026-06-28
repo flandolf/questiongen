@@ -1,5 +1,12 @@
 pub const DEFAULT_OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
+/// Base URL (no path) for OpenRouter. Used as the default base when callers
+/// do not supply one explicitly. This MUST match `DEFAULT_OPENROUTER_CHAT_URL`
+/// with `/chat/completions` stripped, otherwise `is_openrouter_endpoint("")`
+/// falls through to the non-OpenRouter branch and silently regresses
+/// `json_schema` structured-output handling for legacy flows.
+pub const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+
 /// Default LLM model used across the application.
 pub const DEFAULT_MODEL: &str = "openai/gpt-5.4-mini";
 

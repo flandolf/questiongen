@@ -13,6 +13,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/store';
+import {
+  getProviderLabelForModel,
+  type ProviderState,
+  toProviderModelId,
+} from '@/types/provider';
 
 import { fmt } from './formatters';
 import { setCachedImageValidation } from './imageValidationCache';
@@ -48,7 +54,6 @@ const SORT_OPTIONS: { key: SortKey; label: string; description: string }[] = [
 
 interface SearchCache {
   results: ModelSearchResult[];
-  catalogueOffset: number;
   exhausted: boolean;
   fetchedAt: number;
 }
@@ -60,12 +65,13 @@ interface CatalogueModel {
   supportsImages: boolean;
 }
 
-interface OpenRouterModelsResponse {
+interface ProviderCatalogueResponse {
+  providerId: string;
   data: {
     id: string;
-    name?: string;
-    context_length?: number;
-    architecture?: { input_modalities?: string[] };
+    name?: string | null;
+    context_length?: number | null;
+    supportsImages: boolean;
   }[];
 }
 
@@ -106,16 +112,18 @@ const searchCache = new Map<string, SearchCache>();
 
 function getCacheKey(
   apiKey: string,
+  providerId: string,
   target: ModelSearchPanelProps['target'],
 ): string {
-  return `${apiKey}:${target === 'imageMarking' ? 'image' : 'text'}`;
+  return `${providerId}:${apiKey}:${target === 'imageMarking' ? 'image' : 'text'}`;
 }
 
 function getCachedEntry(
   apiKey: string,
+  providerId: string,
   target: ModelSearchPanelProps['target'],
 ): SearchCache | null {
-  const key = getCacheKey(apiKey, target);
+  const key = getCacheKey(apiKey, providerId, target);
   const entry = searchCache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.fetchedAt > SEARCH_CACHE_TTL_MS) {
@@ -125,29 +133,31 @@ function getCachedEntry(
   return entry;
 }
 
-function parseOpenRouterModels(raw: unknown): CatalogueModel[] {
-  const catalog = raw as OpenRouterModelsResponse;
-  return catalog.data
-    .filter((m) => m.id?.includes('/'))
-    .map((m) => ({
-      id: m.id,
-      name: m.name,
-      context_length: m.context_length,
-      supportsImages: (m.architecture?.input_modalities ?? []).some(
-        (mod) => mod === 'image' || mod === 'vision' || mod === 'multimodal',
-      ),
-    }));
+function parseProviderCatalog(
+  raw: ProviderCatalogueResponse,
+): CatalogueModel[] {
+  return raw.data.map((m) => ({
+    id: m.id,
+    name: m.name ?? undefined,
+    context_length: m.context_length ?? undefined,
+    supportsImages: !!m.supportsImages,
+  }));
 }
 
-async function fetchOpenRouterModels(
+async function fetchProviderCatalog(
+  providerId: string,
   apiKey: string,
+  baseUrl: string | null,
 ): Promise<CatalogueModel[]> {
-  const res = await fetch('https://openrouter.ai/api/v1/models', {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!res.ok) throw new Error(`OpenRouter returned ${res.status}`);
-  const raw = (await res.json()) as unknown;
-  return parseOpenRouterModels(raw);
+  const wrapped = await invoke<ProviderCatalogueResponse>(
+    'list_provider_models',
+    {
+      providerId,
+      apiKey,
+      baseUrl: baseUrl ?? undefined,
+    },
+  );
+  return parseProviderCatalog(wrapped);
 }
 
 function getSortValue(result: ModelSearchResult, sortKey: SortKey): number {
@@ -193,6 +203,7 @@ function getDisplayedResults(
 function getCacheMinutesLeft(
   fromCache: boolean,
   apiKey: string,
+  providerId: string,
   target: ModelSearchPanelProps['target'],
 ): number | null {
   if (!fromCache) return null;
@@ -200,7 +211,8 @@ function getCacheMinutesLeft(
     1,
     Math.ceil(
       (SEARCH_CACHE_TTL_MS -
-        (Date.now() - (getCachedEntry(apiKey, target)?.fetchedAt ?? 0))) /
+        (Date.now() -
+          (getCachedEntry(apiKey, providerId, target)?.fetchedAt ?? 0))) /
         60_000,
     ),
   );
@@ -251,6 +263,7 @@ interface ModelSearchPanelViewProps {
   displayed: ModelSearchResult[];
   requiresDesc: string;
   statusLine: string;
+  providerLabel: string;
   onLoadMore: () => void;
 }
 
@@ -260,6 +273,7 @@ function ModelSearchHeader({
   fromCache,
   loading,
   statusLine,
+  providerLabel,
   onClose,
 }: {
   target: ModelSearchPanelProps['target'];
@@ -267,6 +281,7 @@ function ModelSearchHeader({
   fromCache: boolean;
   loading: boolean;
   statusLine: string;
+  providerLabel: string;
   onClose: () => void;
 }) {
   return (
@@ -283,6 +298,11 @@ function ModelSearchHeader({
             <span className='text-xs font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border border-sky-200 dark:border-sky-800 leading-none flex items-center gap-0.5'>
               <ImageIcon className='h-2.5 w-2.5' />
               Vision only
+            </span>
+          )}
+          {providerLabel && (
+            <span className='text-xs font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border leading-none'>
+              {providerLabel}
             </span>
           )}
           {fromCache && !loading && (
@@ -427,7 +447,7 @@ function ModelSearchStates({
       <div className='px-4 py-10 text-center'>
         <p className='text-sm text-muted-foreground mb-1.5'>
           No models match{' '}
-          <span className='font-medium text-foreground'>"{query}"</span>
+          <span className='font-medium text-foreground'>{`"${query}"`}</span>
         </p>
         <button
           className='text-xs text-primary underline underline-offset-2'
@@ -481,6 +501,8 @@ function ModelSearchResultsTable({
   query,
   resultsLength,
   loadingMore,
+  providers,
+  fallbackProviderId,
   onLoadMore,
 }: {
   displayed: ModelSearchResult[];
@@ -494,6 +516,8 @@ function ModelSearchResultsTable({
   query: string;
   resultsLength: number;
   loadingMore: boolean;
+  providers: Record<string, ProviderState>;
+  fallbackProviderId: string;
   onLoadMore: () => void;
 }) {
   if (displayed.length === 0) return null;
@@ -529,8 +553,13 @@ function ModelSearchResultsTable({
             const nameLower = r.name?.toLowerCase();
             const isDeepSeek = Boolean(
               idLower?.startsWith('deepseek') ||
-              nameLower?.startsWith('deepseek') ||
-              nameLower === 'deepseek',
+                nameLower?.startsWith('deepseek') ||
+                nameLower === 'deepseek',
+            );
+            const providerBadge = getProviderLabelForModel(
+              r.id,
+              providers,
+              fallbackProviderId,
             );
 
             return (
@@ -557,6 +586,11 @@ function ModelSearchResultsTable({
                     {isImageTarget && r.supportsImages && (
                       <span className='shrink-0 text-[10px] font-semibold px-1 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 leading-none'>
                         Vision
+                      </span>
+                    )}
+                    {providerBadge && (
+                      <span className='shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground leading-none'>
+                        {providerBadge}
                       </span>
                     )}
                   </div>
@@ -655,8 +689,14 @@ function ModelSearchPanelView({
   displayed,
   requiresDesc,
   statusLine,
+  providerLabel,
+  providers,
+  fallbackProviderId,
   onLoadMore,
-}: ModelSearchPanelViewProps) {
+}: ModelSearchPanelViewProps & {
+  providers: Record<string, ProviderState>;
+  fallbackProviderId: string;
+}) {
   function SortIcon({ k }: { k: SortKey }) {
     if (sortKey !== k) return <ArrowUpDown className='h-3 w-3 opacity-30' />;
     return sortDir === 'desc' ? (
@@ -674,11 +714,10 @@ function ModelSearchPanelView({
         fromCache={fromCache}
         loading={loading}
         statusLine={statusLine}
+        providerLabel={providerLabel}
         onClose={onClose}
       />
-
       <ModelSearchLoadingBar loading={loading} />
-
       <ModelSearchControls
         query={query}
         setQuery={setQuery}
@@ -686,7 +725,6 @@ function ModelSearchPanelView({
         toggleSort={toggleSort}
         SortIcon={SortIcon}
       />
-
       <ModelSearchStates
         error={error}
         loading={loading}
@@ -696,7 +734,6 @@ function ModelSearchPanelView({
         query={query}
         setQuery={setQuery}
       />
-
       <ModelSearchResultsTable
         displayed={displayed}
         isImageTarget={isImageTarget}
@@ -709,6 +746,8 @@ function ModelSearchPanelView({
         query={query}
         resultsLength={results.length}
         loadingMore={loadingMore}
+        providers={providers}
+        fallbackProviderId={fallbackProviderId}
         onLoadMore={onLoadMore}
       />
     </Card>
@@ -720,6 +759,15 @@ export interface ModelSearchPanelProps {
   onClose: () => void;
   onSelect: (id: string) => void;
   apiKey: string;
+  /**
+   * Provider id whose models the panel should browse. When omitted,
+   * fall back to OpenRouter for backwards compatibility. ModelsSection
+   * passes the active provider explicitly so NVIDIA/Custom users see
+   * their own catalogue (e.g. NVIDIA-hosted Kimi K 2.6).
+   */
+  providerId?: string;
+  /** Provider base URL. Required for non-built-in providers. */
+  baseUrl?: string | null;
 }
 
 export function ModelSearchPanel({
@@ -727,6 +775,8 @@ export function ModelSearchPanel({
   onClose,
   onSelect,
   apiKey,
+  providerId,
+  baseUrl,
 }: ModelSearchPanelProps) {
   const [results, setResults] = useState<ModelSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -738,12 +788,22 @@ export function ModelSearchPanel({
   const [fromCache, setFromCache] = useState(false);
   const [exhausted, setExhausted] = useState(false);
 
-  const scanStateSetter = useState<{
-    catalogue: CatalogueModel[];
-    offset: number;
-  }>(() => ({ catalogue: [], offset: 0 }))[1];
-
   const isImageTarget = target === 'imageMarking';
+  const providers = useAppStore((s) => s.providers);
+
+  // Provider scoping: default to OpenRouter when caller doesn't pin.
+  const searchProviderId = providerId ?? 'openrouter';
+  const searchBaseUrl = baseUrl ?? null;
+  const providerLabel = useMemo(() => {
+    const builtinNames: Record<string, string> = {
+      openrouter: 'OpenRouter',
+      deepseek: 'DeepSeek',
+      nvidia: 'NVIDIA NIM',
+    };
+    if (builtinNames[searchProviderId]) return builtinNames[searchProviderId];
+    const provider = providers[searchProviderId];
+    return provider?.config?.name ?? 'Custom';
+  }, [providers, searchProviderId]);
 
   const modelPasses = useCallback(
     (stats: ModelStats, supportsImages: boolean): boolean => {
@@ -763,23 +823,39 @@ export function ModelSearchPanel({
     [isImageTarget],
   );
 
+  const fetchStatsForModel = useCallback(
+    async (modelId: string): Promise<ModelStats> => {
+      if (searchProviderId === 'openrouter') {
+        return await invoke<ModelStats>('get_model_stats', {
+          apiKey,
+          modelId,
+        });
+      }
+      const wrapped = await invoke<{ stats: ModelStats }>(
+        'get_provider_model_stats',
+        {
+          apiKey,
+          modelId,
+          providerId: searchProviderId,
+          baseUrl: searchBaseUrl ?? undefined,
+        },
+      );
+      return wrapped.stats;
+    },
+    [apiKey, searchProviderId, searchBaseUrl],
+  );
+
   const scanBatch = useCallback(
     async (
       catalogue: CatalogueModel[],
-      startOffset: number,
       needed: number,
       currentResults: ModelSearchResult[],
       signal: { cancelled: boolean },
-    ): Promise<{
-      newResults: ModelSearchResult[];
-      nextOffset: number;
-      done: boolean;
-    }> => {
+    ): Promise<{ newResults: ModelSearchResult[]; done: boolean }> => {
       const BATCH = 8;
       const found: ModelSearchResult[] = [...currentResults];
-      let offset = startOffset;
 
-      outer: for (let i = offset; i < catalogue.length; i += BATCH) {
+      for (let i = 0; i < catalogue.length; i += BATCH) {
         if (
           signal.cancelled ||
           found.length - currentResults.length >= needed
@@ -796,10 +872,7 @@ export function ModelSearchPanel({
               return;
             }
             try {
-              const stats = await invoke<ModelStats>('get_model_stats', {
-                apiKey,
-                modelId: m.id,
-              });
+              const stats = await fetchStatsForModel(m.id);
               if (signal.cancelled) return;
               if (modelPasses(stats, m.supportsImages)) {
                 setCachedImageValidation(
@@ -808,7 +881,7 @@ export function ModelSearchPanel({
                   stats.supportsImages === true,
                 );
                 found.push({
-                  id: m.id,
+                  id: toProviderModelId(searchProviderId, m.id),
                   name: stats.name ?? m.name ?? m.id,
                   tpsP50: stats.tpsP50,
                   uptimeLast30m: stats.uptimeLast30m,
@@ -833,22 +906,20 @@ export function ModelSearchPanel({
             }
           }),
         );
-        offset = i + BATCH;
-        if (found.length - currentResults.length >= needed) break outer;
+        if (found.length - currentResults.length >= needed) break;
       }
 
-      const done = offset >= catalogue.length;
-      return { newResults: found, nextOffset: offset, done };
+      const done = found.length >= catalogue.length;
+      return { newResults: found, done };
     },
-    [apiKey, modelPasses],
+    [apiKey, modelPasses, fetchStatsForModel, searchProviderId],
   );
 
   useEffect(() => {
-    if (!apiKey.trim()) return;
-    const cached = getCachedEntry(apiKey, target);
+    if (!apiKey.trim() || !searchProviderId) return;
+    const cached = getCachedEntry(apiKey, searchProviderId, target);
     if (cached) {
       setResults(cached.results);
-      scanStateSetter({ catalogue: [], offset: cached.catalogueOffset });
       setExhausted(cached.exhausted);
       setLoading(false);
       setFromCache(true);
@@ -864,14 +935,16 @@ export function ModelSearchPanel({
 
     async function run() {
       try {
-        const models = await fetchOpenRouterModels(apiKey);
+        const models = await fetchProviderCatalog(
+          searchProviderId,
+          apiKey,
+          searchBaseUrl,
+        );
 
         if (signal.cancelled) return;
-        scanStateSetter({ catalogue: models, offset: 0 });
 
-        const { newResults, nextOffset, done } = await scanBatch(
+        const { newResults, done } = await scanBatch(
           models,
-          0,
           SEARCH_MAX_RESULTS,
           [],
           signal,
@@ -880,12 +953,10 @@ export function ModelSearchPanel({
 
         setResults(newResults);
         setExhausted(done);
-        scanStateSetter({ catalogue: models, offset: nextOffset });
 
-        const cacheKey = getCacheKey(apiKey, target);
+        const cacheKey = getCacheKey(apiKey, searchProviderId, target);
         searchCache.set(cacheKey, {
           results: newResults,
-          catalogueOffset: nextOffset,
           exhausted: done,
           fetchedAt: Date.now(),
         });
@@ -900,20 +971,23 @@ export function ModelSearchPanel({
     return () => {
       signal.cancelled = true;
     };
-  }, [apiKey, target, scanBatch, scanStateSetter]);
+  }, [apiKey, searchProviderId, searchBaseUrl, target, scanBatch]);
 
   async function handleLoadMore() {
-    const cached = getCachedEntry(apiKey, target);
+    const cached = getCachedEntry(apiKey, searchProviderId, target);
     if (!cached || cached.exhausted) return;
 
     setLoadingMore(true);
     const signal = { cancelled: false };
     try {
-      const models = await fetchOpenRouterModels(apiKey);
+      const models = await fetchProviderCatalog(
+        searchProviderId,
+        apiKey,
+        searchBaseUrl,
+      );
 
-      const { newResults, nextOffset, done } = await scanBatch(
+      const { newResults, done } = await scanBatch(
         models,
-        cached.catalogueOffset,
         SEARCH_LOAD_MORE,
         cached.results,
         signal,
@@ -923,10 +997,9 @@ export function ModelSearchPanel({
       setResults(newResults);
       setExhausted(done);
 
-      const cacheKey = getCacheKey(apiKey, target);
+      const cacheKey = getCacheKey(apiKey, searchProviderId, target);
       searchCache.set(cacheKey, {
         results: newResults,
-        catalogueOffset: nextOffset,
         exhausted: done,
         fetchedAt: cached.fetchedAt,
       });
@@ -957,7 +1030,12 @@ export function ModelSearchPanel({
     }
   }
 
-  const cacheMinutesLeft = getCacheMinutesLeft(fromCache, apiKey, target);
+  const cacheMinutesLeft = getCacheMinutesLeft(
+    fromCache,
+    apiKey,
+    searchProviderId,
+    target,
+  );
 
   const requiresDesc = isImageTarget
     ? 'structured output + vision + speed/uptime'
@@ -993,6 +1071,9 @@ export function ModelSearchPanel({
       displayed={displayed}
       requiresDesc={requiresDesc}
       statusLine={statusLine}
+      providerLabel={providerLabel}
+      providers={providers}
+      fallbackProviderId={searchProviderId}
       onLoadMore={() => void handleLoadMore()}
     />
   );

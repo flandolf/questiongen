@@ -1,8 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
-import { shieldMathForMarkdown } from '@/lib/math-normalization';
+import {
+  normalizeMarkdownLineBreaks,
+  shieldMathForMarkdown,
+} from '@/lib/math-normalization';
 
 describe('math-normalization', () => {
+  describe('normalizeMarkdownLineBreaks', () => {
+    it('normalizes real and escaped newlines', () => {
+      expect(normalizeMarkdownLineBreaks('a\r\nb\\n c\\r\\nd')).toBe(
+        'a\nb\n c\nd',
+      );
+    });
+
+    it('keeps latex commands that look like escaped newlines', () => {
+      expect(normalizeMarkdownLineBreaks(String.raw`Find \nabla f.`)).toBe(
+        String.raw`Find \nabla f.`,
+      );
+    });
+
+    it('moves text after marks to the next line', () => {
+      expect(normalizeMarkdownLineBreaks('Solve. [2 marks] Then explain.')).toBe(
+        'Solve. [2 marks]\nThen explain.',
+      );
+    });
+  });
+
   describe('shieldMathForMarkdown', () => {
     it('shields inline math', () => {
       const input = 'Solve $x + 1 = 2$.';

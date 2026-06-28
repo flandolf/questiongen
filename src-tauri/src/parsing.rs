@@ -28,13 +28,15 @@
 // \underbrace, \unit, etc. when the model omits escaping — handled specially
 // below. \", \\, \/ are JSON escapes and do not need LaTeX collision handling.
 
-/// Pre-process raw JSON text to protect LaTeX commands from being destroyed by
-/// JSON escape sequence interpretation.
+/// Pre-process raw JSON text to protect LaTeX commands and raw control chars
+/// from breaking JSON parsing.
 ///
 /// This must be called on the raw model output *before* passing it to
 /// serde_json. It rewrites `\X` inside JSON string literals where `X` is a
 /// letter that would otherwise be consumed as a JSON escape, turning them into
-/// `\\X` so that after parsing the string contains a real backslash.
+/// `\\X` so that after parsing the string contains a real backslash. It also
+/// escapes literal newlines/tabs/control chars that models sometimes put inside
+/// JSON strings.
 pub fn protect_latex_in_raw_json(raw: &str) -> String {
     // The colliding single-char JSON escape sequences whose next char could be
     // the start of a LaTeX command. The replacements are ordered so that the
@@ -164,6 +166,27 @@ pub fn protect_latex_in_raw_json(raw: &str) -> String {
                             i += 2;
                         }
                     }
+                }
+                b'\r' => {
+                    out.extend_from_slice(b"\\n");
+                    i += if i + 1 < len && bytes[i + 1] == b'\n' {
+                        2
+                    } else {
+                        1
+                    };
+                }
+                b'\n' => {
+                    out.extend_from_slice(b"\\n");
+                    i += 1;
+                }
+                b'\t' => {
+                    out.extend_from_slice(b"\\t");
+                    i += 1;
+                }
+                b if b < 0x20 => {
+                    let escaped = format!("\\u{b:04x}");
+                    out.extend_from_slice(escaped.as_bytes());
+                    i += 1;
                 }
                 b => {
                     out.push(b);
@@ -343,6 +366,22 @@ mod tests {
         let protected = protect_latex_in_raw_json(raw);
         let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
         assert_eq!(v["q"].as_str().unwrap(), "line1\n line2");
+    }
+
+    #[test]
+    fn literal_newline_inside_json_string_is_escaped() {
+        let raw = "{ \"q\": \"line1\nline2\" }";
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), "line1\nline2");
+    }
+
+    #[test]
+    fn literal_tab_inside_json_string_is_escaped() {
+        let raw = "{ \"q\": \"col1\tcol2\" }";
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), "col1\tcol2");
     }
 
     #[test]

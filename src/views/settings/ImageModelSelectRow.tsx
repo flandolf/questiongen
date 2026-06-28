@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { readBackendError } from '@/lib/app-utils';
+import { useAppStore } from '@/store';
+import {
+  getProviderLabelForModel,
+  type PresetModel,
+  type ProviderResolutionContext,
+  type ProviderState,
+  stripProviderModelPrefix,
+} from '@/types/provider';
 
 import {
   Select,
@@ -12,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { getProviderLabel, PRESET_IMAGE_MODELS } from './constants';
+import { PRESET_IMAGE_MODELS } from './constants';
 import {
   getCachedImageValidation,
   setCachedImageValidation,
@@ -25,6 +33,9 @@ export function ImageModelSelectRow({
   disabled,
   apiKey,
   models: modelsProp,
+  providers: providersProp,
+  activeProviderId: activeProviderIdProp,
+  resolutionContext,
   onSelect,
   onSearch,
   placeholder = 'Select a vision model',
@@ -33,7 +44,19 @@ export function ImageModelSelectRow({
   value: string;
   disabled?: boolean;
   apiKey: string;
-  models?: { id: string; name: string }[];
+  models?: PresetModel[];
+  /**
+   * Optional provider-state map. Falls back to the store selector
+   * when omitted so legacy consumers keep working.
+   */
+  providers?: Record<string, ProviderState>;
+  /**
+   * Optional active provider id. Falls back to the store selector
+   * when omitted.
+   */
+  activeProviderId?: string;
+  /** Optional rich resolution context (catalog Sets etc.). */
+  resolutionContext?: ProviderResolutionContext;
   onSelect: (v: string) => void;
   onSearch?: () => void;
   placeholder?: string;
@@ -44,12 +67,23 @@ export function ImageModelSelectRow({
   });
   const lastValidatedRef = useRef<string>('');
 
+  // Provider context for routing stats requests and labelling badges.
+  // Active provider id + base URL are needed so NVIDIA + custom
+  // providers hit the new `get_provider_model_stats` command rather
+  // than the OpenRouter-only `get_model_stats`.
+  const fallbackProviders = useAppStore((s) => s.providers);
+  const fallbackActiveProviderId = useAppStore((s) => s.activeProviderId);
+  const providers = providersProp ?? fallbackProviders;
+  const activeProviderId = activeProviderIdProp ?? fallbackActiveProviderId;
+
   const validateModel = useCallback(
     async (modelId: string) => {
       if (!modelId || modelId === 'custom' || !apiKey.trim()) {
         setValidation({ status: 'idle' });
         return;
       }
+      const explicit = stripProviderModelPrefix(modelId);
+      const requestProviderId = explicit.providerId ?? activeProviderId;
       const cached = getCachedImageValidation(apiKey, modelId);
       if (cached !== null) {
         setValidation({ status: cached ? 'supported' : 'unsupported' });
@@ -57,18 +91,34 @@ export function ImageModelSelectRow({
       }
       setValidation({ status: 'loading' });
       try {
-        const stats = await invoke<ModelStats>('get_model_stats', {
-          apiKey,
-          modelId,
-        });
-        const supports = stats.supportsImages === true;
+        let supports: boolean;
+        if (requestProviderId === 'openrouter') {
+          const stats = await invoke<ModelStats>('get_model_stats', {
+            apiKey,
+            modelId: explicit.modelId,
+          });
+          supports = stats.supportsImages === true;
+        } else {
+          const baseUrl =
+            providers[requestProviderId]?.config?.baseUrl ?? null;
+          const wrapped = await invoke<{ stats: ModelStats }>(
+            'get_provider_model_stats',
+            {
+              apiKey,
+              modelId: explicit.modelId,
+              providerId: requestProviderId,
+              baseUrl: baseUrl ?? undefined,
+            },
+          );
+          supports = wrapped.stats.supportsImages === true;
+        }
         setCachedImageValidation(apiKey, modelId, supports);
         setValidation({ status: supports ? 'supported' : 'unsupported' });
       } catch (e) {
         setValidation({ status: 'error', message: readBackendError(e) });
       }
     },
-    [apiKey],
+    [apiKey, activeProviderId, providers],
   );
 
   useEffect(() => {
@@ -100,7 +150,11 @@ export function ImageModelSelectRow({
           </SelectTrigger>
           <SelectContent>
             {extraEntry.map((m) => {
-              const provider = getProviderLabel(m.id);
+              const provider = getProviderLabelForModel(
+                m.id,
+                providers,
+                { ...(resolutionContext ?? {}), activeProviderId },
+              );
               return (
                 <SelectItem key={m.id} value={m.id}>
                   <span className='flex items-center gap-2 min-w-0'>
@@ -121,7 +175,14 @@ export function ImageModelSelectRow({
               <div className='my-1 border-t border-border' />
             )}
             {models.map((m) => {
-              const provider = m.id !== 'custom' ? getProviderLabel(m.id) : '';
+              const provider =
+                m.id !== 'custom'
+                  ? getProviderLabelForModel(m.id, providers, {
+                      ...(resolutionContext ?? {}),
+                      activeProviderId,
+                      listingProviderId: m.providerId,
+                    })
+                  : '';
               return (
                 <SelectItem key={m.id} value={m.id}>
                   {m.id === 'custom' ? (

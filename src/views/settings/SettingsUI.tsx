@@ -14,6 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import {
+  getProviderLabelForModel,
+  type PresetModel,
+  type ProviderResolutionContext,
+  type ProviderState,
+} from '@/types/provider';
 import { getProviderLabel } from '@/views/settings/constants';
 
 export const SECTION_ANIMATION_VARIANTS = {
@@ -266,15 +272,44 @@ export function ModelSelectRow({
   onSelect,
   onSearch,
   placeholder = 'Select model...',
+  providers,
+  activeProviderId,
+  resolutionContext,
 }: {
   id: string;
   value: string;
-  models: { id: string; name: string }[];
+  models: PresetModel[];
   disabled?: boolean;
   onSelect: (v: string) => void;
   onSearch?: () => void;
   placeholder?: string;
+  /**
+   * Optional context for accurate per-provider labelling. When provided,
+   * NVIDIA + custom-provider models stop mis-labelling as "OpenRouter".
+   * Falls back to the shape-only heuristic when omitted.
+   */
+  providers?: Record<string, ProviderState>;
+  activeProviderId?: string;
+  /** Optional rich resolution context (catalog Sets, listing hints etc.).
+   *  Per-row `providerId` from each preset item is threaded automatically
+   *  as the listing hint. */
+  resolutionContext?: ProviderResolutionContext;
 }) {
+  // Resolve a label for a single model id using whichever context is available.
+  // Provider-context path uses the accurate `getProviderForModel` resolver
+  // (NVIDIA-priority for author/slug, custom providers for non-built-in ids).
+  const resolveLabel = React.useCallback(
+    (modelId: string, listingProviderId?: string): string => {
+      if (!providers) return getProviderLabel(modelId, activeProviderId);
+      const ctx: ProviderResolutionContext = {
+        ...(resolutionContext ?? {}),
+        activeProviderId,
+        listingProviderId,
+      };
+      return getProviderLabelForModel(modelId, providers, ctx);
+    },
+    [providers, activeProviderId, resolutionContext],
+  );
   const isKnown = models.some((m) => m.id === value);
   const extraEntry =
     !isKnown && value && value !== 'custom'
@@ -291,7 +326,7 @@ export function ModelSelectRow({
 
   return (
     <div className='flex flex-row items-center gap-2'>
-      <Select value={selectVal} onValueChange={onSelect}>
+      <Select value={selectVal} onValueChange={onSelect} disabled={disabled}>
         <SelectTrigger
           id={id}
           className='flex-1 min-w-0 h-9 bg-background/50 border-border/40 hover:bg-muted/50 transition-colors text-xs font-medium'
@@ -300,7 +335,7 @@ export function ModelSelectRow({
         </SelectTrigger>
         <SelectContent className='max-h-80'>
           {extraEntry.map((m) => {
-            const provider = getProviderLabel(m.id);
+            const provider = resolveLabel(m.id);
             return (
               <SelectItem
                 key={m.id}
@@ -327,7 +362,8 @@ export function ModelSelectRow({
             <div className='my-1 border-t border-border/40' />
           )}
           {models.map((m) => {
-            const provider = m.id !== 'custom' ? getProviderLabel(m.id) : '';
+            const provider =
+              m.id !== 'custom' ? resolveLabel(m.id, m.providerId) : '';
             return (
               <SelectItem
                 key={m.id}
@@ -357,7 +393,7 @@ export function ModelSelectRow({
           size='icon'
           disabled={disabled}
           onClick={onSearch}
-          title='Search all OpenRouter models'
+          title='Search provider models'
           className='h-9 w-9 border-border/40 hover:bg-primary/5 hover:text-primary transition-all active:scale-90'
         >
           <Search className='h-3.5 w-3.5' />

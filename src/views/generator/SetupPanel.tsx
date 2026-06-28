@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { onAuthStateChanged } from 'firebase/auth';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   AlertTriangle,
   BookOpen,
@@ -65,8 +66,9 @@ import {
   toCanonicalSubtopicName,
   toScopedSubtopicGroups,
 } from '@/types';
+import { getModelCredentials, getProviderLabelForModel } from '@/types/provider';
 
-import { getModelsForProvider, getProviderLabel } from '../settings/constants';
+import { getModelsForProvider } from '../settings/constants';
 import {
   BatchTimeline,
   GenerationTimeline,
@@ -684,6 +686,8 @@ function SetupPanelImpl({
   const customSubtopics = useAppStore((s) => s.customSubtopics);
   const syncCustomSubtopics = useAppStore((s) => s.syncCustomSubtopics);
   const activeProviderId = useAppStore((s) => s.activeProviderId);
+  const providers = useAppStore((s) => s.providers);
+  const prefersReducedMotion = useReducedMotion();
 
   const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(
     null,
@@ -718,14 +722,41 @@ function SetupPanelImpl({
     let cancelled = false;
     async function fetchStats() {
       if (!apiKey || !model || model === 'custom') return;
+      const credentials = getModelCredentials(model, providers, {
+        activeProviderId,
+      });
+      if (!credentials) return;
       try {
         const stats = await invoke<{
           promptPricePerToken?: number | null;
           completionPricePerToken?: number | null;
-        }>('get_model_stats', { apiKey, modelId: model });
+        }>(
+          credentials.providerId === 'openrouter'
+            ? 'get_model_stats'
+            : 'get_provider_model_stats',
+          credentials.providerId === 'openrouter'
+            ? { apiKey: credentials.apiKey, modelId: credentials.modelId }
+            : {
+                apiKey: credentials.apiKey,
+                modelId: credentials.modelId,
+                providerId: credentials.providerId,
+                baseUrl: credentials.baseUrl,
+              },
+        );
+        const resolvedStats =
+          'stats' in stats
+            ? (
+                stats as {
+                  stats: {
+                    promptPricePerToken?: number | null;
+                    completionPricePerToken?: number | null;
+                  };
+                }
+              ).stats
+            : stats;
         if (cancelled) return;
-        setPromptPricePerToken(stats.promptPricePerToken ?? null);
-        setCompletionPricePerToken(stats.completionPricePerToken ?? null);
+        setPromptPricePerToken(resolvedStats.promptPricePerToken ?? null);
+        setCompletionPricePerToken(resolvedStats.completionPricePerToken ?? null);
       } catch {
         setPromptPricePerToken(null);
         setCompletionPricePerToken(null);
@@ -735,7 +766,7 @@ function SetupPanelImpl({
     return () => {
       cancelled = true;
     };
-  }, [apiKey, model]);
+  }, [apiKey, model, providers, activeProviderId]);
 
   const flatSelectedSubtopics = useMemo(
     () =>
@@ -779,7 +810,7 @@ function SetupPanelImpl({
   ]);
 
   const displayModels = useMemo(() => {
-    const presets = getModelsForProvider();
+    const presets = getModelsForProvider(activeProviderId);
     const known = presets.filter((m) => m.id !== 'custom');
     if (model && model !== 'custom' && !known.some((m) => m.id === model)) {
       return [
@@ -788,7 +819,7 @@ function SetupPanelImpl({
       ];
     }
     return known;
-  }, [model]);
+  }, [activeProviderId, model]);
 
   // Display name for the currently-selected model. Falls back to the raw
   // model id if the lookup misses, and to `undefined` when neither the lookup
@@ -803,9 +834,14 @@ function SetupPanelImpl({
   // Provider label for the active model, rendered as a static pill beside the
   // trigger so users still see at-a-glance which provider they're sending to
   // (the badge inside each SelectItem only shows when the dropdown is open).
+  // Uses providers + activeProviderId so NVIDIA + custom-provider models
+  // stop mis-labelling as OpenRouter.
   const activeProviderLabel = useMemo(
-    () => (model ? getProviderLabel(model) : undefined),
-    [model],
+    () =>
+      model
+        ? getProviderLabelForModel(model, providers, activeProviderId)
+        : undefined,
+    [model, providers, activeProviderId],
   );
 
   const generationDisabledReasons = useMemo(() => {
@@ -834,6 +870,8 @@ function SetupPanelImpl({
   const isGenerationDisabled = generationDisabledReasons.length > 0;
   const activeDifficulty = normalizeDifficulty(difficulty);
   const showBatchTimeline = batchProgress.length > 1;
+  const showGenerationTimeline =
+    isGenerating || generationStatus?.stage === 'failed';
   const questionMinutes = Math.max(
     1,
     Math.round((questionCount * averageMarksPerQuestion) / 2.5),
@@ -1149,39 +1187,6 @@ function SetupPanelImpl({
               </section>
             </div>
 
-            {/* Generation timeline (above the bottom bar) */}
-            {isGenerating && (
-              <div className='rounded-md border border-border bg-card overflow-hidden'>
-                {showBatchTimeline ? (
-                  <BatchTimeline
-                    entries={batchProgress}
-                    generationSubCallProgress={generationSubCallProgress}
-                    generationStartedAt={generationStartedAt}
-                    formattedElapsedTime={formattedElapsedTime}
-                    streamText={streamText}
-                    isGenerating={isGenerating}
-                    isPaused={isPaused}
-                    onTogglePause={onTogglePause}
-                    onAbort={onAbort}
-                    showRawLlmOutput={showRawLlmOutput}
-                  />
-                ) : (
-                  <GenerationTimeline
-                    generationStatus={generationStatus}
-                    generationSubCallProgress={generationSubCallProgress}
-                    generationStartedAt={generationStartedAt}
-                    formattedElapsedTime={formattedElapsedTime}
-                    streamText={streamText}
-                    isGenerating={isGenerating}
-                    isPaused={isPaused}
-                    onTogglePause={onTogglePause}
-                    onAbort={onAbort}
-                    showRawLlmOutput={showRawLlmOutput}
-                  />
-                )}
-              </div>
-            )}
-
             {!isGenerating &&
               generationStatus?.stage !== 'completed' &&
               lastGenerationTelemetry && (
@@ -1193,7 +1198,52 @@ function SetupPanelImpl({
         </div>
 
         {/* ── STICKY CONTROL BAR ── */}
-        <div className='border-t border-border bg-background'>
+        <div className='relative border-t border-border bg-background'>
+          <AnimatePresence initial={false}>
+            {showGenerationTimeline && (
+              <motion.div
+                key='generation-timeline-popout'
+                initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: prefersReducedMotion ? 0 : 12 }}
+                transition={{
+                  duration: prefersReducedMotion ? 0.01 : 0.18,
+                  ease: 'easeOut',
+                }}
+                className='absolute inset-x-0 bottom-full z-20 px-6'
+              >
+                <div className='overflow-hidden rounded-t-md border-x border-t border-border bg-card shadow-lg'>
+                  {showBatchTimeline ? (
+                    <BatchTimeline
+                      entries={batchProgress}
+                      generationSubCallProgress={generationSubCallProgress}
+                      generationStartedAt={generationStartedAt}
+                      formattedElapsedTime={formattedElapsedTime}
+                      streamText={streamText}
+                      isGenerating={isGenerating}
+                      isPaused={isPaused}
+                      onTogglePause={onTogglePause}
+                      onAbort={onAbort}
+                      showRawLlmOutput={showRawLlmOutput}
+                    />
+                  ) : (
+                    <GenerationTimeline
+                      generationStatus={generationStatus}
+                      generationSubCallProgress={generationSubCallProgress}
+                      generationStartedAt={generationStartedAt}
+                      formattedElapsedTime={formattedElapsedTime}
+                      streamText={streamText}
+                      isGenerating={isGenerating}
+                      isPaused={isPaused}
+                      onTogglePause={onTogglePause}
+                      onAbort={onAbort}
+                      showRawLlmOutput={showRawLlmOutput}
+                    />
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className='px-6 h-12 flex items-center justify-between gap-6'>
             <div className='flex items-center gap-4 min-w-0'>
               <EstimateReadout
@@ -1224,7 +1274,11 @@ function SetupPanelImpl({
                   </SelectTrigger>
                   <SelectContent>
                     {displayModels.map((m) => {
-                      const provider = getProviderLabel(m.id);
+                      const provider = getProviderLabelForModel(
+                        m.id,
+                        providers,
+                        activeProviderId,
+                      );
                       return (
                         <SelectItem key={m.id} value={m.id} className='text-xs'>
                           {/* ItemText content + provider badge share one flex span

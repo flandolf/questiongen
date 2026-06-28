@@ -1,10 +1,10 @@
 use crate::llm::{
     is_anthropic_model, json_object_format, json_schema_format, json_schema_format_anthropic,
-    supports_json_schema_format,
+    supports_json_schema_format_for,
 };
 
-pub fn written_format(model: &str) -> serde_json::Value {
-    if !supports_json_schema_format(model) {
+pub fn written_format(model: &str, base_url: &str) -> serde_json::Value {
+    if !supports_json_schema_format_for(model, base_url) {
         return json_object_format();
     }
     let schema = serde_json::json!({
@@ -53,8 +53,8 @@ pub fn written_format(model: &str) -> serde_json::Value {
     }
 }
 
-pub fn mc_format(model: &str) -> serde_json::Value {
-    if !supports_json_schema_format(model) {
+pub fn mc_format(model: &str, base_url: &str) -> serde_json::Value {
+    if !supports_json_schema_format_for(model, base_url) {
         return json_object_format();
     }
     let schema = serde_json::json!({
@@ -126,8 +126,8 @@ pub fn mc_format(model: &str) -> serde_json::Value {
     }
 }
 
-pub fn marking_format(model: &str) -> serde_json::Value {
-    if !supports_json_schema_format(model) {
+pub fn marking_format(model: &str, base_url: &str) -> serde_json::Value {
+    if !supports_json_schema_format_for(model, base_url) {
         return json_object_format();
     }
     let schema = serde_json::json!({
@@ -241,5 +241,3 @@ pub fn marking_format(model: &str) -> serde_json::Value {
         json_schema_format("mark_answer", schema)
     }
 }
-
-

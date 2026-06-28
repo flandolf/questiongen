@@ -13,12 +13,23 @@ import {
 } from '@/components/ui/select';
 import { useDeepSeekModels } from '@/hooks/useDeepSeekInfo';
 import { useModelStats } from '@/hooks/useModelStats';
+import { useNvidiaModels } from '@/hooks/useNvidiaInfo';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
+import type {
+  PresetModel,
+  ProviderResolutionContext,
+  ProviderState,
+} from '@/types/provider';
+import { toProviderModelId } from '@/types/provider';
 import {
+  DEEPSEEK_PRESET_IMAGE_MODELS,
+  DEEPSEEK_PRESET_MODELS,
   getImageModelsForProvider,
   getModelsForProvider,
   MARKER_STYLE_OPTIONS,
+  NVIDIA_PRESET_IMAGE_MODELS,
+  NVIDIA_PRESET_MODELS,
 } from '@/views/settings/constants';
 import { fmt } from '@/views/settings/formatters';
 import { ImageModelSelectRow } from '@/views/settings/ImageModelSelectRow';
@@ -56,6 +67,64 @@ function ConfigSection({
     >
       {children}
     </section>
+  );
+}
+
+function ProviderSelectSection({
+  activeProviderId,
+  providers,
+  onChange,
+}: {
+  activeProviderId: string;
+  providers: Record<string, ProviderState>;
+  onChange: (providerId: string) => void;
+}) {
+  const activeProvider = providers[activeProviderId];
+
+  return (
+    <ConfigSection key='provider-section' className='space-y-3'>
+      <SectionHeader
+        title='Provider'
+        description='Choose the API provider these model selections should use.'
+      />
+      <FieldGroup label='Active provider' htmlFor='provider-select'>
+        <Select value={activeProviderId} onValueChange={onChange}>
+          <SelectTrigger
+            id='provider-select'
+            className='h-9 bg-background/50 border-border/40 text-xs font-medium'
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(providers).map((provider) => (
+              <SelectItem
+                key={provider.config.id}
+                value={provider.config.id}
+                className='text-xs font-medium'
+              >
+                <span className='flex items-center gap-2'>
+                  <span>{provider.config.name}</span>
+                  {provider.apiKey ? (
+                    <span className='text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 leading-none'>
+                      key saved
+                    </span>
+                  ) : (
+                    <span className='text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground leading-none'>
+                      no key
+                    </span>
+                  )}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FieldGroup>
+      {activeProvider && (
+        <p className='text-xs text-muted-foreground font-mono truncate'>
+          {activeProvider.config.baseUrl}
+        </p>
+      )}
+    </ConfigSection>
   );
 }
 
@@ -209,6 +278,14 @@ function ReasoningEffortSelect({
   id: string;
 }) {
   const activeProviderId = useAppStore((s) => s.activeProviderId);
+  // NVIDIA NIMs and custom endpoints don't accept the OpenRouter
+  // reasoning-effort param. Hidden entirely in that case so users
+  // don't think the slider is doing anything.
+  const isOpenRouterOrDeepSeek =
+    activeProviderId === 'deepseek' || activeProviderId === 'openrouter';
+  if (!isOpenRouterOrDeepSeek) {
+    return null;
+  }
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger id={id} className='w-40'>
@@ -247,6 +324,9 @@ function ReasoningEffortField({
   id: string;
 }) {
   const activeProviderId = useAppStore((s) => s.activeProviderId);
+  const isOpenRouterOrDeepSeek =
+    activeProviderId === 'deepseek' || activeProviderId === 'openrouter';
+  if (!isOpenRouterOrDeepSeek) return null;
   return (
     <AnimatePresence>
       {enabled && (
@@ -312,35 +392,90 @@ function CustomModelSlideDown({
 export function ModelsSection() {
   const settings = useAppSettings();
   const activeProviderId = useAppStore((s) => s.activeProviderId);
-  const stats = useModelStats(settings.apiKey);
+  const providers = useAppStore((s) => s.providers);
+  const setActiveProvider = useAppStore((s) => s.setActiveProvider);
+  const activeApiKey = providers[activeProviderId]?.apiKey ?? settings.apiKey;
+  const stats = useModelStats(activeApiKey);
 
   // Dynamic DeepSeek model list (fetched regardless of active provider)
   const deepseekApiKey = useAppStore((s) => s.providers['deepseek']?.apiKey);
   const deepseekModels = useDeepSeekModels(deepseekApiKey);
 
+  // Dynamic NVIDIA NIM list (fetched regardless of active provider)
+  const nvidiaApiKey = useAppStore((s) => s.providers['nvidia']?.apiKey);
+  const nvidiaModels = useNvidiaModels(nvidiaApiKey);
+
   useEffect(() => {
     if (deepseekApiKey) {
       void deepseekModels.fetch();
     }
-  }, [deepseekApiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (nvidiaApiKey) {
+      void nvidiaModels.fetch();
+    }
+  }, [deepseekApiKey, nvidiaApiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Catalog Sets — feed `getProviderForModel` so shared author/slug
+  // models (e.g. `moonshotai/kimi-k2.6`) route to NVIDIA when NVIDIA
+  // is in the fetched catalogue even if not yet selected.
+  const nvidiaCatalog = useMemo(
+    () => new Set((nvidiaModels.models?.data ?? []).map((m) => m.id)),
+    [nvidiaModels.models],
+  );
+  const deepseekCatalog = useMemo(
+    () => new Set((deepseekModels.models?.data ?? []).map((m) => m.id)),
+    [deepseekModels.models],
+  );
+  const resolutionContext = useMemo<ProviderResolutionContext>(
+    () => ({ nvidiaCatalog, deepseekCatalog }),
+    [nvidiaCatalog, deepseekCatalog],
+  );
 
   const modelPresets = useMemo(() => {
-    const base = [...getModelsForProvider()];
-    if (deepseekModels.models?.data.length) {
+    // Pick presets by active provider so DeepSeek/NVIDIA users see
+    // models that match their endpoint. OpenRouter users get the full
+    // mastered preset list.
+    let base: PresetModel[] = [...getModelsForProvider()];
+    if (activeProviderId === 'nvidia') {
+      base = [...NVIDIA_PRESET_MODELS];
+    } else if (activeProviderId === 'deepseek') {
+      base = [...DEEPSEEK_PRESET_MODELS];
+    } else if (providers[activeProviderId] && activeProviderId !== 'openrouter') {
+      base = [{ id: 'custom', name: 'Custom…', providerId: activeProviderId }];
+    }
+
+    if (activeProviderId === 'deepseek' && deepseekModels.models?.data.length) {
       const seen = new Set(base.map((m) => m.id));
       for (const m of deepseekModels.models.data) {
-        if (!seen.has(m.id)) {
-          base.push({ id: m.id, name: m.id });
-          seen.add(m.id);
+        const id = toProviderModelId('deepseek', m.id);
+        if (!seen.has(id)) {
+          base.push({ id, name: m.id, providerId: 'deepseek' });
+          seen.add(id);
         }
       }
       if (!seen.has('custom')) {
         base.push({ id: 'custom', name: 'Custom…' });
       }
     }
+    if (activeProviderId === 'nvidia' && nvidiaModels.models?.data.length) {
+      const seen = new Set(base.map((m) => m.id));
+      for (const m of nvidiaModels.models.data) {
+        const id = toProviderModelId('nvidia', m.id);
+        if (!seen.has(id)) {
+          base.push({ id, name: m.id, providerId: 'nvidia' });
+          seen.add(id);
+        }
+      }
+    }
     return base;
-  }, [deepseekModels.models]);
-  const imageModelPresets = useMemo(() => getImageModelsForProvider(), []);
+  }, [activeProviderId, deepseekModels.models, nvidiaModels.models, providers]);
+  const imageModelPresets = useMemo(() => {
+    if (activeProviderId === 'nvidia') return NVIDIA_PRESET_IMAGE_MODELS;
+    if (activeProviderId === 'deepseek') return DEEPSEEK_PRESET_IMAGE_MODELS;
+    if (providers[activeProviderId] && activeProviderId !== 'openrouter') {
+      return [{ id: 'custom', name: 'Custom…', providerId: activeProviderId }];
+    }
+    return getImageModelsForProvider();
+  }, [activeProviderId, providers]);
   const [localState, setLocalState] = useState({
     model: settings.model,
     markingModel: settings.markingModel,
@@ -423,22 +558,22 @@ export function ModelsSection() {
    */
   const { fetch: fetchGen } = stats.generation;
   useEffect(() => {
-    if (settings.apiKey && localState.model) {
+    if (activeApiKey && localState.model) {
       void fetchGen(localState.model);
     }
-  }, [settings.apiKey, localState.model, fetchGen]);
+  }, [activeApiKey, localState.model, fetchGen]);
 
   const { fetch: fetchMark } = stats.marking;
   useEffect(() => {
     if (
-      settings.apiKey &&
+      activeApiKey &&
       localState.useSeparateMarkingModel &&
       localState.markingModel
     ) {
       void fetchMark(localState.markingModel);
     }
   }, [
-    settings.apiKey,
+    activeApiKey,
     localState.useSeparateMarkingModel,
     localState.markingModel,
     fetchMark,
@@ -447,14 +582,14 @@ export function ModelsSection() {
   const { fetch: fetchImg } = stats.image;
   useEffect(() => {
     if (
-      settings.apiKey &&
+      activeApiKey &&
       localState.useSeparateImageMarkingModel &&
       localState.imageMarkingModel
     ) {
       void fetchImg(localState.imageMarkingModel);
     }
   }, [
-    settings.apiKey,
+    activeApiKey,
     localState.useSeparateImageMarkingModel,
     localState.imageMarkingModel,
     fetchImg,
@@ -462,29 +597,83 @@ export function ModelsSection() {
 
   const { fetch: fetchTutor } = stats.tutor;
   useEffect(() => {
-    if (settings.apiKey && localState.tutorModel) {
+    if (activeApiKey && localState.tutorModel) {
       void fetchTutor(localState.tutorModel);
     }
-  }, [settings.apiKey, localState.tutorModel, fetchTutor]);
+  }, [activeApiKey, localState.tutorModel, fetchTutor]);
 
   const openSearch = useCallback((t: typeof searchTarget) => {
     setSearchTarget(t);
     setSearchOpen(true);
   }, []);
 
+  const toggleCustom = useCallback((target: string, value: boolean) => {
+    setShowCustom((prev) => ({ ...prev, [target]: value }));
+  }, []);
+
+  const setCustomId = (target: string, id: string) => {
+    setCustomIds((prev) => ({ ...prev, [target]: id }));
+  };
+
+  const updateModelSelection = useCallback(
+    (
+      target: typeof searchTarget,
+      id: string,
+      providerId = activeProviderId,
+    ) => {
+      if (providerId !== activeProviderId && providers[providerId]) {
+        setActiveProvider(providerId);
+      }
+      if (target === 'generation') {
+        updateSetting('model', id);
+      } else if (target === 'marking') {
+        updateSetting('markingModel', id);
+      } else if (target === 'imageMarking') {
+        updateSetting('imageMarkingModel', id);
+      } else {
+        updateSetting('tutorModel', id);
+      }
+    },
+    [activeProviderId, providers, setActiveProvider, updateSetting],
+  );
+
+  const selectPresetModel = useCallback(
+    (target: typeof searchTarget, id: string) => {
+      if (id === 'custom') {
+        toggleCustom(target, true);
+        return;
+      }
+      const preset =
+        target === 'imageMarking'
+          ? imageModelPresets.find((m) => m.id === id)
+          : modelPresets.find((m) => m.id === id);
+      toggleCustom(target, false);
+      updateModelSelection(target, id, preset?.providerId);
+    },
+    [imageModelPresets, modelPresets, toggleCustom, updateModelSelection],
+  );
+
   const applySearchResult = (id: string) => {
-    if (searchTarget === 'generation') {
-      updateSetting('model', id);
-    } else if (searchTarget === 'marking') {
-      updateSetting('markingModel', id);
-    } else if (searchTarget === 'imageMarking') {
-      updateSetting('imageMarkingModel', id);
-    } else {
-      updateSetting('tutorModel', id);
-    }
+    updateModelSelection(searchTarget, id);
     setShowCustom((prev) => ({ ...prev, [searchTarget]: false }));
     setSearchOpen(false);
   };
+
+  const applyCustomModel = (target: typeof searchTarget, id: string) => {
+    const trimmed = id.trim();
+    if (!trimmed) return;
+    updateModelSelection(target, trimmed);
+    toggleCustom(target, false);
+  };
+
+  const handleProviderChange = useCallback(
+    (providerId: string) => {
+      setActiveProvider(providerId);
+      setShowCustom({});
+      setSearchOpen(false);
+    },
+    [setActiveProvider],
+  );
 
   const currentModelConfig = useMemo(
     () => ({
@@ -498,25 +687,25 @@ export function ModelsSection() {
     [localState],
   );
 
-  const toggleCustom = (target: string, value: boolean) => {
-    setShowCustom((prev) => ({ ...prev, [target]: value }));
-  };
-
-  const setCustomId = (target: string, id: string) => {
-    setCustomIds((prev) => ({ ...prev, [target]: id }));
-  };
-
   return (
     <AnimatedSection className='space-y-5'>
       {searchOpen && (
         <ModelSearchPanel
           key='model-search-panel'
           target={searchTarget}
-          apiKey={settings.apiKey}
+          apiKey={activeApiKey}
+          providerId={activeProviderId}
+          baseUrl={providers[activeProviderId]?.config?.baseUrl ?? null}
           onClose={() => setSearchOpen(false)}
           onSelect={applySearchResult}
         />
       )}
+
+      <ProviderSelectSection
+        activeProviderId={activeProviderId}
+        providers={providers}
+        onChange={handleProviderChange}
+      />
 
       <ConfigSection key='gen-model-section' className='space-y-4'>
         <SectionHeader
@@ -533,12 +722,11 @@ export function ModelsSection() {
             id='model-select'
             value={localState.model}
             models={modelPresets}
-            disabled={!settings.apiKey}
-            onSelect={(v) =>
-              v === 'custom'
-                ? toggleCustom('generation', true)
-                : (toggleCustom('generation', false), updateSetting('model', v))
-            }
+            disabled={!activeApiKey}
+            providers={providers}
+            activeProviderId={activeProviderId}
+            resolutionContext={resolutionContext}
+            onSelect={(v) => selectPresetModel('generation', v)}
             onSearch={() => openSearch('generation')}
           />
         </FieldGroup>
@@ -577,10 +765,9 @@ export function ModelsSection() {
           label='Custom Model ID'
           value={customIds['generation'] || ''}
           onChange={(v) => setCustomId('generation', v)}
-          onApply={() => {
-            updateSetting('model', (customIds['generation'] || '').trim());
-            toggleCustom('generation', false);
-          }}
+          onApply={() =>
+            applyCustomModel('generation', customIds['generation'] || '')
+          }
         />
       </ConfigSection>
 
@@ -616,13 +803,11 @@ export function ModelsSection() {
                     id='marking-model-select'
                     value={localState.markingModel}
                     models={modelPresets}
-                    disabled={!settings.apiKey}
-                    onSelect={(v) =>
-                      v === 'custom'
-                        ? toggleCustom('marking', true)
-                        : (toggleCustom('marking', false),
-                          updateSetting('markingModel', v))
-                    }
+                    disabled={!activeApiKey}
+                    providers={providers}
+                    activeProviderId={activeProviderId}
+                    resolutionContext={resolutionContext}
+                    onSelect={(v) => selectPresetModel('marking', v)}
                     onSearch={() => openSearch('marking')}
                   />
                 </FieldGroup>
@@ -662,13 +847,9 @@ export function ModelsSection() {
                 label='Custom Marking Model ID'
                 value={customIds['marking'] || ''}
                 onChange={(v) => setCustomId('marking', v)}
-                onApply={() => {
-                  updateSetting(
-                    'markingModel',
-                    (customIds['marking'] || '').trim(),
-                  );
-                  toggleCustom('marking', false);
-                }}
+                onApply={() =>
+                  applyCustomModel('marking', customIds['marking'] || '')
+                }
               />
             </motion.div>
           )}
@@ -706,15 +887,13 @@ export function ModelsSection() {
                   <ImageModelSelectRow
                     id='image-marking-model-select'
                     value={localState.imageMarkingModel}
-                    disabled={!settings.apiKey}
-                    apiKey={settings.apiKey}
+                    disabled={!activeApiKey}
+                    apiKey={activeApiKey}
                     models={imageModelPresets}
-                    onSelect={(v) =>
-                      v === 'custom'
-                        ? toggleCustom('imageMarking', true)
-                        : (toggleCustom('imageMarking', false),
-                          updateSetting('imageMarkingModel', v))
-                    }
+                    providers={providers}
+                    activeProviderId={activeProviderId}
+                    resolutionContext={resolutionContext}
+                    onSelect={(v) => selectPresetModel('imageMarking', v)}
                     onSearch={() => openSearch('imageMarking')}
                   />
                 </FieldGroup>
@@ -754,13 +933,12 @@ export function ModelsSection() {
                 label='Custom Vision ID'
                 value={customIds['imageMarking'] || ''}
                 onChange={(v) => setCustomId('imageMarking', v)}
-                onApply={() => {
-                  updateSetting(
-                    'imageMarkingModel',
-                    (customIds['imageMarking'] || '').trim(),
-                  );
-                  toggleCustom('imageMarking', false);
-                }}
+                onApply={() =>
+                  applyCustomModel(
+                    'imageMarking',
+                    customIds['imageMarking'] || '',
+                  )
+                }
               />
             </motion.div>
           )}
@@ -782,12 +960,11 @@ export function ModelsSection() {
             id='tutor-model-select'
             value={localState.tutorModel}
             models={modelPresets}
-            disabled={!settings.apiKey}
-            onSelect={(v) =>
-              v === 'custom'
-                ? toggleCustom('tutor', true)
-                : (toggleCustom('tutor', false), updateSetting('tutorModel', v))
-            }
+            disabled={!activeApiKey}
+            providers={providers}
+            activeProviderId={activeProviderId}
+            resolutionContext={resolutionContext}
+            onSelect={(v) => selectPresetModel('tutor', v)}
             onSearch={() => openSearch('tutor')}
           />
         </FieldGroup>
@@ -797,10 +974,7 @@ export function ModelsSection() {
           label='Custom Tutor ID'
           value={customIds['tutor'] || ''}
           onChange={(v) => setCustomId('tutor', v)}
-          onApply={() => {
-            updateSetting('tutorModel', (customIds['tutor'] || '').trim());
-            toggleCustom('tutor', false);
-          }}
+          onApply={() => applyCustomModel('tutor', customIds['tutor'] || '')}
         />
       </ConfigSection>
 

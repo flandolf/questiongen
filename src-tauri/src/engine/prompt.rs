@@ -28,16 +28,24 @@ pub enum PromptSection {
     /// Strict JSON output instructions.
     JsonOutputNote,
     /// Schema guidance for providers that only support json_object.
-    SchemaGuidance { is_mc: bool },
+    SchemaGuidance {
+        is_mc: bool,
+    },
     /// Marking-specific sections.
     MarkingIdentity {
         max_marks: u8,
         marker_style: Option<String>,
         custom_marker_style: Option<String>,
     },
-    MarkingSchemeStyle { style: String },
-    MarkingGuidance { topic: String },
-    MarkingLimits { max_marks: u8 },
+    MarkingSchemeStyle {
+        style: String,
+    },
+    MarkingGuidance {
+        topic: String,
+    },
+    MarkingLimits {
+        max_marks: u8,
+    },
     MarkingFeedbackHeaders,
 }
 
@@ -66,7 +74,11 @@ impl PromptSection {
                 max_marks,
                 marker_style,
                 custom_marker_style,
-            } => marking_identity(*max_marks, marker_style.clone(), custom_marker_style.as_deref()),
+            } => marking_identity(
+                *max_marks,
+                marker_style.clone(),
+                custom_marker_style.as_deref(),
+            ),
             PromptSection::MarkingSchemeStyle { style } => marking_scheme_style_instruction(style),
             PromptSection::MarkingGuidance { topic } => {
                 let guidance = catalog::topic_marking_guidance(topic);
@@ -91,7 +103,9 @@ pub struct PromptTemplate {
 
 impl PromptTemplate {
     pub fn new() -> Self {
-        Self { sections: Vec::new() }
+        Self {
+            sections: Vec::new(),
+        }
     }
 
     pub fn with_section(mut self, section: PromptSection) -> Self {
@@ -267,7 +281,10 @@ fn subtopics_note(
         for topic in topics {
             if let Some(entry) = catalog::find_subtopic(topic, key) {
                 s.push_str(&format!("\n\n[{}]", entry.name));
-                s.push_str(&format!("\nCORE CONCEPTS: {}", entry.technique_notes.core_concepts));
+                s.push_str(&format!(
+                    "\nCORE CONCEPTS: {}",
+                    entry.technique_notes.core_concepts
+                ));
                 if !entry.technique_notes.exam_style_guidelines.is_empty() {
                     s.push_str(&format!(
                         "\nSTYLE GUIDELINES: {}",
@@ -279,9 +296,17 @@ fn subtopics_note(
                     s.push_str(&entry.technique_notes.anti_prompts.join("\n- "));
                 }
                 if tech_mode == "tech-free" && !entry.technique_notes.tech_free_rules.is_empty() {
-                    s.push_str(&format!("\nTECH-FREE SPECIFIC: {}", entry.technique_notes.tech_free_rules));
-                } else if tech_mode == "tech-active" && !entry.technique_notes.tech_active_rules.is_empty() {
-                    s.push_str(&format!("\nTECH-ACTIVE SPECIFIC: {}", entry.technique_notes.tech_active_rules));
+                    s.push_str(&format!(
+                        "\nTECH-FREE SPECIFIC: {}",
+                        entry.technique_notes.tech_free_rules
+                    ));
+                } else if tech_mode == "tech-active"
+                    && !entry.technique_notes.tech_active_rules.is_empty()
+                {
+                    s.push_str(&format!(
+                        "\nTECH-ACTIVE SPECIFIC: {}",
+                        entry.technique_notes.tech_active_rules
+                    ));
                 }
                 if let Some(levers) = &entry.complexity_levers {
                     let lever = match difficulty.to_ascii_lowercase().as_str() {
@@ -318,12 +343,16 @@ fn tech_note(mode: &str, topics: &[String]) -> String {
     match mode {
         "tech-free" => {
             let mut s = " All questions must be tech-free.".to_string();
-            if is_math { s.push_str(" For math, focus on direct application of skills."); }
+            if is_math {
+                s.push_str(" For math, focus on direct application of skills.");
+            }
             s
         }
         "tech-active" => {
             let mut s = " All questions must be tech-active.".to_string();
-            if is_math { s.push_str(" For math, focus on application in realistic scenarios/contexts."); }
+            if is_math {
+                s.push_str(" For math, focus on application in realistic scenarios/contexts.");
+            }
             s
         }
         _ => " All questions must be tech-free.".to_string(),
@@ -369,7 +398,11 @@ fn focus_lock_note(
     } else {
         ""
     };
-    format!("\nFOCUS LOCK: {}. Use these focus constraints exclusively; prioritize over PDF content.{}", constraints.join(" "), batch_note)
+    format!(
+        "\nFOCUS LOCK: {}. Use these focus constraints exclusively; prioritize over PDF content.{}",
+        constraints.join(" "),
+        batch_note
+    )
 }
 
 pub fn pdf_reanchor_note(
@@ -397,7 +430,10 @@ pub fn pdf_reanchor_note(
         }
     }
     if question_count <= 3 {
-        lines.push("Since this is a small batch, ensure deep exploration of the above subtopics.".to_string());
+        lines.push(
+            "Since this is a small batch, ensure deep exploration of the above subtopics."
+                .to_string(),
+        );
     }
     lines.push(
         "IMPORTANT: PDFs are for style ONLY. DO NOT reuse any content, scenarios, or numbers. Generate original contexts mapping exclusively to focus constraints.".to_string(),
@@ -418,12 +454,19 @@ fn truncate_for_prompt(s: &str, max_chars: usize) -> String {
 }
 
 fn prior_examples_note(prior: Option<&[String]>) -> String {
-    let Some(prior) = prior else { return String::new(); };
+    let Some(prior) = prior else {
+        return String::new();
+    };
     let mut out = Vec::new();
     for item in prior.iter().take(3) {
         let trimmed = item.trim();
-        if trimmed.is_empty() { continue; }
-        out.push(format!("- {}", sanitize_for_api(&truncate_for_prompt(trimmed, 140))));
+        if trimmed.is_empty() {
+            continue;
+        }
+        out.push(format!(
+            "- {}",
+            sanitize_for_api(&truncate_for_prompt(trimmed, 140))
+        ));
     }
     if out.is_empty() {
         return String::new();
@@ -454,15 +497,24 @@ fn regen_anti_verbs_note(verbs: &[String]) -> String {
 }
 
 fn math_difficulty_note(difficulty: &str, topics: &[String]) -> &'static str {
-    if topics.iter().any(|t| t.trim().eq_ignore_ascii_case("Mathematical Methods")) {
+    if topics
+        .iter()
+        .any(|t| t.trim().eq_ignore_ascii_case("Mathematical Methods"))
+    {
         match difficulty.to_ascii_lowercase().as_str() {
-            "essential skills" => " Math Essential Skills: single-skill items, direct substitution only.",
-            "extreme" => " Math Extreme: multi-part proofs, chain reasoning, first-principles derivation.",
+            "essential skills" => {
+                " Math Essential Skills: single-skill items, direct substitution only."
+            }
+            "extreme" => {
+                " Math Extreme: multi-part proofs, chain reasoning, first-principles derivation."
+            }
             _ => "",
         }
     } else {
         match difficulty.to_ascii_lowercase().as_str() {
-            "essential skills" => " Essential Skills: straightforward questions, minimal inference.",
+            "essential skills" => {
+                " Essential Skills: straightforward questions, minimal inference."
+            }
             "extreme" => " Extreme: multi-step reasoning, synthesis of multiple concepts.",
             _ => "",
         }
@@ -490,7 +542,9 @@ fn difficulty_enforcement_note(difficulty: &str, is_mc: bool) -> &'static str {
 }
 
 fn math_methods_exam1_tech_free_note(topics: &[String], tech_mode: &str) -> &'static str {
-    let is_methods = topics.iter().any(|t| t.trim().eq_ignore_ascii_case("Mathematical Methods"));
+    let is_methods = topics
+        .iter()
+        .any(|t| t.trim().eq_ignore_ascii_case("Mathematical Methods"));
     if !is_methods || tech_mode != "tech-free" {
         return "";
     }
@@ -524,22 +578,24 @@ fn probability_distribution_table_note(
             || low.contains("statistics")
             || low.contains("data analysis")
     });
-    let subtopic_signals_prob = selected_subtopics.map(|subs| {
-        subs.iter().any(|s| {
-            let low = s.to_lowercase();
-            low.contains("probability")
-                || low.contains("random variable")
-                || low.contains("distribution")
-                || low.contains("bernoulli")
-                || low.contains("binomial")
-                || low.contains("normal")
-                || low.contains("poisson")
-                || low.contains("pdf")
-                || low.contains("pmf")
-                || low.contains("sample proportion")
-                || low.contains("confidence interval")
+    let subtopic_signals_prob = selected_subtopics
+        .map(|subs| {
+            subs.iter().any(|s| {
+                let low = s.to_lowercase();
+                low.contains("probability")
+                    || low.contains("random variable")
+                    || low.contains("distribution")
+                    || low.contains("bernoulli")
+                    || low.contains("binomial")
+                    || low.contains("normal")
+                    || low.contains("poisson")
+                    || low.contains("pdf")
+                    || low.contains("pmf")
+                    || low.contains("sample proportion")
+                    || low.contains("confidence interval")
+            })
         })
-    }).unwrap_or(false);
+        .unwrap_or(false);
     if !(topic_signals_prob || subtopic_signals_prob) {
         return "";
     }
@@ -563,7 +619,11 @@ PROBABILITY DISTRIBUTION TABLE FORMAT (MANDATORY, STRICT):
 
 // ─── Marking Prompt Fragments ─────────────────────────────────────────────────
 
-fn marking_identity(_max_marks: u8, marker_style: Option<String>, custom_marker_style: Option<&str>) -> String {
+fn marking_identity(
+    _max_marks: u8,
+    marker_style: Option<String>,
+    custom_marker_style: Option<&str>,
+) -> String {
     let (identity, rules) = match marker_style.as_deref() {
         Some("relaxed") => (
             "Flexible VCE marker",
@@ -684,23 +744,20 @@ fn mc_pe_exemplar() -> &'static str {
 
 fn exemplar_for_topic(topic: &str, is_mc: bool) -> Option<&'static str> {
     let low = topic.to_lowercase();
-    let is_math = low.contains("methods")
-        || low.contains("specialist")
-        || low.contains("general math");
+    let is_math =
+        low.contains("methods") || low.contains("specialist") || low.contains("general math");
     let is_chem = low.contains("chemistry");
     let is_bio = low.contains("biology");
-    let is_pe = low.contains("physical education")
-        || low.contains("phys ed")
-        || low.contains("pe");
+    let is_pe = low.contains("physical education") || low.contains("phys ed") || low.contains("pe");
     match (is_mc, is_math, is_chem, is_bio, is_pe) {
-        (false, true,  false, false, false) => Some(written_maths_exemplar()),
-        (false, false, true,  false, false) => Some(written_chem_exemplar()),
-        (false, false, false, true,  false) => Some(written_bio_exemplar()),
-        (false, false, false, false, true ) => Some(written_pe_exemplar()),
-        (true,  true,  false, false, false) => Some(mc_maths_exemplar()),
-        (true,  false, true,  false, false) => Some(mc_chem_exemplar()),
-        (true,  false, false, true,  false) => Some(mc_bio_exemplar()),
-        (true,  false, false, false, true ) => Some(mc_pe_exemplar()),
+        (false, true, false, false, false) => Some(written_maths_exemplar()),
+        (false, false, true, false, false) => Some(written_chem_exemplar()),
+        (false, false, false, true, false) => Some(written_bio_exemplar()),
+        (false, false, false, false, true) => Some(written_pe_exemplar()),
+        (true, true, false, false, false) => Some(mc_maths_exemplar()),
+        (true, false, true, false, false) => Some(mc_chem_exemplar()),
+        (true, false, false, true, false) => Some(mc_bio_exemplar()),
+        (true, false, false, false, true) => Some(mc_pe_exemplar()),
         _ => None,
     }
 }
@@ -756,7 +813,12 @@ fn exemplars_note(topics: &[String], is_mc: bool) -> String {
 // ─── High-Level Prompt Builders ───────────────────────────────────────────────
 
 /// Build a system prompt for written question generation.
-pub fn written_system_prompt(model: &str) -> String {
+///
+/// `base_url` controls whether the OpenRouter-only `json_schema` structured-
+/// output payload is sent. NVIDIA NIMs and custom OpenAI-compatible endpoints
+/// only honour `json_object`, so we pass `""` (or any non-OpenRouter URL)
+/// when calling from non-OpenRouter providers.
+pub fn written_system_prompt(model: &str, base_url: &str) -> String {
     let mut template = PromptTemplate::new()
         .with_section(PromptSection::Identity("Expert VCE written-response exam writer"))
         .with_section(PromptSection::ComplianceContract)
@@ -770,15 +832,16 @@ pub fn written_system_prompt(model: &str) -> String {
         .with_section(PromptSection::FieldContract)
         .with_section(PromptSection::JsonOutputNote);
 
-    if !crate::llm::supports_json_schema_format(model) {
+    if !crate::llm::supports_json_schema_format_for(model, base_url) {
         template = template.with_section(PromptSection::SchemaGuidance { is_mc: false });
     }
 
     template.build()
 }
 
-/// Build a system prompt for MC question generation.
-pub fn mc_system_prompt(model: &str) -> String {
+/// Build a system prompt for MC question generation. See `written_system_prompt`
+/// for the role of `base_url`.
+pub fn mc_system_prompt(model: &str, base_url: &str) -> String {
     let mut template = PromptTemplate::new()
         .with_section(PromptSection::Identity("Expert VCE multiple-choice exam writer"))
         .with_section(PromptSection::ComplianceContract)
@@ -792,14 +855,14 @@ pub fn mc_system_prompt(model: &str) -> String {
         .with_section(PromptSection::FieldContract)
         .with_section(PromptSection::JsonOutputNote);
 
-    if !crate::llm::supports_json_schema_format(model) {
+    if !crate::llm::supports_json_schema_format_for(model, base_url) {
         template = template.with_section(PromptSection::SchemaGuidance { is_mc: true });
     }
 
     template.build()
 }
 
-/// Build a system prompt for marking.
+/// Build a system prompt for marking. See `written_system_prompt` for `base_url`.
 pub fn marking_system_prompt(
     max_marks: u8,
     marking_guidance: &str,
@@ -807,6 +870,7 @@ pub fn marking_system_prompt(
     marker_style: Option<String>,
     custom_marker_style: Option<String>,
     model: &str,
+    base_url: &str,
 ) -> String {
     let mut template = PromptTemplate::new()
         .with_section(PromptSection::MarkingIdentity {
@@ -823,11 +887,13 @@ pub fn marking_system_prompt(
         .with_section(PromptSection::MarkingGuidance {
             topic: marking_guidance.to_string(),
         })
-        .with_section(PromptSection::Static("REPORTS: PDFs are PRIMARY authority for criteria."))
+        .with_section(PromptSection::Static(
+            "REPORTS: PDFs are PRIMARY authority for criteria.",
+        ))
         .with_section(PromptSection::MarkingLimits { max_marks })
         .with_section(PromptSection::MarkingFeedbackHeaders);
 
-    if !crate::llm::supports_json_schema_format(model) {
+    if !crate::llm::supports_json_schema_format_for(model, base_url) {
         template = template.with_section(PromptSection::Static(marking_schema_guidance_text()));
     }
 
@@ -988,7 +1054,7 @@ pub fn marking_user_prompt(
     pdf_pages_note: &str,
 ) -> String {
     format!(
-        "Topic: {topic}\nSubtopic: {subtopic}\nQuestion ({max} marks):\n{question}\n\n{pdf_pages_note}Student answer:\n{answer}\n\nMARKING INSTRUCTIONS:\n- Apply VCAA criterion-based marking strictly.\n- Do not award marks for correct answers without correct supporting working or reasoning (except for questions that are purely answer-only).\n- Do not credit vague restatements of the question as explanation.\n- For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n- For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n- CONSEQUENTIAL MARKING: if an error in an earlier part propagates to a later part but the later part's method is otherwise correct, award FULL marks for the later part. Penalise each error only once.\n- Classify each vcaaMarkingScheme criterion with markType: 'M' (method/approach), 'A' (answer/result), or 'C' (communication/explanation/justification).\n- When verdict is 'Partial', set partialReason to one of: 'MostlyCorrect', 'PartialUnderstanding', 'MethodError', 'Incomplete'.\n- Provide indicativeContentMarkdown: list the key points a good answer should include, in VCAA marking scheme bullet-point style. Include multiple valid approaches where they exist.\n- Provide exemplarAnnotations: for each part (a)/(b)/(c), annotate why it earned its marks (part, marksEarned, marksAvailable, note).\n- The workedSolution must show every step a student would need to write to receive full marks.{report_preamble}",
+        "Topic: {topic}\nSubtopic: {subtopic}\nQuestion ({max} marks):\n{question}\n\n{pdf_pages_note}Student answer:\n{answer}\n\nMARKING INSTRUCTIONS:\n- Apply Vcaa criterion-based marking strictly.\n- Do not award marks for correct answers without correct supporting working or reasoning (except for questions that are purely answer-only).\n- Do not credit vague restatements of the question as explanation.\n- For 'show that' sub-parts: every algebraic step must be shown; a bare final result is zero.\n- For 'explain/justify': a numerical answer alone is insufficient — reasoning must be stated.\n- CONSEQUENTIAL MARKING: if an error in an earlier part propagates to a later part but the later part's method is otherwise correct, award FULL marks for the later part. Penalise each error only once.\n- Classify each vcaaMarkingScheme criterion with markType: 'M' (method/approach), 'A' (answer/result), or 'C' (communication/explanation/justification).\n- When verdict is 'Partial', set partialReason to one of: 'MostlyCorrect', 'PartialUnderstanding', 'MethodError', 'Incomplete'.\n- Provide indicativeContentMarkdown: list the key points a good answer should include, in Vcaa marking scheme bullet-point style. Include multiple valid approaches where they exist.\n- Provide exemplarAnnotations: for each part (a)/(b)/(c), annotate why it earned its marks (part, marksEarned, marksAvailable, note).\n- The workedSolution must show every step a student would need to write to receive full marks.{report_preamble}",
         topic = topic,
         subtopic = subtopic,
         question = question,
@@ -1019,7 +1085,10 @@ pub fn subtopic_generation_user_prompt(
     let focus_priority = if focus_area.trim().is_empty() {
         String::new()
     } else {
-        format!("PRIORITY FOCUS AREA (must be prominently included):\n{}\n\n", focus_area.trim())
+        format!(
+            "PRIORITY FOCUS AREA (must be prominently included):\n{}\n\n",
+            focus_area.trim()
+        )
     };
     format!(
         "Generate diverse VCE subtopics for {topic}.\n\n{focus_priority}EXAM GUIDANCE:\n{exam_guidance}\n\nExisting subtopics (avoid duplicates):\n{existing_list}\n\nOutput as JSON with a 'subtopics' array. Each subtopic:\n- name: clear specific name\n- group: unit/AOS slug (e.g. \"unit1-how-organisms-regulate-functions\")\n- techniqueNotes: {{ coreConcepts, examStyleGuidelines, antiPrompts: [] }}\nGenerate 5-10 subtopics, with focus_area getting priority coverage.",
@@ -1029,5 +1098,3 @@ pub fn subtopic_generation_user_prompt(
         focus_priority = focus_priority
     )
 }
-
-

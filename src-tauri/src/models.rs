@@ -131,8 +131,9 @@ pub struct GeneratedQuestion {
     pub topic: String,
     #[serde(default)]
     pub subtopic: Option<String>,
+    #[serde(alias = "prompt", alias = "question", alias = "questionText")]
     pub prompt_markdown: String,
-    #[serde(default = "default_max_marks")]
+    #[serde(default = "default_max_marks", alias = "marks")]
     pub max_marks: u8,
     #[serde(default)]
     pub tech_allowed: bool,
@@ -475,7 +476,9 @@ pub struct DiscoverPdfQuestionsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct DiscoveredQuestion {
     pub topic: String,
+    #[serde(alias = "prompt", alias = "question", alias = "questionText")]
     pub prompt_markdown: String,
+    #[serde(alias = "marks")]
     pub max_marks: u8,
     pub page_indices: Vec<usize>,
 }
@@ -510,9 +513,11 @@ pub struct McQuestion {
     pub topic: String,
     #[serde(default)]
     pub subtopic: Option<String>,
+    #[serde(alias = "prompt", alias = "question", alias = "questionText")]
     pub prompt_markdown: String,
     pub options: Vec<McOption>,
     pub correct_answer: String,
+    #[serde(alias = "explanation")]
     pub explanation_markdown: String,
     #[serde(default)]
     pub tech_allowed: bool,
@@ -1029,6 +1034,22 @@ fn default_version() -> u32 {
 mod tests {
     #[allow(unused_imports)]
     use super::*;
+
+    #[test]
+    fn question_aliases_accept_common_llm_keys() {
+        let written: GeneratedQuestion =
+            serde_json::from_str(r#"{"topic":"Math","prompt":"Solve x.","marks":2}"#).unwrap();
+        assert_eq!(written.prompt_markdown, "Solve x.");
+        assert_eq!(written.max_marks, 2);
+
+        let mc: McQuestion = serde_json::from_str(
+            r#"{"topic":"Math","questionText":"Pick x.","options":[],"correctAnswer":"A","explanation":"Because."}"#,
+        )
+        .unwrap();
+        assert_eq!(mc.prompt_markdown, "Pick x.");
+        assert_eq!(mc.explanation_markdown, "Because.");
+    }
+
     #[test]
     fn deserializes_old_format_mark_answer_response_without_new_fields() {
         // Simulates a v1 record stored before markType, indicativeContent,
@@ -1122,7 +1143,10 @@ mod tests {
 
         assert_eq!(parsed.verdict, "Partial");
         assert_eq!(parsed.partial_reason, "Incomplete");
-        assert_eq!(parsed.indicative_content_markdown, "- Correct method\n- Right answer\n- Clear steps");
+        assert_eq!(
+            parsed.indicative_content_markdown,
+            "- Correct method\n- Right answer\n- Clear steps"
+        );
         assert_eq!(parsed.exemplar_annotations.len(), 2);
         assert_eq!(parsed.exemplar_annotations[0].part, "(a)");
         assert_eq!(parsed.exemplar_annotations[0].marks_earned, 3);

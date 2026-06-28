@@ -119,7 +119,7 @@ async function generateTopicQuestions(
   if (!credentials) {
     throw new Error('No valid API credentials configured for selected model');
   }
-  const { apiKey: modelApiKey, baseUrl } = credentials;
+  const { apiKey: modelApiKey, baseUrl, modelId } = credentials;
 
   try {
     const topicSubtopics = getSubtopicsForTopic(topic, store);
@@ -155,7 +155,7 @@ async function generateTopicQuestions(
           topics: [topic],
           difficulty,
           questionCount: count,
-          model,
+          model: modelId,
           apiKey: modelApiKey,
           baseUrl,
           techMode,
@@ -222,7 +222,7 @@ async function generateTopicQuestions(
                 topics: [topic],
                 difficulty,
                 questionCount: call.count,
-                model,
+                model: modelId,
                 apiKey: modelApiKey,
                 baseUrl,
                 techMode,
@@ -470,7 +470,14 @@ export async function generateQuestionsOrchestrator() {
     toast.success(`Generated ${allQuestions.length} questions.`);
   } catch (err: unknown) {
     console.error('Generation failed:', err);
-    store.setErrorMessage(readBackendError(err));
+    const message = readBackendError(err);
+    store.setGenerationStatus({
+      mode: questionMode,
+      stage: 'failed',
+      message,
+      attempt: 1,
+    });
+    store.setErrorMessage(message);
     toast.error('Generation failed.');
   } finally {
     store.setIsGenerating(false);

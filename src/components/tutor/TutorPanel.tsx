@@ -57,12 +57,12 @@ import { useAppStore } from '@/store';
 import { getLatestSketch } from '@/store/sketchpad-sync';
 import { useTutorStore } from '@/store/tutor';
 import type { StudentAnswerImage } from '@/types';
-import { getModelCredentials } from '@/types/provider';
 import {
-  getProviderLabel,
-  PRESET_IMAGE_MODELS,
-  PRESET_MODELS,
-} from '@/views/settings/constants';
+  getModelCredentials,
+  getProviderLabelForModel,
+  type ProviderState,
+} from '@/types/provider';
+import { PRESET_IMAGE_MODELS, PRESET_MODELS } from '@/views/settings/constants';
 
 interface TutorPanelProps {
   questionId: string;
@@ -110,6 +110,8 @@ const TutorHeader = ({
   clearSession,
   handleExportTranscript,
   studentAnswer,
+  providers,
+  activeProviderId,
 }: {
   modelName: string;
   totalTokensSession: number;
@@ -129,6 +131,13 @@ const TutorHeader = ({
   clearSession: (qid: string) => void;
   handleExportTranscript: () => void;
   studentAnswer?: string;
+  /**
+   * Provider context for accurate per-model badges. Without this,
+   * NVIDIA + custom-provider models with `author/slug` ids mis-label
+   * as OpenRouter.
+   */
+  providers?: Record<string, ProviderState>;
+  activeProviderId?: string;
 }) => (
   <div
     className={cn(
@@ -180,7 +189,13 @@ const TutorHeader = ({
                         )
                         .map((m) => {
                           const provider =
-                            m.id !== 'custom' ? getProviderLabel(m.id) : '';
+                            m.id !== 'custom'
+                              ? getProviderLabelForModel(
+                                  m.id,
+                                  providers ?? {},
+                                  activeProviderId,
+                                )
+                              : '';
                           return (
                             <SelectItem
                               key={m.id}
@@ -1522,6 +1537,7 @@ export function TutorPanel({
 
   const { tutorModel, tutorPersona } = useAppSettings();
   const providers = useAppStore((s) => s.providers);
+  const activeProviderId = useAppStore((s) => s.activeProviderId);
   const [inputValue, setInputValue] = useState('');
   const [includeSketch, setIncludeSketch] = useState(false);
   const [sketchStatus, setSketchStatus] = useState<
@@ -1553,9 +1569,15 @@ export function TutorPanel({
     const name = preset
       ? preset.name
       : activeModel.split('/').pop() || activeModel;
-    const provider = getProviderLabel(activeModel);
+    // Resolve via providers + activeProviderId so NVIDIA / custom models
+    // stop mis-labelling as OpenRouter.
+    const provider = getProviderLabelForModel(
+      activeModel,
+      providers,
+      activeProviderId,
+    );
     return provider ? `${name}  ·  ${provider}` : name;
-  }, [activeModel]);
+  }, [activeModel, providers, activeProviderId]);
 
   // Keyboard shortcuts (Cmd+Shift+T to toggle, Cmd+Shift+M for compact)
   useEffect(() => {
@@ -1768,7 +1790,7 @@ export function TutorPanel({
       }
 
       const result = await performTutorChat({
-        activeModel,
+        activeModel: credentials.modelId,
         activePersona,
         contextPrompt,
         studentAnswer,
@@ -2161,6 +2183,8 @@ export function TutorPanel({
           clearSession={clearSession}
           handleExportTranscript={handleExportTranscript}
           studentAnswer={studentAnswer}
+          providers={providers}
+          activeProviderId={activeProviderId}
         />
 
         <TutorChatArea
