@@ -41,3 +41,52 @@ export interface BatchTopicProgress {
   message?: string;
   errorMessage?: string;
 }
+
+// ─── Unified LLM Stream Events (backend → frontend) ─────────────────────────
+
+export type ModelRoute = {
+  providerId: string;
+  modelId: string;
+};
+
+export type CostQuality =
+  | 'actual'
+  | 'priced'
+  | 'manual'
+  | 'estimated'
+  | 'unknown';
+
+export type LlmStreamEvent =
+  | {
+      event: 'start';
+      requestId: string;
+      task: string;
+      route: ModelRoute;
+      topic?: string;
+      questionId?: string;
+    }
+  | {
+      event: 'token';
+      requestId: string;
+      text: string;
+    }
+  | {
+      event: 'usage';
+      requestId: string;
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      reasoningTokens: number;
+      costUsd?: number;
+      costQuality: CostQuality;
+    }
+  | {
+      event: 'end';
+      requestId: string;
+    }
+  | {
+      event: 'error';
+      requestId: string;
+      code: string;
+      message: string;
+    };

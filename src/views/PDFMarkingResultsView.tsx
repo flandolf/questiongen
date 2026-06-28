@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  DollarSign,
   Download,
   FileText,
   Info,
@@ -27,6 +28,7 @@ import {
   exportQuestionToAnki,
   surfaceAnkiExportToast,
 } from '@/lib/anki-export';
+import { formatCostUsd } from '@/lib/app-utils';
 import { SPRING } from '@/lib/motion';
 import { scoreColorBgClass } from '@/lib/score-utils';
 import { useAppStore } from '@/store';
@@ -66,12 +68,18 @@ export function PDFMarkingResultsView() {
   const stats = useMemo(() => {
     let achieved = 0;
     let max = 0;
+    let totalCost = 0;
+    let costCount = 0;
     for (const r of results) {
       achieved += r.result.achievedMarks;
       max += r.result.maxMarks;
+      if (r.result.estimatedCostUsd != null) {
+        totalCost += r.result.estimatedCostUsd;
+        costCount++;
+      }
     }
     const pct = max > 0 ? (achieved / max) * 100 : 0;
-    return { achieved, max, pct };
+    return { achieved, max, pct, totalCost, costCount };
   }, [results]);
 
   const filteredResults = useMemo(() => {
@@ -248,7 +256,7 @@ export function PDFMarkingResultsView() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...SPRING, delay: 0.1 }}
-        className='grid grid-cols-1 md:grid-cols-4 gap-3 mb-8'
+        className='grid grid-cols-1 md:grid-cols-5 gap-3 mb-8'
       >
         <StatCard
           label='Total Score'
@@ -268,6 +276,13 @@ export function PDFMarkingResultsView() {
           value={`${Math.round(stats.pct)}%`}
           subValue='VCAA-aligned'
           accentColor='bg-muted/30'
+        />
+        <StatCard
+          label='Total Cost'
+          value={formatCostUsd(stats.totalCost)}
+          subValue={stats.costCount > 0 ? `${stats.costCount} marked` : undefined}
+          icon={<DollarSign className='w-3 h-3' />}
+          accentColor='bg-emerald-500/5 border-emerald-500/20'
         />
         <div className='md:col-span-2 flex flex-col justify-center p-4 rounded-sm border bg-muted/10 space-y-3'>
           <div className='flex items-center justify-between'>
@@ -342,8 +357,7 @@ export function PDFMarkingResultsView() {
                           {r.question.promptMarkdown}
                         </p>
                       </div>
-                    </div>
-                    <div className='flex items-center gap-3'>
+                    </div>                      <div className='flex items-center gap-3'>
                       <div className='hidden sm:flex flex-col items-end mr-4'>
                         <span className='text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest'>
                           Result
@@ -356,6 +370,16 @@ export function PDFMarkingResultsView() {
                               : 'No Marks'}
                         </span>
                       </div>
+                      {r.result.estimatedCostUsd != null && (
+                        <div className='hidden sm:flex flex-col items-end mr-2'>
+                          <span className='text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest'>
+                            Cost
+                          </span>
+                          <span className='text-[10px] font-mono font-black text-emerald-600 dark:text-emerald-400'>
+                            {formatCostUsd(r.result.estimatedCostUsd)}
+                          </span>
+                        </div>
+                      )}
                       <Button
                         variant='ghost'
                         size='icon'

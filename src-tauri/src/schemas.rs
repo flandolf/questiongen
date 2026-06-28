@@ -1,10 +1,18 @@
 use crate::llm::{
     is_anthropic_model, json_object_format, json_schema_format, json_schema_format_anthropic,
-    supports_json_schema_format_for,
+    supports_json_schema_format_for, supports_json_schema_format_for_base_url,
 };
 
-pub fn written_format(model: &str, base_url: &str) -> serde_json::Value {
-    if !supports_json_schema_format_for(model, base_url) {
+/// Helper: resolve whether a provider supports json_schema.
+fn supports_schema(model: &str, provider_id: Option<&str>, base_url: &str) -> bool {
+    match provider_id {
+        Some(id) => supports_json_schema_format_for(model, id),
+        None => supports_json_schema_format_for_base_url(model, base_url),
+    }
+}
+
+pub fn written_format(model: &str, base_url: &str, provider_id: Option<&str>) -> serde_json::Value {
+    if !supports_schema(model, provider_id, base_url) {
         return json_object_format();
     }
     let schema = serde_json::json!({
@@ -53,8 +61,8 @@ pub fn written_format(model: &str, base_url: &str) -> serde_json::Value {
     }
 }
 
-pub fn mc_format(model: &str, base_url: &str) -> serde_json::Value {
-    if !supports_json_schema_format_for(model, base_url) {
+pub fn mc_format(model: &str, base_url: &str, provider_id: Option<&str>) -> serde_json::Value {
+    if !supports_schema(model, provider_id, base_url) {
         return json_object_format();
     }
     let schema = serde_json::json!({
@@ -126,8 +134,8 @@ pub fn mc_format(model: &str, base_url: &str) -> serde_json::Value {
     }
 }
 
-pub fn marking_format(model: &str, base_url: &str) -> serde_json::Value {
-    if !supports_json_schema_format_for(model, base_url) {
+pub fn marking_format(model: &str, base_url: &str, provider_id: Option<&str>) -> serde_json::Value {
+    if !supports_schema(model, provider_id, base_url) {
         return json_object_format();
     }
     let schema = serde_json::json!({
@@ -251,6 +259,7 @@ mod tests {
         let format = marking_format(
             "openai/gpt-5.4-mini",
             crate::constants::DEFAULT_OPENROUTER_BASE_URL,
+            None,
         );
         let schema = &format["json_schema"]["schema"];
         let properties = schema["properties"].as_object().unwrap();

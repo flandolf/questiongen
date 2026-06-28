@@ -28,6 +28,7 @@ export type MarkAnswerResponse = {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  estimatedCostUsd?: number;
 };
 
 export type MarkPdfPageMapping = {
@@ -54,4 +55,5 @@ export type DiscoveredQuestion = {
 
 export type DiscoverPdfQuestionsResponse = {
   questions: DiscoveredQuestion[];
+  estimatedCostUsd?: number;
 };

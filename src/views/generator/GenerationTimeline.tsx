@@ -18,22 +18,15 @@ import type {
   GenerationSubCallProgress,
   GenerationTelemetry,
 } from '@/types';
+import type { CostQuality } from '@/types/events';
 
 type TimelinePhase = 'waiting' | 'active' | 'done' | 'error';
 
-const STAGE_ORDER = [
-  'allocating_subtopics',
-  'preparing',
-  'generating',
-  'parsing',
-  'completed',
-] as const;
+const STAGE_ORDER = ['generating', 'parsing', 'completed'] as const;
 type KnownStage = (typeof STAGE_ORDER)[number];
 
 /** Stages emitted by the backend or client; labels for timeline and batch rows. */
 const GENERATION_STAGE_LABELS: Record<string, string> = {
-  allocating_subtopics: 'Focus subtopics (local)',
-  preparing: 'Building prompt',
   generating: 'Generating',
   parsing: 'Parsing & validating',
   completed: 'Complete',
@@ -78,8 +71,6 @@ function TimelineDot({ phase }: { phase: TimelinePhase }) {
 }
 
 const STAGE_LABELS: Record<KnownStage, string> = {
-  allocating_subtopics: GENERATION_STAGE_LABELS.allocating_subtopics,
-  preparing: GENERATION_STAGE_LABELS.preparing,
   generating: GENERATION_STAGE_LABELS.generating,
   parsing: GENERATION_STAGE_LABELS.parsing,
   completed: GENERATION_STAGE_LABELS.completed,
@@ -394,6 +385,8 @@ export function GenerationTimeline({
   onTogglePause,
   onAbort,
   showRawLlmOutput = false,
+  liveCostUsd,
+  liveCostQuality,
 }: {
   generationStatus: GenerationStatusEvent | null;
   /** Present when several API calls run for one subject (per locally chosen subtopic). */
@@ -406,6 +399,10 @@ export function GenerationTimeline({
   onTogglePause: () => void;
   onAbort: () => void;
   showRawLlmOutput?: boolean;
+  /** Real-time cost from the unified LLM stream event system. */
+  liveCostUsd?: number;
+  /** Quality label for the live cost (priced, actual, estimated, unknown). */
+  liveCostQuality?: CostQuality;
 }) {
   const currentStage = generationStatus?.stage ?? 'preparing';
   const isFailed = currentStage === 'failed';
@@ -455,6 +452,24 @@ export function GenerationTimeline({
                   <span className='text-muted-foreground/50'>~</span>
                 )}
                 {tokens.toLocaleString()} tok
+              </span>
+            );
+          })()}
+          {(() => {
+            if (liveCostUsd == null || !isGenerating || isDone) return null;
+            const qualityLabel =
+              liveCostQuality && liveCostQuality !== 'unknown'
+                ? ` (${liveCostQuality})`
+                : '';
+            return (
+              <span className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground ml-0.5'>
+                <DollarSign className='w-2.5 h-2.5' />
+                <span className='tabular-nums font-semibold text-foreground'>
+                  {formatCostUsd(liveCostUsd)}
+                </span>
+                <span className='text-muted-foreground/50'>
+                  {qualityLabel}
+                </span>
               </span>
             );
           })()}
@@ -624,14 +639,13 @@ export function BatchTimeline({
           const isError = entry.status === 'error';
           const isWaiting = entry.status === 'waiting';
 
+          const stageLabel =
+            entry.stage && entry.stage !== 'completed'
+              ? (STAGE_LABELS[entry.stage as KnownStage] ??
+                GENERATION_STAGE_LABELS[entry.stage])
+              : undefined;
           const stageSuffix =
-            isActive && entry.stage && entry.stage !== 'completed'
-              ? ` — ${
-                  STAGE_LABELS[entry.stage as KnownStage] ??
-                  GENERATION_STAGE_LABELS[entry.stage] ??
-                  entry.stage
-                }`
-              : '';
+            isActive && stageLabel ? ` — ${stageLabel}` : '';
 
           return (
             <div key={idx} className='flex items-start gap-2 pl-0.5'>

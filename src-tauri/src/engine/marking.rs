@@ -3,11 +3,16 @@ use crate::engine::context::EngineContext;
 use crate::engine::output::parse_structured;
 use crate::engine::prompt::{marking_system_prompt, marking_user_prompt};
 use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
-use crate::engine::{emit_status, rust_log, validate_credentials};
+use crate::engine::{
+    emit_status, emit_stream_end, emit_stream_error, emit_stream_start, rust_log,
+    validate_credentials,
+};
+use crate::llm::generate_request_id;
 use crate::models::{
     AppError, BatchMarkItem, BatchMarkRequest, BatchMarkResponse, CommandResult, MarkAnswerRequest,
     MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, MarkPdfResultItem,
 };
+use crate::openrouter_info::{compute_generation_cost, get_cached_model_stats};
 use crate::schemas;
 use std::time::Instant;
 
@@ -19,8 +24,39 @@ pub async fn mark_answer(
 ) -> CommandResult<MarkAnswerResponse> {
     validate_credentials(&request.api_key, &request.model)?;
 
-    let start = Instant::now();
-    let question = &request.question;
+    let request_id = generate_request_id();
+    let provider_id = request.provider_id.clone().unwrap_or_else(|| {
+        let url = request
+            .base_url
+            .as_deref()
+            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL)
+            .trim()
+            .trim_end_matches('/')
+            .to_ascii_lowercase();
+        if url.contains("openrouter.ai") {
+            "openrouter".to_string()
+        } else if url.contains("deepseek.com") {
+            "deepseek".to_string()
+        } else if url.contains("nvidia.com") {
+            "nvidia".to_string()
+        } else {
+            "custom".to_string()
+        }
+    });
+
+    emit_stream_start(
+        &ctx.app,
+        &request_id,
+        "marking",
+        &provider_id,
+        &request.model,
+        Some(request.question.topic.clone()),
+        Some(request.question.id.clone()),
+    );
+
+    let result: CommandResult<MarkAnswerResponse> = async {
+        let start = Instant::now();
+        let question = &request.question;
 
     emit_status(ctx, serde_json::json!({"stage": "building_marking_prompt"}));
 
@@ -41,12 +77,13 @@ pub async fn mark_answer(
         .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
     let system_prompt = marking_system_prompt(
         max_marks,
-        &marking_guidance,
+        marking_guidance,
         marking_scheme_style,
         request.marker_style.clone(),
         request.custom_marker_style.clone(),
         &request.model,
         marking_base_url,
+        request.provider_id.as_deref(),
     );
 
     let report_preamble = if let Some(ref image_url) = request.student_answer_image_data_url {
@@ -93,16 +130,20 @@ pub async fn mark_answer(
         }
     }
 
-    let response_format = schemas::marking_format(&request.model, marking_base_url);
+    let response_format = schemas::marking_format(&request.model, marking_base_url, request.provider_id.as_deref());
 
     let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
         .with_max_tokens(estimate_marking_tokens(max_marks))
         .with_reasoning(
             request.reasoning_enabled,
             request.reasoning_effort.as_deref(),
-        );
+        )
+        .with_request_id(&request_id);
     if let Some(ref url) = request.base_url {
         llm_config = llm_config.with_base_url(url);
+    }
+    if let Some(ref id) = request.provider_id {
+        llm_config = llm_config.with_provider_id(id);
     }
 
     let completion_request = CompletionRequest::new(
@@ -114,11 +155,14 @@ pub async fn mark_answer(
     ctx.check_abort()?;
     emit_status(ctx, serde_json::json!({"stage": "calling_model"}));
 
-    let completion = complete(&llm_config, completion_request, &ctx.app, &ctx.abort_signal).await
-        .map_err(|e| AppError::new(
-            e.code,
-            format!("Marking failed while calling the model: {}", e.message),
-        ))?;
+    let completion = complete(&llm_config, completion_request, &ctx.app, &ctx.abort_signal)
+        .await
+        .map_err(|e| {
+            AppError::new(
+                e.code,
+                format!("Marking failed while calling the model: {}", e.message),
+            )
+        })?;
 
     emit_status(ctx, serde_json::json!({"stage": "parsing_marking"}));
 
@@ -155,27 +199,48 @@ pub async fn mark_answer(
         response.partial_reason = "PartialUnderstanding".to_string();
     }
 
-    response.prompt_tokens = completion.prompt_tokens;
-    response.completion_tokens = completion.completion_tokens;
-    response.total_tokens = completion.total_tokens;
+        response.prompt_tokens = completion.prompt_tokens;
+        response.completion_tokens = completion.completion_tokens;
+        response.total_tokens = completion.total_tokens;
 
-    let duration_ms = start.elapsed().as_millis() as u64;
+        let stats = get_cached_model_stats(&request.api_key, &request.model);
+        response.estimated_cost_usd = compute_generation_cost(
+            Some(completion.prompt_tokens as u64),
+            Some(completion.completion_tokens as u64),
+            stats.as_ref().and_then(|s| s.prompt_price_per_token),
+            stats.as_ref().and_then(|s| s.completion_price_per_token),
+        );
 
-    rust_log(
-        ctx,
-        "info",
-        &format!(
-            "Marked answer: {}/{} in {}ms",
-            response.achieved_marks, max_marks, duration_ms
-        ),
-        Some(serde_json::json!({
-            "verdict": &response.verdict,
-            "prompt_tokens": completion.prompt_tokens,
-            "completion_tokens": completion.completion_tokens,
-        })),
-    );
+        let duration_ms = start.elapsed().as_millis() as u64;
 
-    Ok(response)
+        rust_log(
+            ctx,
+            "info",
+            &format!(
+                "Marked answer: {}/{} in {}ms",
+                response.achieved_marks, max_marks, duration_ms
+            ),
+            Some(serde_json::json!({
+                "verdict": &response.verdict,
+                "prompt_tokens": completion.prompt_tokens,
+                "completion_tokens": completion.completion_tokens,
+            })),
+        );
+
+        Ok(response)
+    }.await;
+
+    match result {
+        Ok(res) => {
+            emit_stream_end(&ctx.app, &request_id);
+            Ok(res)
+        }
+        Err(e) => {
+            emit_stream_error(&ctx.app, &request_id, &e.code, &e.message);
+            emit_stream_end(&ctx.app, &request_id);
+            Err(e)
+        }
+    }
 }
 
 pub async fn batch_mark_answers(
@@ -218,7 +283,7 @@ pub async fn mark_pdf(
 
     let mut results = Vec::new();
 
-    for (_idx, mapping) in request.page_mapping.iter().enumerate() {
+    for mapping in request.page_mapping.iter() {
         if let Some(question) = request.questions.get(mapping.question_index) {
             let question_id = question.id.clone();
 
@@ -235,6 +300,7 @@ pub async fn mark_pdf(
                 model: request.model.clone(),
                 api_key: request.api_key.clone(),
                 base_url: request.base_url.clone(),
+                provider_id: request.provider_id.clone(),
                 marker_style: request.marker_style.clone(),
                 custom_marker_style: request.custom_marker_style.clone(),
                 reasoning_enabled: request.reasoning_enabled,

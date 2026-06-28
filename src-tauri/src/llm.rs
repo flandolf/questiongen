@@ -1,15 +1,29 @@
 use crate::constants::{self, chat_completions_url};
+use crate::engine::{emit_stream_token, emit_stream_usage};
 use crate::http_client::post_json;
-use crate::models::{AbortSignal, AppError, CommandResult, OpenRouterResponse};
+use crate::models::{AbortSignal, AppError, CommandResult, CostQuality, OpenRouterResponse};
+use crate::openrouter_info::{compute_generation_cost, get_cached_model_stats};
 use futures_util::StreamExt;
 use tauri::Emitter;
 
-/// Configuration for LLM API requests (OpenRouter, DeepSeek, OpenAI-compatible).
+/// Generate a short random request id for stream-event correlation.
+pub fn generate_request_id() -> String {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("{:x}", nanos)
+}
+
+/// Configuration for LLM API requests (OpenRouter, DeepSeek, NVIDIA NIM, custom).
+/// Provider-neutral; provider-specific shaping is driven by `provider_id`.
 #[derive(Clone)]
-pub struct OpenRouterRequestConfig {
+pub struct ChatRequestConfig {
     pub base_url: String,
     pub api_key: String,
     pub model: String,
+    /// Canonical provider id used for provider-specific request shaping.
+    pub provider_id: Option<String>,
     pub system_prompt: String,
     pub user_content: serde_json::Value,
     pub response_format: serde_json::Value,
@@ -22,9 +36,13 @@ pub struct OpenRouterRequestConfig {
     pub temperature: Option<f32>,
     pub reasoning_enabled: bool,
     pub reasoning_effort: Option<String>,
+    /// Unified stream event correlation id. Auto-generated if not set.
+    pub request_id: Option<String>,
+    /// Task label for unified stream events (e.g. "generation", "marking", "tutor").
+    pub task: Option<String>,
 }
 
-impl OpenRouterRequestConfig {
+impl ChatRequestConfig {
     pub fn new(
         api_key: &str,
         model: &str,
@@ -39,6 +57,7 @@ impl OpenRouterRequestConfig {
                 .to_string(),
             api_key: api_key.to_string(),
             model: model.to_string(),
+            provider_id: None,
             system_prompt: system_prompt.to_string(),
             user_content,
             response_format,
@@ -51,11 +70,28 @@ impl OpenRouterRequestConfig {
             temperature: None,
             reasoning_enabled: false,
             reasoning_effort: None,
+            request_id: None,
+            task: None,
         }
+    }
+
+    pub fn with_request_id(mut self, request_id: &str) -> Self {
+        self.request_id = Some(request_id.to_string());
+        self
+    }
+
+    pub fn with_task(mut self, task: &str) -> Self {
+        self.task = Some(task.to_string());
+        self
     }
 
     pub fn with_base_url(mut self, base_url: &str) -> Self {
         self.base_url = base_url.to_string();
+        self
+    }
+
+    pub fn with_provider_id(mut self, provider_id: &str) -> Self {
+        self.provider_id = Some(provider_id.to_string());
         self
     }
 
@@ -68,6 +104,11 @@ impl OpenRouterRequestConfig {
         self.stream = true;
         self.app = Some(app);
         self.topic = topic;
+        self
+    }
+
+    pub fn with_app(mut self, app: tauri::AppHandle) -> Self {
+        self.app = Some(app);
         self
     }
 
@@ -90,10 +131,35 @@ impl OpenRouterRequestConfig {
         self.reasoning_effort = Some(effort.to_string());
         self
     }
+
+    /// Resolved provider id: explicit value > base_url inference.
+    pub fn resolved_provider_id(&self) -> String {
+        if let Some(ref id) = self.provider_id {
+            return id.clone();
+        }
+        let url = self
+            .base_url
+            .trim()
+            .trim_end_matches('/')
+            .to_ascii_lowercase();
+        if url.contains("openrouter.ai") {
+            return "openrouter".to_string();
+        }
+        if url.contains("deepseek.com") {
+            return "deepseek".to_string();
+        }
+        if url.contains("nvidia.com") {
+            return "nvidia".to_string();
+        }
+        "custom".to_string()
+    }
 }
 
-/// Result of a single OpenRouter call: raw content string + token usage.
-pub struct OpenRouterResult {
+// Back-compat alias
+pub type OpenRouterRequestConfig = ChatRequestConfig;
+
+/// Result of a single chat-completion call: raw content string + token usage.
+pub struct ChatResult {
     pub content: String,
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -101,8 +167,11 @@ pub struct OpenRouterResult {
     pub reasoning_tokens: u32,
 }
 
-/// Unified OpenRouter caller.
-pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<OpenRouterResult> {
+// Back-compat alias
+pub type OpenRouterResult = ChatResult;
+
+/// Unified chat-completion caller for all OpenAI-compatible providers.
+pub async fn call_openrouter(config: ChatRequestConfig) -> CommandResult<ChatResult> {
     let mut last_error = None;
     let max_retries = 2;
 
@@ -146,9 +215,7 @@ pub async fn call_openrouter(config: OpenRouterRequestConfig) -> CommandResult<O
     Err(last_error.unwrap_or_else(|| AppError::new("UNKNOWN_ERROR", "Multiple retries failed")))
 }
 
-async fn call_openrouter_non_streaming(
-    config: OpenRouterRequestConfig,
-) -> CommandResult<OpenRouterResult> {
+async fn call_openrouter_non_streaming(config: ChatRequestConfig) -> CommandResult<ChatResult> {
     let mut system_prompt = config.system_prompt.clone();
     system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
 
@@ -178,7 +245,8 @@ async fn call_openrouter_non_streaming(
         "response_format".to_string(),
         config.response_format.clone(),
     );
-    if is_openrouter_endpoint(&config.base_url) {
+    let provider_id = config.resolved_provider_id();
+    if provider_id == "openrouter" {
         body_map.insert("plugins".to_string(), config.plugins.clone());
     }
 
@@ -203,7 +271,7 @@ async fn call_openrouter_non_streaming(
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
-        let provider_label = provider_label_for_base_url(&config.base_url);
+        let provider_label = provider_label_for_id(&provider_id);
         let friendly = try_extract_api_error_message(&err_body).unwrap_or_else(|| err_body.clone());
         return Err(AppError::new(
             "API_ERROR",
@@ -217,12 +285,17 @@ async fn call_openrouter_non_streaming(
         .await
         .map_err(|e| AppError::new("NETWORK_ERROR", format!("Invalid API response: {e}")))?;
 
-    let provider_label = provider_label_for_base_url(&config.base_url);
+    let provider_label = provider_label_for_id(&provider_id);
     let content = parsed
         .choices
         .first()
         .map(|c| c.message.content.clone())
-        .ok_or_else(|| AppError::new("EMPTY_RESULT", format!("{provider_label} returned no content.")))?;
+        .ok_or_else(|| {
+            AppError::new(
+                "EMPTY_RESULT",
+                format!("{provider_label} returned no content."),
+            )
+        })?;
 
     let (prompt_tokens, completion_tokens, total_tokens, reasoning_tokens) = parsed
         .usage
@@ -238,7 +311,30 @@ async fn call_openrouter_non_streaming(
         })
         .unwrap_or((0, 0, 0, 0));
 
-    Ok(OpenRouterResult {
+    let request_id = config
+        .request_id
+        .clone()
+        .unwrap_or_else(generate_request_id);
+    if let Some(ref app) = config.app {
+        let (cost_usd, cost_quality) = lookup_cost(
+            &config.api_key,
+            &config.model,
+            prompt_tokens,
+            completion_tokens,
+        );
+        emit_stream_usage(
+            app,
+            &request_id,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+            reasoning_tokens,
+            cost_usd,
+            cost_quality,
+        );
+    }
+
+    Ok(ChatResult {
         content,
         prompt_tokens,
         completion_tokens,
@@ -280,9 +376,14 @@ struct SseCompletionTokenDetails {
     reasoning_tokens: Option<u32>,
 }
 
-async fn call_openrouter_streaming(
-    config: OpenRouterRequestConfig,
-) -> CommandResult<OpenRouterResult> {
+async fn call_openrouter_streaming(config: ChatRequestConfig) -> CommandResult<ChatResult> {
+    let request_id = config
+        .request_id
+        .clone()
+        .unwrap_or_else(generate_request_id);
+    let provider_id = config.resolved_provider_id();
+    let app = config.app.clone();
+
     let mut system_prompt = config.system_prompt.clone();
     system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
 
@@ -306,11 +407,11 @@ async fn call_openrouter_streaming(
         "response_format".to_string(),
         config.response_format.clone(),
     );
-    if is_openrouter_endpoint(&config.base_url) {
+    if provider_id == "openrouter" {
         body_map.insert("plugins".to_string(), config.plugins.clone());
     }
     body_map.insert("stream".to_string(), serde_json::Value::Bool(true));
-    if is_openrouter_endpoint(&config.base_url) || is_deepseek_endpoint(&config.base_url) {
+    if provider_id == "openrouter" || provider_id == "deepseek" {
         body_map.insert(
             "stream_options".to_string(),
             serde_json::json!({ "include_usage": true }),
@@ -331,7 +432,6 @@ async fn call_openrouter_streaming(
         &body,
     )
     .await?;
-
     let status = response.status();
     if !response.is_success() {
         let err_body = response
@@ -353,7 +453,6 @@ async fn call_openrouter_streaming(
     let mut buf = String::new();
     let mut done = false;
 
-    let app = config.app;
     let topic = config.topic;
     let abort_signal = config.abort_signal;
 
@@ -430,6 +529,7 @@ async fn call_openrouter_streaming(
                                                         "topic": topic
                                                     }),
                                                 );
+                                                emit_stream_token(app, &request_id, &text);
                                             }
                                         }
                                     }
@@ -465,6 +565,7 @@ async fn call_openrouter_streaming(
                                                     "topic": topic
                                                 }),
                                             );
+                                            emit_stream_token(app, &request_id, &text);
                                         }
                                     }
                                 }
@@ -477,7 +578,7 @@ async fn call_openrouter_streaming(
     }
 
     if assembled.is_empty() {
-        let provider_label = provider_label_for_base_url(&config.base_url);
+        let provider_label = provider_label_for_id(&provider_id);
         return Err(AppError::new(
             "EMPTY_RESULT",
             format!("{provider_label} returned no content."),
@@ -497,7 +598,12 @@ async fn call_openrouter_streaming(
         })
         .unwrap_or((0, 0, 0, 0));
 
-    Ok(OpenRouterResult {
+    if let Some(ref app) = app {
+        let (cost_usd, cost_quality) = lookup_cost(&config.api_key, &config.model, pt, ct);
+        emit_stream_usage(app, &request_id, pt, ct, tt, rt, cost_usd, cost_quality);
+    }
+
+    Ok(ChatResult {
         content: assembled,
         prompt_tokens: pt,
         completion_tokens: ct,
@@ -506,16 +612,47 @@ async fn call_openrouter_streaming(
     })
 }
 
-/// Returns a human-readable label for a provider base URL.
+/// Look up cached per-token pricing and compute cost_usd + quality label.
+fn lookup_cost(
+    api_key: &str,
+    model: &str,
+    prompt_tokens: u32,
+    completion_tokens: u32,
+) -> (Option<f64>, CostQuality) {
+    match get_cached_model_stats(api_key, model) {
+        Some(s) => {
+            let cost = compute_generation_cost(
+                Some(prompt_tokens as u64),
+                Some(completion_tokens as u64),
+                s.prompt_price_per_token,
+                s.completion_price_per_token,
+            );
+            (cost, CostQuality::Priced)
+        }
+        None => (None, CostQuality::Unknown),
+    }
+}
+
+/// Returns a human-readable label for a provider id.
+fn provider_label_for_id(provider_id: &str) -> &'static str {
+    match provider_id {
+        "openrouter" => "OpenRouter",
+        "deepseek" => "DeepSeek",
+        "nvidia" => "NVIDIA NIM",
+        _ => "API",
+    }
+}
+
+/// Returns a human-readable label for a provider base URL (fallback).
 fn provider_label_for_base_url(base_url: &str) -> &'static str {
     let url = base_url.trim().trim_end_matches('/').to_ascii_lowercase();
-    if url.starts_with("https://openrouter.ai") || url.starts_with("http://openrouter.ai") {
+    if url.contains("openrouter.ai") {
         return "OpenRouter";
     }
-    if url.starts_with("https://api.deepseek.com") {
+    if url.contains("deepseek.com") {
         return "DeepSeek";
     }
-    if url.contains("integrate.api.nvidia.com") || url.contains("nvidia.com") {
+    if url.contains("nvidia.com") {
         return "NVIDIA NIM";
     }
     "API"
@@ -538,20 +675,50 @@ fn try_extract_api_error_message(body: &str) -> Option<String> {
     None
 }
 
-pub struct OpenRouterChatConfig {
+pub struct ChatStreamingConfig {
     pub base_url: String,
     pub api_key: String,
     pub model: String,
+    pub provider_id: Option<String>,
     pub messages: Vec<crate::models::TutorMessage>,
     pub max_tokens: u32,
     pub temperature: Option<f32>,
     pub app: tauri::AppHandle,
     pub abort_signal: Option<AbortSignal>,
+    /// Unified stream event correlation id. Auto-generated if not set.
+    pub request_id: Option<String>,
+    /// Task label for unified stream events (e.g. "tutor").
+    pub task: Option<String>,
 }
 
+// Back-compat alias
+pub type OpenRouterChatConfig = ChatStreamingConfig;
+
 pub async fn call_openrouter_chat_streaming(
-    config: OpenRouterChatConfig,
-) -> CommandResult<OpenRouterResult> {
+    config: ChatStreamingConfig,
+) -> CommandResult<ChatResult> {
+    let request_id = config
+        .request_id
+        .clone()
+        .unwrap_or_else(generate_request_id);
+    let provider_id = config.provider_id.clone().unwrap_or_else(|| {
+        let url = config
+            .base_url
+            .trim()
+            .trim_end_matches('/')
+            .to_ascii_lowercase();
+        if url.contains("openrouter.ai") {
+            "openrouter".to_string()
+        } else if url.contains("deepseek.com") {
+            "deepseek".to_string()
+        } else if url.contains("nvidia.com") {
+            "nvidia".to_string()
+        } else {
+            "custom".to_string()
+        }
+    });
+    let app = config.app.clone();
+
     let mut body_json = serde_json::json!({
         "model": config.model,
         "messages": config.messages,
@@ -559,7 +726,7 @@ pub async fn call_openrouter_chat_streaming(
         "stream": true,
     });
 
-    if is_openrouter_endpoint(&config.base_url) || is_deepseek_endpoint(&config.base_url) {
+    if provider_id == "openrouter" || provider_id == "deepseek" {
         if let Some(obj) = body_json.as_object_mut() {
             obj.insert(
                 "stream_options".into(),
@@ -589,7 +756,7 @@ pub async fn call_openrouter_chat_streaming(
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".into());
-        let provider_label = provider_label_for_base_url(&config.base_url);
+        let provider_label = provider_label_for_id(&provider_id);
         let friendly = try_extract_api_error_message(&err_body).unwrap_or_else(|| err_body.clone());
         return Err(AppError::new(
             "API_ERROR",
@@ -604,7 +771,6 @@ pub async fn call_openrouter_chat_streaming(
     let mut buf = String::new();
     let mut done = false;
 
-    let app = config.app;
     let abort_signal = config.abort_signal;
 
     loop {
@@ -676,6 +842,7 @@ pub async fn call_openrouter_chat_streaming(
                                                 "tutor-generation-token",
                                                 serde_json::json!({ "text": text }),
                                             );
+                                            emit_stream_token(&app, &request_id, &text);
                                         }
                                     }
                                 }
@@ -706,6 +873,7 @@ pub async fn call_openrouter_chat_streaming(
                                             "tutor-generation-token",
                                             serde_json::json!({ "text": text }),
                                         );
+                                        emit_stream_token(&app, &request_id, &text);
                                     }
                                 }
                             }
@@ -717,7 +885,7 @@ pub async fn call_openrouter_chat_streaming(
     }
 
     if assembled.is_empty() {
-        let provider_label = provider_label_for_base_url(&config.base_url);
+        let provider_label = provider_label_for_id(&provider_id);
         return Err(AppError::new(
             "EMPTY_RESULT",
             format!("{provider_label} returned no content."),
@@ -737,7 +905,10 @@ pub async fn call_openrouter_chat_streaming(
         })
         .unwrap_or((0, 0, 0, 0));
 
-    Ok(OpenRouterResult {
+    let (cost_usd, cost_quality) = lookup_cost(&config.api_key, &config.model, pt, ct);
+    emit_stream_usage(&app, &request_id, pt, ct, tt, rt, cost_usd, cost_quality);
+
+    Ok(ChatResult {
         content: assembled,
         prompt_tokens: pt,
         completion_tokens: ct,
@@ -797,9 +968,10 @@ pub fn is_deepseek_endpoint(base_url: &str) -> bool {
 ///   OpenRouter/DeepSeek reasoning wire shapes.
 fn apply_reasoning_params(
     body: &mut serde_json::Map<String, serde_json::Value>,
-    config: &OpenRouterRequestConfig,
+    config: &ChatRequestConfig,
 ) {
-    if is_openrouter_endpoint(&config.base_url) {
+    let provider_id = config.resolved_provider_id();
+    if provider_id == "openrouter" {
         if config.reasoning_enabled {
             let mut reasoning_obj = serde_json::Map::new();
             if let Some(ref effort) = config.reasoning_effort {
@@ -815,7 +987,7 @@ fn apply_reasoning_params(
         }
         return;
     }
-    if is_deepseek_endpoint(&config.base_url) && is_deepseek_direct_model(&config.model) {
+    if provider_id == "deepseek" && is_deepseek_direct_model(&config.model) {
         if config.reasoning_enabled {
             body.insert(
                 "thinking".to_string(),
@@ -830,27 +1002,39 @@ fn apply_reasoning_params(
                 serde_json::json!({"type": "disabled"}),
             );
         }
-        return;
     }
     // NVIDIA + custom OpenAI-compatible endpoints: do nothing.
 }
 
-/// Returns true if the model + endpoint should use strict `json_schema`
+/// Returns true if the model + provider should use strict `json_schema`
 /// structured outputs, or fall back to plain `json_object`.
 ///
 /// `json_schema` is an OpenRouter-specific extension; DeepSeek direct,
 /// NVIDIA NIMs, and most custom OpenAI-compatible endpoints only honour
-/// `json_object`. We pass `base_url` so callers can route correctly.
-pub fn supports_json_schema_format_for(model: &str, base_url: &str) -> bool {
-    if is_deepseek_endpoint(base_url) {
+/// `json_object`.
+pub fn supports_json_schema_format_for(model: &str, provider_id: &str) -> bool {
+    if provider_id == "deepseek" {
         return false;
     }
     // NVIDIA + custom OpenAI-compatible endpoints only support json_object.
-    if !is_openrouter_endpoint(base_url) {
+    if provider_id != "openrouter" {
         return false;
     }
     // OpenRouter uses provider/model-name format (contain '/').
     !is_deepseek_model(model) && model.trim().contains('/')
+}
+
+/// Fallback that infers provider from base_url for backward compatibility.
+pub fn supports_json_schema_format_for_base_url(model: &str, base_url: &str) -> bool {
+    let url = base_url.trim().trim_end_matches('/').to_ascii_lowercase();
+    let provider_id = if url.contains("deepseek.com") {
+        "deepseek"
+    } else if url.contains("openrouter.ai") {
+        "openrouter"
+    } else {
+        "custom"
+    };
+    supports_json_schema_format_for(model, provider_id)
 }
 
 pub fn json_object_format() -> serde_json::Value {

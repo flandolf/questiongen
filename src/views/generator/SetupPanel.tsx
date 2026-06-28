@@ -66,6 +66,7 @@ import {
   toCanonicalSubtopicName,
   toScopedSubtopicGroups,
 } from '@/types';
+import type { CostQuality } from '@/types/events';
 import { getModelCredentials, getProviderLabelForModel } from '@/types/provider';
 
 import { getModelsForProvider } from '../settings/constants';
@@ -201,6 +202,10 @@ type SetupPanelProps = {
   batchProgress?: BatchTopicProgress[];
   generationStrategy?: 'single-pass' | 'multi-pass';
   generationSubCallProgress?: GenerationSubCallProgress | null;
+  /** Real-time cost from the unified LLM stream event system. */
+  liveCostUsd?: number;
+  /** Quality label for the live cost. */
+  liveCostQuality?: CostQuality;
 };
 
 export type AdvancedOptionsGroupProps = {
@@ -679,6 +684,8 @@ function SetupPanelImpl({
   batchProgress = [],
   generationSubCallProgress = null,
   generationStrategy = 'single-pass',
+  liveCostUsd,
+  liveCostQuality,
 }: SetupPanelProps) {
   const navigate = useNavigate();
   const { apiKey, model, setModel, showRawLlmOutput } = useAppSettings();
@@ -1238,6 +1245,8 @@ function SetupPanelImpl({
                       onTogglePause={onTogglePause}
                       onAbort={onAbort}
                       showRawLlmOutput={showRawLlmOutput}
+                      liveCostUsd={liveCostUsd}
+                      liveCostQuality={liveCostQuality}
                     />
                   )}
                 </div>

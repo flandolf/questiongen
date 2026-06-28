@@ -5,18 +5,25 @@ use crate::models::{AbortSignal, CommandResult};
 
 /// Provider-agnostic configuration for an LLM call.
 ///
-/// Currently backed by OpenRouter (and DeepSeek direct), but structured
-/// so a new provider can be swapped in without touching pipeline code.
+/// The `provider_id` field is the canonical signal for provider-specific
+/// request shaping. Base-url heuristics are a fallback only.
 #[derive(Clone, Debug)]
 pub struct LlmConfig {
     pub api_key: String,
     pub model: String,
     pub base_url: Option<String>,
+    /// Canonical provider id (e.g. "openrouter", "deepseek", "nvidia", "custom-{uuid}").
+    pub provider_id: Option<String>,
     pub max_tokens: u32,
     pub temperature: Option<f32>,
 
     pub reasoning_enabled: bool,
     pub reasoning_effort: Option<String>,
+
+    /// Unified stream event correlation id.
+    pub request_id: Option<String>,
+    /// Task label for unified stream events (e.g. "generation", "marking", "tutor").
+    pub task: Option<String>,
 }
 
 impl LlmConfig {
@@ -25,15 +32,23 @@ impl LlmConfig {
             api_key: api_key.to_string(),
             model: model.to_string(),
             base_url: None,
+            provider_id: None,
             max_tokens: 4096,
             temperature: None,
             reasoning_enabled: false,
             reasoning_effort: None,
+            request_id: None,
+            task: None,
         }
     }
 
     pub fn with_base_url(mut self, url: &str) -> Self {
         self.base_url = Some(url.to_string());
+        self
+    }
+
+    pub fn with_provider_id(mut self, id: &str) -> Self {
+        self.provider_id = Some(id.to_string());
         self
     }
 
@@ -52,6 +67,43 @@ impl LlmConfig {
         self.reasoning_effort = effort.map(|s| s.to_string());
         self
     }
+
+    pub fn with_request_id(mut self, request_id: &str) -> Self {
+        self.request_id = Some(request_id.to_string());
+        self
+    }
+
+    pub fn with_task(mut self, task: &str) -> Self {
+        self.task = Some(task.to_string());
+        self
+    }
+
+    /// Resolved provider id for request shaping. Uses the explicit
+    /// `provider_id` when present, otherwise falls back to base_url
+    /// heuristics for backward compatibility.
+    pub fn resolved_provider_id(&self) -> String {
+        if let Some(ref id) = self.provider_id {
+            return id.clone();
+        }
+        // Fallback: infer from base_url
+        let url = self
+            .base_url
+            .as_deref()
+            .unwrap_or("")
+            .trim()
+            .trim_end_matches('/')
+            .to_ascii_lowercase();
+        if url.contains("openrouter.ai") {
+            return "openrouter".to_string();
+        }
+        if url.contains("deepseek.com") {
+            return "deepseek".to_string();
+        }
+        if url.contains("nvidia.com") {
+            return "nvidia".to_string();
+        }
+        "custom".to_string()
+    }
 }
 
 /// A single completion request.
@@ -62,6 +114,10 @@ pub struct CompletionRequest {
     pub stream: bool,
     pub topic: Option<String>,
     pub plugins: serde_json::Value,
+    /// Unified stream event correlation id.
+    pub request_id: Option<String>,
+    /// Task label for unified stream events.
+    pub task: Option<String>,
 }
 
 impl CompletionRequest {
@@ -73,6 +129,8 @@ impl CompletionRequest {
             stream: false,
             topic: None,
             plugins: serde_json::json!([{ "id": "response-healing" }]),
+            request_id: None,
+            task: None,
         }
     }
 
@@ -85,6 +143,16 @@ impl CompletionRequest {
     #[allow(dead_code)]
     pub fn with_plugins(mut self, plugins: serde_json::Value) -> Self {
         self.plugins = plugins;
+        self
+    }
+
+    pub fn with_request_id(mut self, request_id: &str) -> Self {
+        self.request_id = Some(request_id.to_string());
+        self
+    }
+
+    pub fn with_task(mut self, task: &str) -> Self {
+        self.task = Some(task.to_string());
         self
     }
 }
@@ -117,6 +185,7 @@ pub async fn complete(
         config.max_tokens,
     )
     .with_plugins(request.plugins)
+    .with_app(app.clone())
     .with_abort_signal(abort_signal.clone())
     .with_reasoning_enabled(config.reasoning_enabled);
 
@@ -130,12 +199,28 @@ pub async fn complete(
         cfg = cfg.with_base_url(url);
     }
 
+    if let Some(ref id) = config.provider_id {
+        cfg = cfg.with_provider_id(id);
+    }
+
     if let Some(temp) = config.temperature {
         cfg = cfg.with_temperature(temp);
     }
 
     if request.stream {
         cfg = cfg.with_stream(app.clone(), request.topic);
+    }
+    if let Some(ref id) = config.request_id {
+        cfg = cfg.with_request_id(id);
+    }
+    if let Some(ref task) = config.task {
+        cfg = cfg.with_task(task);
+    }
+    if let Some(ref id) = request.request_id {
+        cfg = cfg.with_request_id(id);
+    }
+    if let Some(ref task) = request.task {
+        cfg = cfg.with_task(task);
     }
 
     let result = call_openrouter(cfg).await?;
@@ -163,11 +248,14 @@ pub async fn complete_chat(
             .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string()),
         api_key: config.api_key.clone(),
         model: config.model.clone(),
+        provider_id: config.provider_id.clone(),
         messages,
         max_tokens: config.max_tokens,
         temperature: config.temperature,
         app: app.clone(),
         abort_signal,
+        request_id: config.request_id.clone(),
+        task: config.task.clone(),
     };
 
     let result = call_openrouter_chat_streaming(chat_config).await?;

@@ -14,6 +14,7 @@ import { MarkdownMath } from '@/components/MarkdownMath';
 import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
 import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { useLlmStreamEvents } from '@/hooks/useLlmStreamEvents';
 import { useTimer } from '@/hooks/useTimer';
 import { fileToDataUrl, readBackendError } from '@/lib/app-utils';
 import {
@@ -174,6 +175,11 @@ export function GeneratorView() {
     streamTexts,
     setStreamText,
   } = useGenerationStatus();
+
+  const { latestStream } = useLlmStreamEvents();
+
+  const liveCostUsd = latestStream?.usage?.costUsd;
+  const liveCostQuality = latestStream?.usage?.costQuality;
 
   const {
     cancelOpen,
@@ -971,6 +977,8 @@ export function GeneratorView() {
         generationStrategy={generationStrategy}
         generationSubCallProgress={generationSubCallProgress}
         streamText={aggregatedStreamText}
+        liveCostUsd={liveCostUsd}
+        liveCostQuality={liveCostQuality}
       />
     );
   }

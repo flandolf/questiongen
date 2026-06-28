@@ -439,7 +439,7 @@ fn cog_tier(verb_or_phrase: &str) -> Option<u8> {
     let lowered = verb_or_phrase.to_ascii_lowercase();
     let token = lowered
         .split(|c: char| !c.is_ascii_alphabetic())
-        .find(|t| !t.is_empty() && COMMAND_VERBS.contains(&t))?;
+        .find(|t| !t.is_empty() && COMMAND_VERBS.contains(t))?;
     // Every COMMAND_VERBS entry is armed below. If a future contributor adds
     // a verb to COMMAND_VERBS without updating this match, the catch-all
     // returns None — preferring "could not classify" over a silently wrong
@@ -532,12 +532,10 @@ pub fn should_retry(
     batch_size: usize,
     attempts_used: u8,
 ) -> bool {
-    let distinctness_low = distinctness_avg.map_or(false, |d| {
-        d < crate::constants::REGENERATION_DISTINCTNESS_THRESHOLD
-    });
-    let verb_diversity_low = command_verb_diversity.map_or(false, |v| {
-        v < crate::constants::REGENERATION_VERB_DIVERSITY_THRESHOLD
-    });
+    let distinctness_low =
+        distinctness_avg.is_some_and(|d| d < crate::constants::REGENERATION_DISTINCTNESS_THRESHOLD);
+    let verb_diversity_low = command_verb_diversity
+        .is_some_and(|v| v < crate::constants::REGENERATION_VERB_DIVERSITY_THRESHOLD);
     let batch_sized = batch_size >= crate::constants::QUALITY_MIN_BATCH_FOR_REVIEW as usize;
     (distinctness_low || verb_diversity_low)
         && batch_sized

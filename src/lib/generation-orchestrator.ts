@@ -119,7 +119,7 @@ async function generateTopicQuestions(
   if (!credentials) {
     throw new Error('No valid API credentials configured for selected model');
   }
-  const { apiKey: modelApiKey, baseUrl, modelId } = credentials;
+  const { apiKey: modelApiKey, baseUrl, modelId, providerId } = credentials;
 
   try {
     const topicSubtopics = getSubtopicsForTopic(topic, store);
@@ -158,6 +158,7 @@ async function generateTopicQuestions(
           model: modelId,
           apiKey: modelApiKey,
           baseUrl,
+          providerId,
           techMode,
           includeExamContext,
           subtopics: shuffled,
@@ -225,6 +226,7 @@ async function generateTopicQuestions(
                 model: modelId,
                 apiKey: modelApiKey,
                 baseUrl,
+                providerId,
                 techMode,
                 includeExamContext,
                 subtopics: call.subtopics,

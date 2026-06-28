@@ -1,9 +1,10 @@
-import { ChevronDown, ChevronUp, Loader2, ShieldAlert } from 'lucide-react';
+import { ChevronDown, ChevronUp, DollarSign, Loader2, ShieldAlert } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { MarkdownMath } from '@/components/MarkdownMath';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { formatCostUsd } from '@/lib/app-utils';
 import { scoreColorClass } from '@/lib/score-utils';
 import type { MarkAnswerResponse, StudentAnswerImage } from '@/types';
 
@@ -37,6 +38,7 @@ const TopBanner = memo(function TopBanner({
   maxMarks,
   verdict,
   markingDurationLabel,
+  estimatedCostUsd,
   scoreColor,
   isCorrect,
   pct,
@@ -46,6 +48,7 @@ const TopBanner = memo(function TopBanner({
   verdict?: string;
   markingDurationMs?: number;
   markingDurationLabel?: string;
+  estimatedCostUsd?: number;
   scoreColor: string;
   isCorrect: boolean;
   pct: number;
@@ -87,12 +90,20 @@ const TopBanner = memo(function TopBanner({
         </div>
       </div>
 
-      {markingDurationLabel && (
-        <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-[11px] font-mono text-muted-foreground tracking-tighter'>
-          <Loader2 className='w-3 h-3 animate-spin opacity-50' />
-          PROCESSED IN {markingDurationLabel.toUpperCase()}
-        </div>
-      )}
+      <div className='hidden sm:flex items-center gap-3'>
+        {estimatedCostUsd != null && (
+          <div className='flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/5 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 tracking-tighter'>
+            <DollarSign className='w-3 h-3' />
+            {formatCostUsd(estimatedCostUsd)}
+          </div>
+        )}
+        {markingDurationLabel && (
+          <div className='flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/60 bg-muted/30 text-[11px] font-mono text-muted-foreground tracking-tighter'>
+            <Loader2 className='w-3 h-3 animate-spin opacity-50' />
+            PROCESSED IN {markingDurationLabel.toUpperCase()}
+          </div>
+        )}
+      </div>
     </header>
   );
 });
@@ -131,6 +142,7 @@ export const WrittenFeedbackPanel = memo(function WrittenFeedbackPanel({
         verdict={feedback.verdict}
         markingDurationMs={markingDurationMs}
         markingDurationLabel={markingDurationLabel}
+        estimatedCostUsd={feedback.estimatedCostUsd}
         scoreColor={scoreColor}
         isCorrect={isCorrect}
         pct={pct}

@@ -88,38 +88,188 @@ impl From<std::io::Error> for AppError {
 
 pub type CommandResult<T> = Result<T, AppError>;
 
-// ─── OpenRouter wire types ────────────────────────────────────────────────────
+// ─── Model Routing ────────────────────────────────────────────────────────────
+
+/// Canonical route shape: every AI task stores an explicit `{ providerId, modelId }`
+/// route. The backend resolves provider-specific behavior from `provider_id`
+/// instead of guessing from `base_url` heuristics.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelRoute {
+    pub provider_id: String,
+    pub model_id: String,
+}
+
+impl ModelRoute {
+    pub fn new(provider_id: impl Into<String>, model_id: impl Into<String>) -> Self {
+        Self {
+            provider_id: provider_id.into(),
+            model_id: model_id.into(),
+        }
+    }
+}
+
+/// Cost estimate quality labels. Display priority:
+/// 1. actual   — provider returned exact cost in response
+/// 2. priced   — known per-token pricing from provider catalogue
+/// 3. manual   — user-provided pricing override
+/// 4. estimated — rough heuristic fallback
+/// 5. unknown  — no pricing data available
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum CostQuality {
+    Actual,
+    Priced,
+    Manual,
+    Estimated,
+    Unknown,
+}
+
+/// Unified streaming event contract for all text LLM calls.
+/// Provider-specific event names are replaced by one canonical set.
+#[derive(Debug, Clone)]
+pub enum LlmStreamEvent {
+    Start {
+        request_id: String,
+        task: String,
+        route: ModelRoute,
+        topic: Option<String>,
+        question_id: Option<String>,
+    },
+    Token {
+        request_id: String,
+        text: String,
+    },
+    Usage {
+        request_id: String,
+        prompt_tokens: u32,
+        completion_tokens: u32,
+        total_tokens: u32,
+        reasoning_tokens: u32,
+        cost_usd: Option<f64>,
+        cost_quality: CostQuality,
+    },
+    End {
+        request_id: String,
+    },
+    Error {
+        request_id: String,
+        code: String,
+        message: String,
+    },
+}
+
+impl Serialize for LlmStreamEvent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+
+        match self {
+            LlmStreamEvent::Start {
+                request_id,
+                task,
+                route,
+                topic,
+                question_id,
+            } => {
+                map.serialize_entry("event", "start")?;
+                map.serialize_entry("requestId", request_id)?;
+                map.serialize_entry("task", task)?;
+                map.serialize_entry("route", route)?;
+                if let Some(v) = topic {
+                    map.serialize_entry("topic", v)?;
+                }
+                if let Some(v) = question_id {
+                    map.serialize_entry("questionId", v)?;
+                }
+            }
+            LlmStreamEvent::Token { request_id, text } => {
+                map.serialize_entry("event", "token")?;
+                map.serialize_entry("requestId", request_id)?;
+                map.serialize_entry("text", text)?;
+            }
+            LlmStreamEvent::Usage {
+                request_id,
+                prompt_tokens,
+                completion_tokens,
+                total_tokens,
+                reasoning_tokens,
+                cost_usd,
+                cost_quality,
+            } => {
+                map.serialize_entry("event", "usage")?;
+                map.serialize_entry("requestId", request_id)?;
+                map.serialize_entry("promptTokens", prompt_tokens)?;
+                map.serialize_entry("completionTokens", completion_tokens)?;
+                map.serialize_entry("totalTokens", total_tokens)?;
+                map.serialize_entry("reasoningTokens", reasoning_tokens)?;
+                if let Some(v) = cost_usd {
+                    map.serialize_entry("costUsd", v)?;
+                }
+                map.serialize_entry("costQuality", cost_quality)?;
+            }
+            LlmStreamEvent::End { request_id } => {
+                map.serialize_entry("event", "end")?;
+                map.serialize_entry("requestId", request_id)?;
+            }
+            LlmStreamEvent::Error {
+                request_id,
+                code,
+                message,
+            } => {
+                map.serialize_entry("event", "error")?;
+                map.serialize_entry("requestId", request_id)?;
+                map.serialize_entry("code", code)?;
+                map.serialize_entry("message", message)?;
+            }
+        }
+
+        map.end()
+    }
+}
+
+// ─── OpenAI-compatible chat wire types (provider-neutral) ─────────────────────
 
 #[derive(Debug, Deserialize)]
-pub struct OpenRouterResponse {
-    pub choices: Vec<OpenRouterChoice>,
-    pub usage: Option<OpenRouterUsage>,
+pub struct ChatCompletionResponse {
+    pub choices: Vec<ChatCompletionChoice>,
+    pub usage: Option<ChatCompletionUsage>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct OpenRouterChoice {
-    pub message: OpenRouterMessage,
+pub struct ChatCompletionChoice {
+    pub message: ChatCompletionMessage,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct OpenRouterMessage {
+pub struct ChatCompletionMessage {
     pub content: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct OpenRouterUsage {
+pub struct ChatCompletionUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
     #[serde(default)]
-    pub completion_tokens_details: Option<OpenRouterCompletionTokenDetails>,
+    pub completion_tokens_details: Option<ChatCompletionTokenDetails>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct OpenRouterCompletionTokenDetails {
+pub struct ChatCompletionTokenDetails {
     #[serde(default)]
     pub reasoning_tokens: Option<u32>,
 }
+
+// Back-compat aliases for existing code referencing OpenRouter wire types
+pub type OpenRouterResponse = ChatCompletionResponse;
+pub type OpenRouterChoice = ChatCompletionChoice;
+pub type OpenRouterMessage = ChatCompletionMessage;
+pub type OpenRouterUsage = ChatCompletionUsage;
+pub type OpenRouterCompletionTokenDetails = ChatCompletionTokenDetails;
 
 // ─── Shared question types ────────────────────────────────────────────────────
 
@@ -175,6 +325,10 @@ pub struct GenerateQuestionsRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    /// Explicit provider id so the backend does not have to guess from base_url.
+    /// When absent, falls back to base_url heuristics for backward compatibility.
+    #[serde(default)]
+    pub provider_id: Option<String>,
     pub include_exam_context: Option<bool>,
     pub tech_mode: Option<String>,
     pub subtopics: Option<Vec<String>>,
@@ -242,6 +396,9 @@ pub struct MarkAnswerRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    /// Explicit provider id so the backend does not have to guess from base_url.
+    #[serde(default)]
+    pub provider_id: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
     #[serde(default)]
@@ -305,6 +462,8 @@ pub struct MarkAnswerResponse {
     pub completion_tokens: u32,
     #[serde(default)]
     pub total_tokens: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -353,6 +512,8 @@ pub struct AnalyzeImageRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub provider_id: Option<String>,
     pub prompt: Option<String>,
 }
 
@@ -360,6 +521,8 @@ pub struct AnalyzeImageRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AnalyzeImageResponse {
     pub output_text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
 }
 
 // ─── Tutor Chat ───────────────────────────────────────────────────────────────
@@ -378,6 +541,8 @@ pub struct TutorChatRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub provider_id: Option<String>,
     /// If true, triggers diagnostic mode (lower temperature for precise analysis).
     pub diagnostic: Option<bool>,
 }
@@ -401,6 +566,8 @@ pub struct CleanupTopicsRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub provider_id: Option<String>,
     pub unknown_topics: Vec<String>,
     pub canonical_topics: Vec<String>,
 }
@@ -409,6 +576,8 @@ pub struct CleanupTopicsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CleanupTopicsResponse {
     pub topic_mapping: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
 }
 
 // (cleanup_subtopics command removed)
@@ -448,6 +617,8 @@ pub struct MarkPdfRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub provider_id: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
     #[serde(default)]
@@ -470,6 +641,8 @@ pub struct DiscoverPdfQuestionsRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub provider_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -487,6 +660,8 @@ pub struct DiscoveredQuestion {
 #[serde(rename_all = "camelCase")]
 pub struct DiscoverPdfQuestionsResponse {
     pub questions: Vec<DiscoveredQuestion>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -548,6 +723,8 @@ pub struct GenerateMcQuestionsRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub provider_id: Option<String>,
     pub include_exam_context: Option<bool>,
     pub tech_mode: Option<String>,
     pub subtopics: Option<Vec<String>>,
@@ -603,6 +780,8 @@ pub struct GenerateSubtopicsRequest {
     pub model: String,
     pub api_key: String,
     pub base_url: Option<String>,
+    #[serde(default)]
+    pub provider_id: Option<String>,
     pub existing_subtopics: Option<Vec<String>>,
     pub focus_area: Option<String>,
     pub pdf_content: Option<String>,
@@ -629,6 +808,8 @@ pub struct TechniqueNotes {
 #[serde(rename_all = "camelCase")]
 pub struct GenerateSubtopicsResponse {
     pub subtopics: Vec<GeneratedSubtopic>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimated_cost_usd: Option<f64>,
 }
 
 // ─── Persistence / App State ──────────────────────────────────────────────────

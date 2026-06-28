@@ -136,6 +136,7 @@ export function normalizeMarkResponse(
     promptTokens: data.promptTokens,
     completionTokens: data.completionTokens,
     totalTokens: data.totalTokens,
+    estimatedCostUsd: data.estimatedCostUsd,
   };
 }
 

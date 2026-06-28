@@ -236,7 +236,7 @@ pub fn list_json_files_in_directory(dir_path: String) -> CommandResult<Vec<JsonB
         });
     }
 
-    entries.sort_by(|a, b| b.modified_at_ms.cmp(&a.modified_at_ms));
+    entries.sort_by_key(|entry| std::cmp::Reverse(entry.modified_at_ms));
     Ok(entries)
 }
 

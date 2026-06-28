@@ -1,7 +1,17 @@
 use crate::catalog;
 use crate::constants;
 use crate::difficulty::difficulty_guidance;
+use crate::llm::{supports_json_schema_format_for, supports_json_schema_format_for_base_url};
 use crate::text_clean::sanitize_for_api;
+
+/// Resolve whether a provider supports json_schema, preferring explicit
+/// provider_id over base_url heuristics.
+fn supports_schema(model: &str, provider_id: Option<&str>, base_url: &str) -> bool {
+    match provider_id {
+        Some(id) => supports_json_schema_format_for(model, id),
+        None => supports_json_schema_format_for_base_url(model, base_url),
+    }
+}
 
 // ─── Prompt Section Types ─────────────────────────────────────────────────────
 
@@ -27,6 +37,10 @@ pub enum PromptSection {
     FieldContract,
     /// Strict JSON output instructions.
     JsonOutputNote,
+    /// Defence-in-depth rules for content inside JSON string values
+    /// (no `\nThe`-style escapes, single line of prose, etc.).
+    /// Delegates to `json_string_content_rules`.
+    JsonStringContentRules,
     /// Schema guidance for providers that only support json_object.
     SchemaGuidance {
         is_mc: bool,
@@ -63,6 +77,7 @@ impl PromptSection {
             PromptSection::ComplianceContract => generation_compliance_contract().to_string(),
             PromptSection::FieldContract => topic_field_contract().to_string(),
             PromptSection::JsonOutputNote => strict_json_output_note().to_string(),
+            PromptSection::JsonStringContentRules => json_string_content_rules().to_string(),
             PromptSection::SchemaGuidance { is_mc } => {
                 if *is_mc {
                     mc_schema_guidance_text().to_string()
@@ -174,6 +189,16 @@ fn mc_schema_guidance_text() -> &'static str {
      - \"options\" (array of objects): exactly 4 items, each with \"label\" (\"A\"-\"D\") and \"text\" (string)\n\
      - \"correctAnswer\" (string): one of \"A\", \"B\", \"C\", \"D\"\n\
      - \"explanationMarkdown\" (string): explain why correct answer is right and why each distractor is wrong"
+}
+
+fn json_string_content_rules() -> &'static str {
+    "JSON STRING CONTENT RULES:\n\
+     - Keep each string value on a single logical line. Do not embed raw newlines.\n\
+     - Never begin or interrupt a string with `\\n`, `\\t`, `\\r`, `\\f`, or `\\b`\n\
+       immediately followed by an upper-case letter (e.g. `\\nThe result`). Reflow\n\
+       the text or insert a single space after the escape (`\\n The result`).\n\
+     - Escape special characters correctly: `\\\"` for inner quotes, `\\\\` for a\n\
+       literal backslash."
 }
 
 // ─── Subject-Specific Guidance ────────────────────────────────────────────────
@@ -818,7 +843,11 @@ fn exemplars_note(topics: &[String], is_mc: bool) -> String {
 /// output payload is sent. NVIDIA NIMs and custom OpenAI-compatible endpoints
 /// only honour `json_object`, so we pass `""` (or any non-OpenRouter URL)
 /// when calling from non-OpenRouter providers.
-pub fn written_system_prompt(model: &str, base_url: &str) -> String {
+///
+/// `provider_id` is the canonical provider identifier (e.g. "openrouter",
+/// "deepseek", "nvidia", "custom"). When provided it overrides base_url
+/// heuristics for schema support detection.
+pub fn written_system_prompt(model: &str, base_url: &str, provider_id: Option<&str>) -> String {
     let mut template = PromptTemplate::new()
         .with_section(PromptSection::Identity("Expert VCE written-response exam writer"))
         .with_section(PromptSection::ComplianceContract)
@@ -830,9 +859,10 @@ pub fn written_system_prompt(model: &str, base_url: &str) -> String {
             "CORE RULES:\n- Use precise VCAA command terms (e.g. 'state', 'describe', 'explain', 'justify', 'evaluate', 'compare', 'derive', 'show that').\n- 'show that': every step must be explicit.\n- 'justify': reasoning required.\n- 'promptMarkdown' contains STEM ONLY. No solutions/answers."
         ))
         .with_section(PromptSection::FieldContract)
-        .with_section(PromptSection::JsonOutputNote);
+        .with_section(PromptSection::JsonOutputNote)
+        .with_section(PromptSection::JsonStringContentRules);
 
-    if !crate::llm::supports_json_schema_format_for(model, base_url) {
+    if !supports_schema(model, provider_id, base_url) {
         template = template.with_section(PromptSection::SchemaGuidance { is_mc: false });
     }
 
@@ -840,8 +870,8 @@ pub fn written_system_prompt(model: &str, base_url: &str) -> String {
 }
 
 /// Build a system prompt for MC question generation. See `written_system_prompt`
-/// for the role of `base_url`.
-pub fn mc_system_prompt(model: &str, base_url: &str) -> String {
+/// for the role of `base_url` and `provider_id`.
+pub fn mc_system_prompt(model: &str, base_url: &str, provider_id: Option<&str>) -> String {
     let mut template = PromptTemplate::new()
         .with_section(PromptSection::Identity("Expert VCE multiple-choice exam writer"))
         .with_section(PromptSection::ComplianceContract)
@@ -853,16 +883,18 @@ pub fn mc_system_prompt(model: &str, base_url: &str) -> String {
             "CORE RULES:\n- Use VCE standard phrasing and plausible distractors.\n- Provide ONLY final answers and concise rationale.\n- NO chain-of-thought in output.\n- 'promptMarkdown' contains STEM ONLY. No options (A-D) in stem."
         ))
         .with_section(PromptSection::FieldContract)
-        .with_section(PromptSection::JsonOutputNote);
+        .with_section(PromptSection::JsonOutputNote)
+        .with_section(PromptSection::JsonStringContentRules);
 
-    if !crate::llm::supports_json_schema_format_for(model, base_url) {
+    if !supports_schema(model, provider_id, base_url) {
         template = template.with_section(PromptSection::SchemaGuidance { is_mc: true });
     }
 
     template.build()
 }
 
-/// Build a system prompt for marking. See `written_system_prompt` for `base_url`.
+/// Build a system prompt for marking. See `written_system_prompt` for `base_url`
+/// and `provider_id`.
 pub fn marking_system_prompt(
     max_marks: u8,
     marking_guidance: &str,
@@ -871,6 +903,7 @@ pub fn marking_system_prompt(
     custom_marker_style: Option<String>,
     model: &str,
     base_url: &str,
+    provider_id: Option<&str>,
 ) -> String {
     let mut template = PromptTemplate::new()
         .with_section(PromptSection::MarkingIdentity {
@@ -891,9 +924,10 @@ pub fn marking_system_prompt(
             "REPORTS: PDFs are PRIMARY authority for criteria.",
         ))
         .with_section(PromptSection::MarkingLimits { max_marks })
-        .with_section(PromptSection::MarkingFeedbackHeaders);
+        .with_section(PromptSection::MarkingFeedbackHeaders)
+        .with_section(PromptSection::JsonStringContentRules);
 
-    if !crate::llm::supports_json_schema_format_for(model, base_url) {
+    if !supports_schema(model, provider_id, base_url) {
         template = template.with_section(PromptSection::Static(marking_schema_guidance_text()));
     }
 
@@ -1066,8 +1100,34 @@ pub fn marking_user_prompt(
 }
 
 /// Build a subtopic generation system prompt.
-pub fn subtopic_generation_system() -> &'static str {
-    "IDENTITY: Expert VCE curriculum designer.\n\nMISSION: Generate subtopics that align with exam requirements while prioritizing any user-specified focus areas.\n\nCORE RULES:\n- Generate VCE subtopics based on the study design\n- If a focus area is specified, it MUST be the highest priority - include multiple related subtopics covering it\n- Each subtopic must be specific, assessable, and appropriate for exam questions\n- Use proper VCE terminology and command terms\n- Output ONLY valid JSON array\n\nOUTPUT FORMAT - Each subtopic MUST include all three techniqueNotes fields:\n[{\n  \"name\": \"Subtopic Name\",\n  \"group\": \"unit#-aos-slug\",\n  \"techniqueNotes\": {\n    \"coreConcepts\": \"Key concepts students must understand (2-4 sentences)\",\n    \"examStyleGuidelines\": \"How to approach exam questions on this subtopic, common mistakes to avoid\",\n    \"antiPrompts\": [\"What NOT to do\", \"Common student errors\", \"Misconceptions to correct\"]\n  }\n}]\n\nREQUIREMENTS:\n- coreConcepts: Essential knowledge students need for this subtopic\n- examStyleGuidelines: Strategic advice for exam success, what examiners look for\n- antiPrompts: At least 2-3 items students should avoid or common pitfalls\n\nSTRICT JSON OUTPUT: Output only the JSON array, no markdown or explanation."
+pub fn subtopic_generation_system() -> String {
+    format!(
+        "IDENTITY: Expert VCE curriculum designer.\n\n\
+MISSION: Generate subtopics that align with exam requirements while prioritizing any user-specified focus areas.\n\n\
+CORE RULES:\n\
+- Generate VCE subtopics based on the study design\n\
+- If a focus area is specified, it MUST be the highest priority - include multiple related subtopics covering it\n\
+- Each subtopic must be specific, assessable, and appropriate for exam questions\n\
+- Use proper VCE terminology and command terms\n\
+- Output ONLY valid JSON array\n\n\
+OUTPUT FORMAT - Each subtopic MUST include all three techniqueNotes fields:\n\
+[{{\n\
+  \"name\": \"Subtopic Name\",\n\
+  \"group\": \"unit#-aos-slug\",\n\
+  \"techniqueNotes\": {{\n\
+    \"coreConcepts\": \"Key concepts students must understand (2-4 sentences)\",\n\
+    \"examStyleGuidelines\": \"How to approach exam questions on this subtopic, common mistakes to avoid\",\n\
+    \"antiPrompts\": [\"What NOT to do\", \"Common student errors\", \"Misconceptions to correct\"]\n\
+  }}\n\
+}}]\n\n\
+REQUIREMENTS:\n\
+- coreConcepts: Essential knowledge students need for this subtopic\n\
+- examStyleGuidelines: Strategic advice for exam success, what examiners look for\n\
+- antiPrompts: At least 2-3 items students should avoid or common pitfalls\n\n\
+STRICT JSON OUTPUT: Output only the JSON array, no markdown or explanation.\n\n\
+{}",
+        json_string_content_rules()
+    )
 }
 
 /// Build a subtopic generation user prompt.

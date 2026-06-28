@@ -54,6 +54,7 @@ import type {
   QuestionHistoryEntry,
   StudentAnswerImage,
 } from '@/types';
+import { getModelCredentials } from '@/types/provider';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
 import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
 import { QuestionSplitLayout } from '@/views/generator/QuestionSplitLayout';
@@ -458,6 +459,7 @@ interface ReattemptViewProps {
   questions: WrongEntry[];
   apiKey: string;
   baseUrl?: string;
+  providerId?: string;
   model: string;
   onExit: (results: ReattemptResult[]) => void;
   onDelete: (entry: WrongEntry) => void;
@@ -468,6 +470,7 @@ function ReattemptView({
   questions,
   apiKey,
   baseUrl,
+  providerId,
   model,
   onExit,
   onDelete,
@@ -705,6 +708,7 @@ function ReattemptView({
           model,
           apiKey,
           baseUrl,
+          providerId,
         },
       });
       const resp = normalizeMarkResponse(raw, writtenEntry.question.maxMarks);
@@ -1072,15 +1076,17 @@ export default function WrongQuestionView() {
     (s) => s.updateQuestionHistoryEntry,
   );
   const updateMcHistoryEntry = useAppStore((s) => s.updateMcHistoryEntry);
-  const apiKey = useAppStore((s) => s.apiKey);
-  const baseUrl = useAppStore(
-    (s) => s.providers[s.activeProviderId]?.config.baseUrl,
-  );
+  const providers = useAppStore((s) => s.providers);
   const model = useAppStore((s) => s.model);
   const markingModel = useAppStore((s) => s.markingModel);
   const useSeparateMarkingModel = useAppStore((s) => s.useSeparateMarkingModel);
   const effectiveModel =
     useSeparateMarkingModel && markingModel?.trim() ? markingModel : model;
+
+  const effectiveCredentials = getModelCredentials(effectiveModel, providers);
+  const effectiveApiKey = effectiveCredentials?.apiKey ?? '';
+  const effectiveBaseUrl = effectiveCredentials?.baseUrl;
+  const effectiveProviderId = effectiveCredentials?.providerId;
   const navigate = useNavigate();
 
   const allWrong = useMemo<WrongEntry[]>(
@@ -1193,8 +1199,9 @@ export default function WrongQuestionView() {
       <div className='h-full flex flex-col'>
         <ReattemptView
           questions={reattemptQueue}
-          apiKey={apiKey}
-          baseUrl={baseUrl}
+          apiKey={effectiveApiKey}
+          baseUrl={effectiveBaseUrl}
+          providerId={effectiveProviderId}
           model={effectiveModel}
           onDelete={handleDelete}
           onMarkCorrect={handleMarkCorrect}

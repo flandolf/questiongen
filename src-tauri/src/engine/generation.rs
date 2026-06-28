@@ -3,7 +3,11 @@ use crate::engine::context::EngineContext;
 use crate::engine::output::{parse_structured_with_meta, StructuredOutput};
 use crate::engine::prompt::GenerationPromptParams;
 use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
-use crate::engine::{emit_status, rust_log, validate_credentials};
+use crate::engine::{
+    emit_status, emit_stream_end, emit_stream_error, emit_stream_start, rust_log,
+    validate_credentials,
+};
+use crate::llm::generate_request_id;
 use crate::models::{
     AppError, CommandResult, GenerateMcQuestionsRequest, GenerateMcQuestionsResponse,
     GenerateQuestionsRequest, GenerateQuestionsResponse, GeneratedQuestion,
@@ -24,104 +28,165 @@ pub async fn generate_written_questions(
 ) -> CommandResult<GenerateQuestionsResponse> {
     validate_credentials(&request.api_key, &request.model)?;
 
-    let start = Instant::now();
-    let inputs = validate_and_prepare_inputs(&request)?;
+    let request_id = generate_request_id();
+    let provider_id = request.provider_id.clone().unwrap_or_else(|| {
+        let url = request
+            .base_url
+            .as_deref()
+            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL)
+            .trim()
+            .trim_end_matches('/')
+            .to_ascii_lowercase();
+        if url.contains("openrouter.ai") {
+            "openrouter".to_string()
+        } else if url.contains("deepseek.com") {
+            "deepseek".to_string()
+        } else if url.contains("nvidia.com") {
+            "nvidia".to_string()
+        } else {
+            "custom".to_string()
+        }
+    });
 
-    emit_status(
-        ctx,
-        serde_json::json!({"stage": "building_prompt", "topic": request.topics.first()}),
+    emit_stream_start(
+        &ctx.app,
+        &request_id,
+        "generation",
+        &provider_id,
+        &request.model,
+        request.topics.first().cloned(),
+        None,
     );
 
-    let mut result =
-        run_written_attempt(ctx, &request, &inputs, None, Vec::new(), "initial").await?;
+    let result: CommandResult<GenerateQuestionsResponse> = async {
+        let start = Instant::now();
+        let inputs = validate_and_prepare_inputs(&request)?;
 
-    // R5 retry gate: defer the predicate to `quality::should_retry` so the
-    // policy stays in one place and is unit-testable in isolation. We track
-    // `attempts_used` honestly (0 = just made the initial call below).
-    let attempts_used: u8 = 0;
-    let retry_fired = quality::should_retry(
-        result.summary.distinctness_avg,
-        result.summary.command_verb_diversity,
-        result.questions.len(),
-        attempts_used,
-    );
-
-    if retry_fired {
-        ctx.check_abort()?;
-        let texts = GeneratedQuestion::extract_texts(&result.questions);
-        let (offender_prompts, anti_verbs) =
-            quality::compute_regen_anti_examples(&texts, &result.metrics);
-        rust_log(
-            ctx,
-            "warn",
-            "R5 retry triggered (low distinctness/verb diversity)",
-            Some(serde_json::json!({
-                "distinctness_avg": result.summary.distinctness_avg,
-                "command_verb_diversity": result.summary.command_verb_diversity,
-                "offender_count": offender_prompts.len(),
-                "anti_verbs": anti_verbs,
-                "topic": request.topics.first(),
-            })),
-        );
         emit_status(
             ctx,
-            serde_json::json!({
-                "stage": "regen_retry",
-                "distinctness_avg": result.summary.distinctness_avg,
-                "verb_diversity": result.summary.command_verb_diversity,
-                "anti_verbs": anti_verbs,
-            }),
+            serde_json::json!({"stage": "building_prompt", "topic": request.topics.first()}),
         );
-        // Replace the user-provided priors with the offenders so the retry is
-        // explicitly pointed at what went wrong. The note module caps at 3
-        // items; if fewer offenders are present we fall back to the user list.
-        let prior_overrides = if offender_prompts.is_empty() {
-            inputs.prior_question_prompts.clone()
-        } else {
-            Some(offender_prompts)
-        };
-        result = run_written_attempt(ctx, &request, &inputs, prior_overrides, anti_verbs, "retry")
-            .await?;
-    }
 
-    let duration_ms = start.elapsed().as_millis() as u64;
+        let mut result = run_written_attempt(
+            ctx,
+            &request,
+            &inputs,
+            None,
+            Vec::new(),
+            "initial",
+            &request_id,
+        )
+        .await?;
 
-    rust_log(
-        ctx,
-        "info",
-        &format!(
-            "Generated {} written questions in {}ms ({})",
+        // R5 retry gate: defer the predicate to `quality::should_retry` so the
+        // policy stays in one place and is unit-testable in isolation. We track
+        // `attempts_used` honestly (0 = just made the initial call below).
+        let attempts_used: u8 = 0;
+        let retry_fired = quality::should_retry(
+            result.summary.distinctness_avg,
+            result.summary.command_verb_diversity,
             result.questions.len(),
-            duration_ms,
-            if retry_fired {
-                "with R5 retry"
-            } else {
-                "no retry"
-            }
-        ),
-        Some(serde_json::json!({
-            "prompt_tokens": result.prompt_tokens,
-            "completion_tokens": result.completion_tokens,
-            "total_tokens": result.total_tokens,
-            "reasoning_tokens": result.reasoning_tokens,
-            "retry_fired": retry_fired,
-        })),
-    );
+            attempts_used,
+        );
 
-    Ok(GenerateQuestionsResponse {
-        questions: result.questions,
-        duration_ms,
-        prompt_tokens: result.prompt_tokens,
-        completion_tokens: result.completion_tokens,
-        total_tokens: result.total_tokens,
-        reasoning_tokens: result.reasoning_tokens,
-        estimated_cost_usd: result.cost_usd,
-        distinctness_avg: result.summary.distinctness_avg,
-        multi_step_depth_avg: result.summary.multi_step_depth_avg,
-        command_verb_diversity: result.summary.command_verb_diversity,
-        mark_allocation_variance: result.summary.mark_allocation_variance,
-        quality_diagnostics: Some(result.diagnostics),
-    })
+        if retry_fired {
+            ctx.check_abort()?;
+            let texts = GeneratedQuestion::extract_texts(&result.questions);
+            let (offender_prompts, anti_verbs) =
+                quality::compute_regen_anti_examples(&texts, &result.metrics);
+            rust_log(
+                ctx,
+                "warn",
+                "R5 retry triggered (low distinctness/verb diversity)",
+                Some(serde_json::json!({
+                    "distinctness_avg": result.summary.distinctness_avg,
+                    "command_verb_diversity": result.summary.command_verb_diversity,
+                    "offender_count": offender_prompts.len(),
+                    "anti_verbs": anti_verbs,
+                    "topic": request.topics.first(),
+                })),
+            );
+            emit_status(
+                ctx,
+                serde_json::json!({
+                    "stage": "regen_retry",
+                    "distinctness_avg": result.summary.distinctness_avg,
+                    "verb_diversity": result.summary.command_verb_diversity,
+                    "anti_verbs": anti_verbs,
+                }),
+            );
+            // Replace the user-provided priors with the offenders so the retry is
+            // explicitly pointed at what went wrong. The note module caps at 3
+            // items; if fewer offenders are present we fall back to the user list.
+            let prior_overrides = if offender_prompts.is_empty() {
+                inputs.prior_question_prompts.clone()
+            } else {
+                Some(offender_prompts)
+            };
+            result = run_written_attempt(
+                ctx,
+                &request,
+                &inputs,
+                prior_overrides,
+                anti_verbs,
+                "retry",
+                &request_id,
+            )
+            .await?;
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        rust_log(
+            ctx,
+            "info",
+            &format!(
+                "Generated {} written questions in {}ms ({})",
+                result.questions.len(),
+                duration_ms,
+                if retry_fired {
+                    "with R5 retry"
+                } else {
+                    "no retry"
+                }
+            ),
+            Some(serde_json::json!({
+                "prompt_tokens": result.prompt_tokens,
+                "completion_tokens": result.completion_tokens,
+                "total_tokens": result.total_tokens,
+                "reasoning_tokens": result.reasoning_tokens,
+                "retry_fired": retry_fired,
+            })),
+        );
+
+        Ok(GenerateQuestionsResponse {
+            questions: result.questions,
+            duration_ms,
+            prompt_tokens: result.prompt_tokens,
+            completion_tokens: result.completion_tokens,
+            total_tokens: result.total_tokens,
+            reasoning_tokens: result.reasoning_tokens,
+            estimated_cost_usd: result.cost_usd,
+            distinctness_avg: result.summary.distinctness_avg,
+            multi_step_depth_avg: result.summary.multi_step_depth_avg,
+            command_verb_diversity: result.summary.command_verb_diversity,
+            mark_allocation_variance: result.summary.mark_allocation_variance,
+            quality_diagnostics: Some(result.diagnostics),
+        })
+    }
+    .await;
+
+    match result {
+        Ok(res) => {
+            emit_stream_end(&ctx.app, &request_id);
+            Ok(res)
+        }
+        Err(e) => {
+            emit_stream_error(&ctx.app, &request_id, &e.code, &e.message);
+            emit_stream_end(&ctx.app, &request_id);
+            Err(e)
+        }
+    }
 }
 
 /// R5 attempt helper: a single end-to-end attempt (build prompt → call model →
@@ -133,6 +198,7 @@ async fn run_written_attempt(
     prior_overrides: Option<Vec<String>>,
     anti_verbs: Vec<String>,
     attempt_label: &'static str,
+    request_id: &str,
 ) -> CommandResult<WrittenAttemptResult> {
     let mut params = build_generation_params(request, inputs);
     params.regen_anti_verbs = anti_verbs;
@@ -144,11 +210,18 @@ async fn run_written_attempt(
         .base_url
         .as_deref()
         .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
-    let system_prompt =
-        crate::engine::prompt::written_system_prompt(&request.model, request_base_url);
+    let system_prompt = crate::engine::prompt::written_system_prompt(
+        &request.model,
+        request_base_url,
+        request.provider_id.as_deref(),
+    );
     let user_prompt = params.build_written();
 
-    let response_format = schemas::written_format(&request.model, request_base_url);
+    let response_format = schemas::written_format(
+        &request.model,
+        request_base_url,
+        request.provider_id.as_deref(),
+    );
     let max_tokens = estimate_max_tokens(
         request.question_count,
         request.average_marks_per_question,
@@ -161,9 +234,13 @@ async fn run_written_attempt(
             request.reasoning_enabled.unwrap_or(false),
             request.reasoning_effort.as_deref(),
         )
-        .with_temperature(default_written_temperature(&request.difficulty));
+        .with_temperature(default_written_temperature(&request.difficulty))
+        .with_request_id(request_id);
     if let Some(ref url) = request.base_url {
         llm_config = llm_config.with_base_url(url);
+    }
+    if let Some(ref id) = request.provider_id {
+        llm_config = llm_config.with_provider_id(id);
     }
 
     let user_content = build_user_content_with_pdfs(
@@ -271,102 +348,164 @@ pub async fn generate_mc_questions(
 ) -> CommandResult<GenerateMcQuestionsResponse> {
     validate_credentials(&request.api_key, &request.model)?;
 
-    let start = Instant::now();
-    let inputs = validate_and_prepare_mc_inputs(&request)?;
+    let request_id = generate_request_id();
+    let provider_id = request.provider_id.clone().unwrap_or_else(|| {
+        let url = request
+            .base_url
+            .as_deref()
+            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL)
+            .trim()
+            .trim_end_matches('/')
+            .to_ascii_lowercase();
+        if url.contains("openrouter.ai") {
+            "openrouter".to_string()
+        } else if url.contains("deepseek.com") {
+            "deepseek".to_string()
+        } else if url.contains("nvidia.com") {
+            "nvidia".to_string()
+        } else {
+            "custom".to_string()
+        }
+    });
 
-    emit_status(
-        ctx,
-        serde_json::json!({"stage": "building_prompt", "topic": request.topics.first()}),
+    emit_stream_start(
+        &ctx.app,
+        &request_id,
+        "generation",
+        &provider_id,
+        &request.model,
+        request.topics.first().cloned(),
+        None,
     );
 
-    let mut result = run_mc_attempt(ctx, &request, &inputs, None, Vec::new(), "initial").await?;
+    let result: CommandResult<GenerateMcQuestionsResponse> = async {
+        let start = Instant::now();
+        let inputs = validate_and_prepare_mc_inputs(&request)?;
 
-    // R5 retry gate: same predicate as the written path so the policy is in
-    // one place. `attempts_used` is 0 here because we just made the initial
-    // call above; after a retry it would be 1 and the gate would short-circuit.
-    let attempts_used: u8 = 0;
-    let retry_fired = quality::should_retry(
-        result.summary.distinctness_avg,
-        result.summary.command_verb_diversity,
-        result.questions.len(),
-        attempts_used,
-    );
-
-    if retry_fired {
-        ctx.check_abort()?;
-        let texts = McQuestion::extract_texts(&result.questions);
-        let (offender_prompts, anti_verbs) =
-            quality::compute_regen_anti_examples(&texts, &result.metrics);
-        rust_log(
-            ctx,
-            "warn",
-            "R5 retry triggered (low distinctness/verb diversity)",
-            Some(serde_json::json!({
-                "mode": "mc",
-                "distinctness_avg": result.summary.distinctness_avg,
-                "command_verb_diversity": result.summary.command_verb_diversity,
-                "offender_count": offender_prompts.len(),
-                "anti_verbs": anti_verbs,
-                "topic": request.topics.first(),
-            })),
-        );
         emit_status(
             ctx,
-            serde_json::json!({
-                "stage": "regen_retry",
-                "mode": "mc",
-                "distinctness_avg": result.summary.distinctness_avg,
-                "verb_diversity": result.summary.command_verb_diversity,
-                "anti_verbs": anti_verbs,
-            }),
+            serde_json::json!({"stage": "building_prompt", "topic": request.topics.first()}),
         );
-        let prior_overrides = if offender_prompts.is_empty() {
-            inputs.prior_question_prompts.clone()
-        } else {
-            Some(offender_prompts)
-        };
-        result =
-            run_mc_attempt(ctx, &request, &inputs, prior_overrides, anti_verbs, "retry").await?;
-    }
 
-    let duration_ms = start.elapsed().as_millis() as u64;
+        let mut result = run_mc_attempt(
+            ctx,
+            &request,
+            &inputs,
+            None,
+            Vec::new(),
+            "initial",
+            &request_id,
+        )
+        .await?;
 
-    rust_log(
-        ctx,
-        "info",
-        &format!(
-            "Generated {} MC questions in {}ms ({})",
+        // R5 retry gate: same predicate as the written path so the policy is in
+        // one place. `attempts_used` is 0 here because we just made the initial
+        // call above; after a retry it would be 1 and the gate would short-circuit.
+        let attempts_used: u8 = 0;
+        let retry_fired = quality::should_retry(
+            result.summary.distinctness_avg,
+            result.summary.command_verb_diversity,
             result.questions.len(),
-            duration_ms,
-            if retry_fired {
-                "with R5 retry"
-            } else {
-                "no retry"
-            }
-        ),
-        Some(serde_json::json!({
-            "prompt_tokens": result.prompt_tokens,
-            "completion_tokens": result.completion_tokens,
-            "total_tokens": result.total_tokens,
-            "reasoning_tokens": result.reasoning_tokens,
-            "retry_fired": retry_fired,
-        })),
-    );
+            attempts_used,
+        );
 
-    Ok(GenerateMcQuestionsResponse {
-        questions: result.questions,
-        duration_ms,
-        prompt_tokens: result.prompt_tokens,
-        completion_tokens: result.completion_tokens,
-        total_tokens: result.total_tokens,
-        reasoning_tokens: result.reasoning_tokens,
-        estimated_cost_usd: result.cost_usd,
-        distinctness_avg: result.summary.distinctness_avg,
-        multi_step_depth_avg: result.summary.multi_step_depth_avg,
-        command_verb_diversity: result.summary.command_verb_diversity,
-        mark_allocation_variance: result.summary.mark_allocation_variance,
-        quality_diagnostics: Some(result.diagnostics),
-    })
+        if retry_fired {
+            ctx.check_abort()?;
+            let texts = McQuestion::extract_texts(&result.questions);
+            let (offender_prompts, anti_verbs) =
+                quality::compute_regen_anti_examples(&texts, &result.metrics);
+            rust_log(
+                ctx,
+                "warn",
+                "R5 retry triggered (low distinctness/verb diversity)",
+                Some(serde_json::json!({
+                    "mode": "mc",
+                    "distinctness_avg": result.summary.distinctness_avg,
+                    "command_verb_diversity": result.summary.command_verb_diversity,
+                    "offender_count": offender_prompts.len(),
+                    "anti_verbs": anti_verbs,
+                    "topic": request.topics.first(),
+                })),
+            );
+            emit_status(
+                ctx,
+                serde_json::json!({
+                    "stage": "regen_retry",
+                    "mode": "mc",
+                    "distinctness_avg": result.summary.distinctness_avg,
+                    "verb_diversity": result.summary.command_verb_diversity,
+                    "anti_verbs": anti_verbs,
+                }),
+            );
+            let prior_overrides = if offender_prompts.is_empty() {
+                inputs.prior_question_prompts.clone()
+            } else {
+                Some(offender_prompts)
+            };
+            result = run_mc_attempt(
+                ctx,
+                &request,
+                &inputs,
+                prior_overrides,
+                anti_verbs,
+                "retry",
+                &request_id,
+            )
+            .await?;
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        rust_log(
+            ctx,
+            "info",
+            &format!(
+                "Generated {} MC questions in {}ms ({})",
+                result.questions.len(),
+                duration_ms,
+                if retry_fired {
+                    "with R5 retry"
+                } else {
+                    "no retry"
+                }
+            ),
+            Some(serde_json::json!({
+                "prompt_tokens": result.prompt_tokens,
+                "completion_tokens": result.completion_tokens,
+                "total_tokens": result.total_tokens,
+                "reasoning_tokens": result.reasoning_tokens,
+                "retry_fired": retry_fired,
+            })),
+        );
+
+        Ok(GenerateMcQuestionsResponse {
+            questions: result.questions,
+            duration_ms,
+            prompt_tokens: result.prompt_tokens,
+            completion_tokens: result.completion_tokens,
+            total_tokens: result.total_tokens,
+            reasoning_tokens: result.reasoning_tokens,
+            estimated_cost_usd: result.cost_usd,
+            distinctness_avg: result.summary.distinctness_avg,
+            multi_step_depth_avg: result.summary.multi_step_depth_avg,
+            command_verb_diversity: result.summary.command_verb_diversity,
+            mark_allocation_variance: result.summary.mark_allocation_variance,
+            quality_diagnostics: Some(result.diagnostics),
+        })
+    }
+    .await;
+
+    match result {
+        Ok(res) => {
+            emit_stream_end(&ctx.app, &request_id);
+            Ok(res)
+        }
+        Err(e) => {
+            emit_stream_error(&ctx.app, &request_id, &e.code, &e.message);
+            emit_stream_end(&ctx.app, &request_id);
+            Err(e)
+        }
+    }
 }
 
 /// R5 attempt helper for MC questions — symmetric to `run_written_attempt`.
@@ -377,6 +516,7 @@ async fn run_mc_attempt(
     prior_overrides: Option<Vec<String>>,
     anti_verbs: Vec<String>,
     attempt_label: &'static str,
+    request_id: &str,
 ) -> CommandResult<McAttemptResult> {
     let mut params = build_mc_generation_params(request, inputs);
     params.regen_anti_verbs = anti_verbs;
@@ -388,10 +528,18 @@ async fn run_mc_attempt(
         .base_url
         .as_deref()
         .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
-    let system_prompt = crate::engine::prompt::mc_system_prompt(&request.model, request_base_url);
+    let system_prompt = crate::engine::prompt::mc_system_prompt(
+        &request.model,
+        request_base_url,
+        request.provider_id.as_deref(),
+    );
     let user_prompt = params.build_mc();
 
-    let response_format = schemas::mc_format(&request.model, request_base_url);
+    let response_format = schemas::mc_format(
+        &request.model,
+        request_base_url,
+        request.provider_id.as_deref(),
+    );
     let max_tokens = estimate_max_tokens(request.question_count, None, true);
 
     let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
@@ -399,9 +547,13 @@ async fn run_mc_attempt(
         .with_reasoning(
             request.reasoning_enabled.unwrap_or(false),
             request.reasoning_effort.as_deref(),
-        );
+        )
+        .with_request_id(request_id);
     if let Some(ref url) = request.base_url {
         llm_config = llm_config.with_base_url(url);
+    }
+    if let Some(ref id) = request.provider_id {
+        llm_config = llm_config.with_provider_id(id);
     }
 
     // R10: Use MC temperature default (0.3) if user did not override.

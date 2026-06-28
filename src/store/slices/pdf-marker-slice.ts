@@ -10,6 +10,7 @@ import type {
   MarkPdfResultItem,
   PdfMarkerHistoryEntry,
 } from '@/types';
+import { getModelCredentials } from '@/types/provider';
 
 export interface PdfMarkerSlice {
   pdfMarkerPdfBase64: string | null;
@@ -83,7 +84,9 @@ export const createPdfMarkerSlice: StateCreator<
   markPdf: async () => {
     const s = get();
     if (s.isPdfMarkerMarking) return;
-    if (!s.apiKey.trim() || !s.markingModel.trim()) {
+
+    const credentials = getModelCredentials(s.markingModel, s.providers);
+    if (!credentials) {
       toast.error('API key and marking model are required.');
       return;
     }
@@ -108,9 +111,10 @@ export const createPdfMarkerSlice: StateCreator<
             pdfBase64: s.pdfMarkerPdfBase64,
             questions: s.pdfMarkerQuestions,
             pageMapping: s.pdfMarkerPageMapping,
-            model: s.markingModel,
-            apiKey: s.apiKey,
-            baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
+            model: credentials.modelId,
+            apiKey: credentials.apiKey,
+            baseUrl: credentials.baseUrl,
+            providerId: credentials.providerId,
             markerStyle: s.markerStyle,
             customMarkerStyle: s.customMarkerStyle,
             reasoningEnabled: s.markingReasoningEnabled,
@@ -178,7 +182,9 @@ export const createPdfMarkerSlice: StateCreator<
   markPdfSingle: async (questionId: string) => {
     const s = get();
     if (s.isPdfMarkerMarking) return;
-    if (!s.apiKey.trim() || !s.markingModel.trim()) {
+
+    const credentials = getModelCredentials(s.markingModel, s.providers);
+    if (!credentials) {
       toast.error('API key and marking model are required.');
       return;
     }
@@ -211,9 +217,10 @@ export const createPdfMarkerSlice: StateCreator<
             pdfBase64: s.pdfMarkerPdfBase64,
             questions: [question],
             pageMapping,
-            model: s.markingModel,
-            apiKey: s.apiKey,
-            baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
+            model: credentials.modelId,
+            apiKey: credentials.apiKey,
+            baseUrl: credentials.baseUrl,
+            providerId: credentials.providerId,
             markerStyle: s.markerStyle,
             customMarkerStyle: s.customMarkerStyle,
             reasoningEnabled: s.markingReasoningEnabled,
@@ -257,7 +264,9 @@ export const createPdfMarkerSlice: StateCreator<
   discoverPdfQuestions: async () => {
     const s = get();
     if (s.isPdfMarkerDiscovering) return;
-    if (!s.apiKey.trim() || !s.markingModel.trim()) {
+
+    const credentials = getModelCredentials(s.markingModel, s.providers);
+    if (!credentials) {
       toast.error('API key and marking model are required.');
       return;
     }
@@ -275,9 +284,10 @@ export const createPdfMarkerSlice: StateCreator<
         {
           request: {
             pdfBase64: s.pdfMarkerPdfBase64,
-            model: s.markingModel,
-            apiKey: s.apiKey,
-            baseUrl: s.providers[s.activeProviderId]?.config.baseUrl,
+            model: credentials.modelId,
+            apiKey: credentials.apiKey,
+            baseUrl: credentials.baseUrl,
+            providerId: credentials.providerId,
           },
         },
       );

@@ -121,16 +121,27 @@ pub fn protect_latex_in_raw_json(raw: &str) -> String {
                             let mut is_latex = false;
                             if matches!(next, b'f' | b't' | b'b' | b'n' | b'r') {
                                 let start = i + 1;
-                                // Count consecutive alphabetic chars after the initial letter.
+                                // Count consecutive *lowercase* letters after the initial
+                                // letter. LaTeX commands (the only reason to treat \n as
+                                // non-JSON-escape) are case-sensitive and all-lowercase:
+                                // \frac, \nabla, \text, \theta, \beta, \right, etc.
+                                // An UPPERCASE letter after the escape is almost always
+                                // the start of a sentence/proper noun, meaning \n was
+                                // intended as a JSON newline escape (e.g. "\nThe first
+                                // question..."), not a LaTeX command. Limiting the count
+                                // to lowercase keeps the JSON-escape-vs-LaTeX heuristic
+                                // accurate for `\nThe`, `\rEquation`, `\tSection A`, etc.
                                 let mut alpha_count = 1usize; // the initial letter itself
                                 let mut j = start + 1;
-                                while j < len && bytes[j].is_ascii_alphabetic() {
+                                while j < len && bytes[j].is_ascii_lowercase() {
                                     alpha_count += 1;
                                     j += 1;
                                 }
-                                // If 2+ more alpha chars follow (total >= 3), treat as LaTeX.
-                                // This preserves genuine \n (newline) + space, but catches
-                                // \frac, \text, \nabla, \beta, \right, etc.
+                                // If 2+ more lowercase chars follow (total >= 3), treat
+                                // as LaTeX. This preserves genuine \n (newline) +
+                                // space/digit and the very common `\nThe` (newline +
+                                // sentence) pattern, while still catching genuine
+                                // LaTeX commands like \frac, \text, \nabla, \beta, \right.
                                 if alpha_count >= 3 {
                                     is_latex = true;
                                 }
@@ -314,6 +325,77 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
         let result = v["q"].as_str().unwrap();
         assert!(result.contains('\n'), "Expected newline in: {result}");
+    }
+
+    #[test]
+    fn uppercase_after_newline_escape_treated_as_json() {
+        // `\nThe` is a JSON newline followed by the start of a sentence,
+        // not a LaTeX command. Uppercase `T` must NOT trigger LaTeX
+        // protection; the resulting string should contain a real newline
+        // and the literal text "The first".
+        let raw = r#"{"q": "\nThe first question"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), "\nThe first question");
+    }
+
+    #[test]
+    fn uppercase_after_each_escape_treated_as_json() {
+        // Symmetric coverage: \nThe, \rEquation, \tSection, \fFigure,
+        // \bTable are all "JSON escape + start of word", not LaTeX.
+        let cases: &[(&str, &str)] = &[
+            (r#"{"q": "\nThe start"}"#, "\nThe start"),
+            (r#"{"q": "\rEquation"}"#, "\rEquation"),
+            (r#"{"q": "\tSection A"}"#, "\tSection A"),
+            (r#"{"q": "\fFigure 1"}"#, "\u{000C}Figure 1"),
+            (r#"{"q": "\bTable"}"#, "\u{0008}Table"),
+        ];
+        for (raw, expected) in cases {
+            let protected = protect_latex_in_raw_json(raw);
+            let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+            assert_eq!(
+                v["q"].as_str().unwrap(),
+                *expected,
+                "raw={raw} protected={protected}"
+            );
+        }
+    }
+
+    #[test]
+    fn nabla_among_following_uppercase_words_still_protected() {
+        // `\nabla` is a single LaTeX command; subsequent words starting
+        // with uppercase letters are just text and must NOT affect the
+        // LaTeX detection of `\nabla` itself. Lock in the full string
+        // output to catch regressions where the trailing text is mangled.
+        let raw = r#"{"q": "\nabla The field for x"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\nabla The field for x");
+    }
+
+    #[test]
+    fn n_followed_by_lowercase_word_still_treated_as_latex() {
+        // Regression guard: the lowercase-only heuristic must still
+        // re-categorise `\nfoo` / `\n bar` (all-lowercase run) as a
+        // LaTeX-shaped construct, preserving the literal `\n...` text
+        // after JSON parse. A future change reverting to
+        // `is_ascii_alphabetic` would over-trigger on these cases.
+        let raw = r#"{"q": "\nfoo bar"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\nfoo bar");
+    }
+
+    #[test]
+    fn mixed_lowercase_then_uppercase_locks_on_first_lowercase_run() {
+        // `\nabcUPPER` has lowercase letters (`n`, `a`, `b`, `c`)
+        // reaching alpha_count >= 3 before the uppercase `U`, so we
+        // commit to LaTeX-preserve and copy the rest verbatim. This
+        // pins the behaviour we want: the leading lowercase run wins.
+        let raw = r#"{"q": "\nabcUPPEr tail"}"#;
+        let protected = protect_latex_in_raw_json(raw);
+        let v: serde_json::Value = serde_json::from_str(&protected).unwrap();
+        assert_eq!(v["q"].as_str().unwrap(), r"\nabcUPPEr tail");
     }
 
     #[test]

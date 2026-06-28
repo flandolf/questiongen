@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/store';
 import type { CustomSubtopic, GeneratedSubtopic, Topic } from '@/types';
+import { getModelCredentials } from '@/types/provider';
 import { PRESET_MODELS } from '@/views/settings/constants';
 
 interface AiGenerateSubtopicsModalProps {
@@ -24,10 +25,7 @@ export function AiGenerateSubtopicsModal({
   onAdd,
   onClose,
 }: AiGenerateSubtopicsModalProps) {
-  const apiKey = useAppStore((s) => s.apiKey);
-  const baseUrl = useAppStore(
-    (s) => s.providers[s.activeProviderId]?.config.baseUrl,
-  );
+  const providers = useAppStore((s) => s.providers);
   const [model, setModel] = useState(
     PRESET_MODELS[0]?.id || 'anthropic/claude-3.5-sonnet',
   );
@@ -68,14 +66,22 @@ export function AiGenerateSubtopicsModal({
     setError(null);
     void (async () => {
       try {
+        const credentials = getModelCredentials(model, providers);
+        if (!credentials) {
+          setError('No valid API credentials configured for selected model');
+          setIsGenerating(false);
+          return;
+        }
+
         const response = await invoke<{ subtopics: GeneratedSubtopic[] }>(
           'generate_subtopics',
           {
             request: {
               topic,
-              model,
-              apiKey,
-              baseUrl,
+              model: credentials.modelId,
+              apiKey: credentials.apiKey,
+              baseUrl: credentials.baseUrl,
+              providerId: credentials.providerId,
               existingSubtopics: existingSubtopicNames,
               focusArea,
               pdfContent: pdfBase64,

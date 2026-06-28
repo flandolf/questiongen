@@ -115,6 +115,17 @@ describe('app-utils', () => {
       expect(normalized.indicativeContentMarkdown).toBeUndefined();
       expect(normalized.exemplarAnnotations).toBeUndefined();
       expect(normalized.vcaaMarkingScheme[0].markType).toBeUndefined();
+      expect(normalized.estimatedCostUsd).toBeUndefined();
+    });
+
+    it('should pass through estimatedCostUsd when present', () => {
+      const raw = {
+        verdict: 'Partial',
+        achievedMarks: 2,
+        estimatedCostUsd: 0.00456,
+      };
+      const normalized = normalizeMarkResponse(raw, 5);
+      expect(normalized.estimatedCostUsd).toBe(0.00456);
     });
   });
 

@@ -821,6 +821,7 @@ async function performTutorChat(params: {
   sketchpadDataUrl?: string;
   apiKey: string;
   baseUrl?: string;
+  providerId?: string;
   isDiagnostic: boolean;
   currentRequestParts?: TutorApiContentPart[];
   appendUserMessage?: boolean;
@@ -836,6 +837,7 @@ async function performTutorChat(params: {
     sketchpadDataUrl,
     apiKey,
     baseUrl,
+    providerId,
     isDiagnostic,
     currentRequestParts,
     appendUserMessage = true,
@@ -923,6 +925,7 @@ async function performTutorChat(params: {
       model: activeModel,
       apiKey: apiKey,
       baseUrl,
+      providerId,
       diagnostic: isDiagnostic,
     },
   });
@@ -1800,6 +1803,7 @@ export function TutorPanel({
         sketchpadDataUrl,
         apiKey: credentials.apiKey,
         baseUrl: credentials.baseUrl,
+        providerId: credentials.providerId,
         isDiagnostic,
         currentRequestParts,
         appendUserMessage,
