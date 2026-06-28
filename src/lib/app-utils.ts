@@ -1,4 +1,4 @@
-import type { BackendError, MarkAnswerResponse, MarkingCriterion } from '@/types';
+import type { MarkAnswerResponse, MarkingCriterion } from '@/types';
 
 export {
   normalizeMarkdownLineBreaks,
@@ -204,26 +204,52 @@ export function fileToDataUrl(
   });
 }
 
+function extractMessageFromObject(error: Record<string, unknown>): string | null {
+  // Tauri sometimes wraps backend errors as { message, code, status }
+  if (typeof error.message === 'string') {
+    const prefix =
+      typeof error.code === 'string' && error.code !== 'GENERIC_ERROR'
+        ? `${error.code}: `
+        : '';
+    return prefix + error.message;
+  }
+
+  // Nested error object: { error: { message, ... } }
+  const nested = error.error;
+  if (typeof nested === 'string') return nested;
+  if (nested && typeof nested === 'object') {
+    const inner = nested as Record<string, unknown>;
+    if (typeof inner.message === 'string') return inner.message;
+    if (typeof inner.error === 'string') return inner.error;
+  }
+
+  // Last resort: JSON stringify
+  try {
+    const json = JSON.stringify(error);
+    if (json && json !== '{}') return json;
+  } catch {
+    // ignore stringify failure
+  }
+  return null;
+}
+
 export function readBackendError(error: unknown): string {
   /**
    * Extract a human-friendly message from a backend error object/string.
+   * Handles Tauri invoke errors, plain strings, Error instances, and nested
+   * error objects so users always see a meaningful message.
    * @param error - Error thrown by backend or network operations
    * @returns A readable error message
    */
   if (typeof error === 'string') {
     return error;
   }
+  if (error instanceof Error) {
+    return error.message;
+  }
   if (typeof error === 'object' && error !== null) {
-    const maybeError = error as BackendError;
-    if (typeof maybeError.message === 'string') {
-      return maybeError.message;
-    }
-    if (typeof (error as { toString?: () => string }).toString === 'function') {
-      const text = (error as { toString: () => string }).toString();
-      if (text && text !== '[object Object]') {
-        return text;
-      }
-    }
+    const extracted = extractMessageFromObject(error as Record<string, unknown>);
+    if (extracted) return extracted;
   }
   return 'Unknown error. Please try again.';
 }
