@@ -250,6 +250,7 @@ async fn export_question_to_anki(
                         ..Default::default()
                     },
                 )
+                .await
                 .map_err(|e| AppError::new("SHARE_ERROR", format!("Failed to share: {}", e)))?;
         }
     }
