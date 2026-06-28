@@ -5,9 +5,11 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/release.yml'
+      - '.github/workflows/android-apk.yml'
       - 'src/**'
       - 'src-tauri/**'
+      - 'package.json'
+      - 'bun.lock'
   workflow_dispatch:
 
 permissions:
