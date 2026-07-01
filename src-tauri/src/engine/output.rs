@@ -15,10 +15,7 @@ pub struct StructuredOutput<T> {
     pub reasoning_tokens: u32,
 }
 
-/// Parse raw LLM output into a typed structure.
-///
-/// Pipeline: protect LaTeX → extract JSON object/array → normalize envelope → deserialize.
-pub fn parse_structured<T: DeserializeOwned>(raw: &str) -> CommandResult<T> {
+fn extract_value(raw: &str) -> CommandResult<serde_json::Value> {
     if raw.trim().is_empty() {
         return Err(AppError::new(
             "MODEL_PARSE_ERROR",
@@ -27,28 +24,46 @@ pub fn parse_structured<T: DeserializeOwned>(raw: &str) -> CommandResult<T> {
     }
 
     let protected = protect_latex_in_raw_json(raw);
+    let trimmed = protected.trim_start();
 
-    let json_str = extract_json_object(&protected)
-        .or_else(|| extract_json_array(&protected))
-        .ok_or_else(|| {
-            let preview = if raw.len() > 200 {
-                format!("{}...", &raw[..200])
-            } else {
-                raw.to_string()
-            };
-            AppError::new(
-                "MODEL_PARSE_ERROR",
-                format!(
-                    "No JSON object or array found in the model response. \
+    let json_str = if trimmed.starts_with('[') {
+        extract_json_array(&protected).or_else(|| extract_json_object(&protected))
+    } else {
+        extract_json_object(&protected).or_else(|| extract_json_array(&protected))
+    }
+    .ok_or_else(|| {
+        let preview = if raw.len() > 200 {
+            format!("{}...", &raw[..200])
+        } else {
+            raw.to_string()
+        };
+        AppError::new(
+            "MODEL_PARSE_ERROR",
+            format!(
+                "No JSON object or array found in the model response. \
                      The model may have returned plain text or an unsupported format. \
                      Response preview: {}",
-                    preview.replace('\n', " ")
-                ),
-            )
-        })?;
+                preview.replace('\n', " ")
+            ),
+        )
+    })?;
 
-    let value: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))?;
+    serde_json::from_str(&json_str)
+        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Invalid JSON: {e}")))
+}
+
+/// Parse raw LLM output into a typed structure.
+///
+/// Pipeline: protect LaTeX -> extract JSON object/array -> deserialize.
+pub fn parse_structured<T: DeserializeOwned>(raw: &str) -> CommandResult<T> {
+    let value = extract_value(raw)?;
+
+    serde_json::from_value(value)
+        .map_err(|e| AppError::new("MODEL_PARSE_ERROR", format!("Schema mismatch: {e}")))
+}
+
+fn parse_questions_payload<T: DeserializeOwned>(raw: &str) -> CommandResult<T> {
+    let value = extract_value(raw)?;
 
     let normalised =
         normalise_envelope(value).map_err(|e| AppError::new("MODEL_PARSE_ERROR", e))?;
@@ -65,7 +80,7 @@ pub fn parse_structured_with_meta<T: DeserializeOwned>(
     total_tokens: u32,
     reasoning_tokens: u32,
 ) -> CommandResult<StructuredOutput<T>> {
-    let data = parse_structured(raw)?;
+    let data = parse_questions_payload(raw)?;
     Ok(StructuredOutput {
         data,
         raw: raw.to_string(),
@@ -74,4 +89,44 @@ pub fn parse_structured_with_meta<T: DeserializeOwned>(
         total_tokens,
         reasoning_tokens,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_structured, parse_structured_with_meta};
+
+    #[derive(Debug, serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct MarkLike {
+        verdict: String,
+        achieved_marks: u8,
+    }
+
+    #[derive(Debug, serde::Deserialize)]
+    struct QuestionsLike {
+        questions: Vec<QuestionLike>,
+    }
+
+    #[derive(Debug, serde::Deserialize)]
+    struct QuestionLike {
+        id: String,
+    }
+
+    #[test]
+    fn parses_non_question_top_level_object() {
+        let parsed: MarkLike =
+            parse_structured(r#"{"verdict":"Correct","achievedMarks":2}"#).unwrap();
+
+        assert_eq!(parsed.verdict, "Correct");
+        assert_eq!(parsed.achieved_marks, 2);
+    }
+
+    #[test]
+    fn meta_parser_keeps_generation_envelope_normalization() {
+        let parsed: super::StructuredOutput<QuestionsLike> =
+            parse_structured_with_meta(r#"[{"id":"q1"}]"#, 1, 2, 3, 0).unwrap();
+
+        assert_eq!(parsed.data.questions[0].id, "q1");
+        assert_eq!(parsed.total_tokens, 3);
+    }
 }

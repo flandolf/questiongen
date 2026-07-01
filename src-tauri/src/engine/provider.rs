@@ -1,5 +1,5 @@
 use crate::llm::{
-    call_openrouter, call_openrouter_chat_streaming, OpenRouterChatConfig, OpenRouterRequestConfig,
+    call_chat_completion, call_chat_streaming, ChatRequestConfig, ChatStreamingConfig,
 };
 use crate::models::{AbortSignal, CommandResult};
 
@@ -77,33 +77,6 @@ impl LlmConfig {
         self.task = Some(task.to_string());
         self
     }
-
-    /// Resolved provider id for request shaping. Uses the explicit
-    /// `provider_id` when present, otherwise falls back to base_url
-    /// heuristics for backward compatibility.
-    pub fn resolved_provider_id(&self) -> String {
-        if let Some(ref id) = self.provider_id {
-            return id.clone();
-        }
-        // Fallback: infer from base_url
-        let url = self
-            .base_url
-            .as_deref()
-            .unwrap_or("")
-            .trim()
-            .trim_end_matches('/')
-            .to_ascii_lowercase();
-        if url.contains("openrouter.ai") {
-            return "openrouter".to_string();
-        }
-        if url.contains("deepseek.com") {
-            return "deepseek".to_string();
-        }
-        if url.contains("nvidia.com") {
-            return "nvidia".to_string();
-        }
-        "custom".to_string()
-    }
 }
 
 /// A single completion request.
@@ -176,7 +149,7 @@ pub async fn complete(
     app: &tauri::AppHandle,
     abort_signal: &AbortSignal,
 ) -> CommandResult<CompletionResponse> {
-    let mut cfg = OpenRouterRequestConfig::new(
+    let mut cfg = ChatRequestConfig::new(
         &config.api_key,
         &config.model,
         &request.system_prompt,
@@ -223,7 +196,7 @@ pub async fn complete(
         cfg = cfg.with_task(task);
     }
 
-    let result = call_openrouter(cfg).await?;
+    let result = call_chat_completion(cfg).await?;
 
     Ok(CompletionResponse {
         content: result.content,
@@ -241,7 +214,7 @@ pub async fn complete_chat(
     app: &tauri::AppHandle,
     abort_signal: Option<AbortSignal>,
 ) -> CommandResult<CompletionResponse> {
-    let chat_config = OpenRouterChatConfig {
+    let chat_config = ChatStreamingConfig {
         base_url: config
             .base_url
             .clone()
@@ -255,10 +228,9 @@ pub async fn complete_chat(
         app: app.clone(),
         abort_signal,
         request_id: config.request_id.clone(),
-        task: config.task.clone(),
     };
 
-    let result = call_openrouter_chat_streaming(chat_config).await?;
+    let result = call_chat_streaming(chat_config).await?;
 
     Ok(CompletionResponse {
         content: result.content,

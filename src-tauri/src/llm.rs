@@ -155,9 +155,6 @@ impl ChatRequestConfig {
     }
 }
 
-// Back-compat alias
-pub type OpenRouterRequestConfig = ChatRequestConfig;
-
 /// Result of a single chat-completion call: raw content string + token usage.
 pub struct ChatResult {
     pub content: String,
@@ -167,11 +164,8 @@ pub struct ChatResult {
     pub reasoning_tokens: u32,
 }
 
-// Back-compat alias
-pub type OpenRouterResult = ChatResult;
-
 /// Unified chat-completion caller for all OpenAI-compatible providers.
-pub async fn call_openrouter(config: ChatRequestConfig) -> CommandResult<ChatResult> {
+pub async fn call_chat_completion(config: ChatRequestConfig) -> CommandResult<ChatResult> {
     let mut last_error = None;
     let max_retries = 2;
 
@@ -190,9 +184,9 @@ pub async fn call_openrouter(config: ChatRequestConfig) -> CommandResult<ChatRes
                     );
                 }
             }
-            call_openrouter_streaming(retry_config).await
+            call_chat_completion_streaming(retry_config).await
         } else {
-            call_openrouter_non_streaming(config.clone()).await
+            call_chat_completion_non_streaming(config.clone()).await
         };
 
         match result {
@@ -215,7 +209,9 @@ pub async fn call_openrouter(config: ChatRequestConfig) -> CommandResult<ChatRes
     Err(last_error.unwrap_or_else(|| AppError::new("UNKNOWN_ERROR", "Multiple retries failed")))
 }
 
-async fn call_openrouter_non_streaming(config: ChatRequestConfig) -> CommandResult<ChatResult> {
+async fn call_chat_completion_non_streaming(
+    config: ChatRequestConfig,
+) -> CommandResult<ChatResult> {
     let mut system_prompt = config.system_prompt.clone();
     system_prompt.push_str("\n\nIMPORTANT: You are in a strict JSON-only mode. Output ONLY the raw JSON object. Do NOT include any preamble, commentary, or markdown fences. Start your response with '{' and end with '}'.");
 
@@ -376,7 +372,7 @@ struct SseCompletionTokenDetails {
     reasoning_tokens: Option<u32>,
 }
 
-async fn call_openrouter_streaming(config: ChatRequestConfig) -> CommandResult<ChatResult> {
+async fn call_chat_completion_streaming(config: ChatRequestConfig) -> CommandResult<ChatResult> {
     let request_id = config
         .request_id
         .clone()
@@ -687,16 +683,9 @@ pub struct ChatStreamingConfig {
     pub abort_signal: Option<AbortSignal>,
     /// Unified stream event correlation id. Auto-generated if not set.
     pub request_id: Option<String>,
-    /// Task label for unified stream events (e.g. "tutor").
-    pub task: Option<String>,
 }
 
-// Back-compat alias
-pub type OpenRouterChatConfig = ChatStreamingConfig;
-
-pub async fn call_openrouter_chat_streaming(
-    config: ChatStreamingConfig,
-) -> CommandResult<ChatResult> {
+pub async fn call_chat_streaming(config: ChatStreamingConfig) -> CommandResult<ChatResult> {
     let request_id = config
         .request_id
         .clone()
@@ -941,27 +930,8 @@ pub fn is_deepseek_direct_model(model: &str) -> bool {
     model.starts_with("deepseek-")
 }
 
-/// True if the active endpoint is OpenRouter.ai specifically. Used to
-/// gate provider-specific wire params (e.g. `reasoning`/`thinking`).
-pub fn is_openrouter_endpoint(base_url: &str) -> bool {
-    let url = base_url.trim().trim_end_matches('/').to_ascii_lowercase();
-    url == "https://openrouter.ai/api/v1"
-        || url == "http://openrouter.ai/api/v1"
-        || url.starts_with("https://openrouter.ai/api/v1")
-}
-
-/// True if the active endpoint is the direct DeepSeek API. NVIDIA and
-/// custom OpenAI-compatible endpoints do not interpret `thinking` or
-/// `reasoning` params, so we never emit them for those routes.
-pub fn is_deepseek_endpoint(base_url: &str) -> bool {
-    let url = base_url.trim().trim_end_matches('/').to_ascii_lowercase();
-    url == "https://api.deepseek.com/v1"
-        || url == "https://api.deepseek.com"
-        || url.starts_with("https://api.deepseek.com/v1")
-}
-
 /// Inject provider-specific reasoning params into the request body.
-/// - OpenRouter: emits `reasoning` (object with `effort`).
+/// - OpenRouter: emits `reasoning` (`effort`, or default `enabled`).
 /// - Direct DeepSeek: emits `thinking` (`enabled`/`disabled`) + optional
 ///   `reasoning_effort` for direct-only when reasoning is enabled.
 /// - NVIDIA + custom: emits nothing — these endpoints don't accept the
@@ -979,6 +949,8 @@ fn apply_reasoning_params(
                     "effort".to_string(),
                     serde_json::Value::String(effort.clone()),
                 );
+            } else {
+                reasoning_obj.insert("enabled".to_string(), serde_json::Value::Bool(true));
             }
             body.insert(
                 "reasoning".to_string(),
@@ -1123,4 +1095,42 @@ pub fn json_schema_format_anthropic(
             "schema": schema,
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config(provider_id: &str, reasoning_enabled: bool) -> ChatRequestConfig {
+        ChatRequestConfig::new(
+            "test-key",
+            "openai/gpt-5.4-mini",
+            "system",
+            serde_json::json!("user"),
+            json_object_format(),
+            1024,
+        )
+        .with_provider_id(provider_id)
+        .with_reasoning_enabled(reasoning_enabled)
+    }
+
+    #[test]
+    fn openrouter_reasoning_enabled_uses_default_config_without_effort() {
+        let mut body = serde_json::Map::new();
+        let config = test_config("openrouter", true);
+
+        apply_reasoning_params(&mut body, &config);
+
+        assert_eq!(body["reasoning"], serde_json::json!({ "enabled": true }));
+    }
+
+    #[test]
+    fn openrouter_reasoning_effort_still_wins_when_set() {
+        let mut body = serde_json::Map::new();
+        let config = test_config("openrouter", true).with_reasoning_effort("high");
+
+        apply_reasoning_params(&mut body, &config);
+
+        assert_eq!(body["reasoning"], serde_json::json!({ "effort": "high" }));
+    }
 }

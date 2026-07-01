@@ -5,13 +5,13 @@
       "source": "pbakaus/impeccable",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "53feeb8610c5317002aa81df280ee5a11aacfb8e2d90212997f966dec7d04f19"
+      "computedHash": "cf21fc8e433b09525fbf9c08949d1e76aa83a65f98b751490c3918cba5c02663"
     },
     "ponytail": {
       "source": "dietrichgebert/ponytail",
       "sourceType": "github",
       "skillPath": "skills/ponytail/SKILL.md",
-      "computedHash": "ceef852b0aa6ba5fe1db2b5976c2383a7998dba562f62fed0142193a894ece53"
+      "computedHash": "491ccdc2c13a29cebabbac6bbe37f39e2e21ddff890c0b3fcf83b53b05dcc5c8"
     },
     "ponytail-audit": {
       "source": "dietrichgebert/ponytail",
@@ -29,7 +29,7 @@
       "source": "shadcn/ui",
       "sourceType": "github",
       "skillPath": "skills/shadcn/SKILL.md",
-      "computedHash": "0dc0edeeaec2ae491ae506806517866a3f9bd48d04e0458feb37e0252862891f"
+      "computedHash": "4f78ff7cd3a4f637b6fe30dbbab4a80a19dd63fa62d9352bed461ccfdbcbbf43"
     }
   }
 }

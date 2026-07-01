@@ -96,11 +96,10 @@ impl PromptSection {
             ),
             PromptSection::MarkingSchemeStyle { style } => marking_scheme_style_instruction(style),
             PromptSection::MarkingGuidance { topic } => {
-                let guidance = catalog::topic_marking_guidance(topic);
-                if guidance.is_empty() {
+                if topic.is_empty() {
                     String::new()
                 } else {
-                    format!("\n{guidance}\n")
+                    format!("\n{topic}\n")
                 }
             }
             PromptSection::MarkingLimits { max_marks } => marking_limits(*max_marks),
@@ -893,19 +892,15 @@ pub fn mc_system_prompt(model: &str, base_url: &str, provider_id: Option<&str>) 
     template.build()
 }
 
-/// Build a system prompt for marking. See `written_system_prompt` for `base_url`
-/// and `provider_id`.
+/// Build a system prompt for marking.
 pub fn marking_system_prompt(
     max_marks: u8,
     marking_guidance: &str,
     marking_scheme_style: &str,
     marker_style: Option<String>,
     custom_marker_style: Option<String>,
-    model: &str,
-    base_url: &str,
-    provider_id: Option<&str>,
 ) -> String {
-    let mut template = PromptTemplate::new()
+    let template = PromptTemplate::new()
         .with_section(PromptSection::MarkingIdentity {
             max_marks,
             marker_style,
@@ -925,11 +920,8 @@ pub fn marking_system_prompt(
         ))
         .with_section(PromptSection::MarkingLimits { max_marks })
         .with_section(PromptSection::MarkingFeedbackHeaders)
+        .with_section(PromptSection::Static(marking_schema_guidance_text()))
         .with_section(PromptSection::JsonStringContentRules);
-
-    if !supports_schema(model, provider_id, base_url) {
-        template = template.with_section(PromptSection::Static(marking_schema_guidance_text()));
-    }
 
     template.build()
 }

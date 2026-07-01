@@ -81,9 +81,6 @@ pub async fn mark_answer(
         marking_scheme_style,
         request.marker_style.clone(),
         request.custom_marker_style.clone(),
-        &request.model,
-        marking_base_url,
-        request.provider_id.as_deref(),
     );
 
     let report_preamble = if let Some(ref image_url) = request.student_answer_image_data_url {
@@ -150,7 +147,9 @@ pub async fn mark_answer(
         &system_prompt,
         serde_json::json!(user_content),
         response_format,
-    );
+    )
+    .with_stream(true, Some(question.id.clone()))
+    .with_task("marking");
 
     ctx.check_abort()?;
     emit_status(ctx, serde_json::json!({"stage": "calling_model"}));

@@ -115,6 +115,7 @@ impl ModelRoute {
 /// 3. manual   — user-provided pricing override
 /// 4. estimated — rough heuristic fallback
 /// 5. unknown  — no pricing data available
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum CostQuality {
@@ -264,12 +265,8 @@ pub struct ChatCompletionTokenDetails {
     pub reasoning_tokens: Option<u32>,
 }
 
-// Back-compat aliases for existing code referencing OpenRouter wire types
+// Back-compat alias for existing code referencing OpenRouter wire types
 pub type OpenRouterResponse = ChatCompletionResponse;
-pub type OpenRouterChoice = ChatCompletionChoice;
-pub type OpenRouterMessage = ChatCompletionMessage;
-pub type OpenRouterUsage = ChatCompletionUsage;
-pub type OpenRouterCompletionTokenDetails = ChatCompletionTokenDetails;
 
 // ─── Shared question types ────────────────────────────────────────────────────
 
