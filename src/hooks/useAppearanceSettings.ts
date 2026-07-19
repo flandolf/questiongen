@@ -5,8 +5,10 @@ import { generateM3Theme } from '@/lib/color-utils';
 import { M3_THEME_VARS } from '@/lib/theme-constants';
 import { updateUiPrefs } from '@/lib/ui-prefs';
 import { useAppStore } from '@/store';
+import { resolveDesignThemeName } from '@/themes/designThemes';
 
 export function useAppearanceSettings() {
+  const isHydrated = useAppStore((s) => s.isHydrated);
   const theme = useAppStore((s) => s.theme);
   const customThemeSeedColor = useAppStore((s) => s.customThemeSeedColor);
   const interfaceFont = useAppStore((s) => s.interfaceFont);
@@ -28,7 +30,10 @@ export function useAppearanceSettings() {
   }, [theme, customThemeSeedColor, isDark]);
 
   useEffect(() => {
+    if (!isHydrated) return;
+
     const root = document.documentElement;
+    root.setAttribute('data-design-theme', resolveDesignThemeName(theme));
 
     // Apply / wipe M3 tokens.
     if (m3Colors) {
@@ -54,5 +59,12 @@ export function useAppearanceSettings() {
       },
       m3Colors ? [] : ['customThemeVars'],
     );
-  }, [theme, customThemeSeedColor, m3Colors, interfaceFont, headingFont]);
+  }, [
+    isHydrated,
+    theme,
+    customThemeSeedColor,
+    m3Colors,
+    interfaceFont,
+    headingFont,
+  ]);
 }

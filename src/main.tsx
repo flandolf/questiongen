@@ -14,8 +14,8 @@ import {
   setupAndroidViewportHeight,
 } from './lib/appearance-bootstrap';
 
-async function bootstrap() {
-  const initialAppearance = await resolveInitialAppearance();
+function bootstrap() {
+  const initialAppearance = resolveInitialAppearance();
   const mode = resolveCurrentMode();
   const isDark = mode === 'dark';
 
@@ -41,4 +41,4 @@ async function bootstrap() {
   );
 }
 
-void bootstrap();
+bootstrap();

@@ -83,25 +83,15 @@ export function extractPersistedSettings(raw: unknown): {
   return { theme, customThemeSeedColor };
 }
 
-export async function readTauriPersistedSettings(): Promise<{
-  theme: string | null;
-  customThemeSeedColor: string | null;
-} | null> {
-  if (!('__TAURI_INTERNALS__' in window)) return null;
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    const persistedRaw = await invoke<unknown>('load_persisted_state');
-    const persisted =
-      typeof persistedRaw === 'string'
-        ? parseJsonSafely(persistedRaw)
-        : persistedRaw;
-    return extractPersistedSettings(persisted);
-  } catch {
-    return null;
-  }
-}
-
-export async function resolveInitialAppearance(): Promise<ResolvedInitialAppearance> {
+/**
+ * Resolve only appearance data that is already available in the webview.
+ *
+ * Native state is deliberately not read here. This function runs before React
+ * mounts, and waiting for the Tauri bridge can leave a fresh install with an
+ * empty root while the native runtime is still starting. The normal store
+ * hydration path restores native settings after the loading UI has mounted.
+ */
+export function resolveInitialAppearance(): ResolvedInitialAppearance {
   const uiPrefs = readUiPrefs();
 
   const uiTheme =
@@ -119,15 +109,6 @@ export async function resolveInitialAppearance(): Promise<ResolvedInitialAppeara
     return {
       designTheme: resolveDesignThemeName(uiTheme),
       customThemeSeedColor: uiCustomSeed ?? normalizeHexColor(null),
-    };
-  }
-
-  const tauriExtracted = await readTauriPersistedSettings();
-  if (tauriExtracted?.theme) {
-    return {
-      designTheme: resolveDesignThemeName(tauriExtracted.theme),
-      customThemeSeedColor:
-        tauriExtracted.customThemeSeedColor ?? normalizeHexColor(null),
     };
   }
 
