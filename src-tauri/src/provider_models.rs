@@ -1,3 +1,4 @@
+use crate::constants::{DEFAULT_NVIDIA_BASE_URL, DEFAULT_OPENROUTER_BASE_URL};
 use crate::deepseek_info::list_deepseek_models;
 use crate::http_client::get_json;
 use crate::models::{AppError, CommandResult};
@@ -59,9 +60,7 @@ pub enum ProviderKind {
     Custom { base_url: String },
 }
 
-const OPENROUTER_BASE: &str = "https://openrouter.ai/api/v1";
 const DEEPSEEK_BASE: &str = "https://api.deepseek.com/v1";
-const NVIDIA_BASE: &str = "https://integrate.api.nvidia.com/v1";
 
 pub fn classify_provider(provider_id: &str, base_url: Option<&str>) -> ProviderKind {
     match provider_id {
@@ -88,13 +87,13 @@ fn base_url_matches(haystack: &str, needle: &str) -> bool {
 
 pub fn classify_from_base_url(provider_id: &str, base_url: Option<&str>) -> ProviderKind {
     if let Some(url) = normalize_base_url(base_url) {
-        if base_url_matches(&url, OPENROUTER_BASE) {
+        if base_url_matches(&url, DEFAULT_OPENROUTER_BASE_URL) {
             return ProviderKind::OpenRouter;
         }
         if base_url_matches(&url, DEEPSEEK_BASE) {
             return ProviderKind::DeepSeek;
         }
-        if base_url_matches(&url, NVIDIA_BASE) {
+        if base_url_matches(&url, DEFAULT_NVIDIA_BASE_URL) {
             return ProviderKind::Nvidia;
         }
         let _ = provider_id;
@@ -374,9 +373,9 @@ pub async fn validate_provider_key(
     }
     let kind = classify_from_base_url(&provider_id, base_url.as_deref());
     let url = match &kind {
-        ProviderKind::OpenRouter => format!("{OPENROUTER_BASE}/models"),
+        ProviderKind::OpenRouter => format!("{DEFAULT_OPENROUTER_BASE_URL}/models"),
         ProviderKind::DeepSeek => format!("{DEEPSEEK_BASE}/models"),
-        ProviderKind::Nvidia => format!("{NVIDIA_BASE}/models"),
+        ProviderKind::Nvidia => format!("{DEFAULT_NVIDIA_BASE_URL}/models"),
         ProviderKind::Custom { base_url } => format!("{base_url}/models"),
     };
     let response = get_json(&url, api_key.trim()).await?;
@@ -416,7 +415,7 @@ fn modalities_include_image(modalities: &[String]) -> bool {
 }
 
 async fn list_openrouter_models_typed(api_key: &str) -> CommandResult<Vec<ProviderModelEntry>> {
-    let response = get_json(&format!("{OPENROUTER_BASE}/models"), api_key).await?;
+    let response = get_json(&format!("{DEFAULT_OPENROUTER_BASE_URL}/models"), api_key).await?;
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();

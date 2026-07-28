@@ -117,7 +117,7 @@ fn normalize_state_for_storage(value: serde_json::Value) -> CommandResult<serde_
 /// If persisted data is malformed, we fall back to serde-derived defaults.
 #[tauri::command]
 pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::Value> {
-    let path = state_path(&app)?;
+    let path = ensure_state_path(&app)?;
     let store = app
         .store(&path)
         .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
@@ -135,7 +135,7 @@ pub fn load_persisted_state(app: tauri::AppHandle) -> CommandResult<serde_json::
 /// Supports both object and string payloads for compatibility.
 #[tauri::command]
 pub fn save_persisted_state(app: tauri::AppHandle, state: serde_json::Value) -> CommandResult<()> {
-    let path = state_path(&app)?;
+    let path = ensure_state_path(&app)?;
     let store = app
         .store(&path)
         .map_err(|e| AppError::new("STORE_ERROR", format!("Failed to open store: {}", e)))?;
@@ -286,16 +286,26 @@ pub fn write_text_file(path: String, content: String) -> CommandResult<()> {
         .map_err(|e| AppError::new("WRITE_FILE_ERROR", format!("Could not write file: {e}")))
 }
 
-fn state_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
-    app.path()
-        .app_data_dir()
-        .map(|d| d.join(APP_STATE_FILE_NAME))
-        .map_err(|e| {
-            AppError::new(
-                "PERSISTENCE_PATH_ERROR",
-                format!("Cannot resolve data dir: {e}"),
-            )
-        })
+fn ensure_state_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {
+    let path = app.path().app_data_dir().map_err(|e| {
+        AppError::new(
+            "PERSISTENCE_PATH_ERROR",
+            format!("Cannot resolve data dir: {e}"),
+        )
+    })?;
+
+    // Ensure the parent directory exists before the store plugin tries to
+    // create the store file. The Tauri store plugin does not create the
+    // app data directory automatically, so a fresh install can fail on first
+    // launch if the directory has not been created yet.
+    if let Err(e) = fs::create_dir_all(&path) {
+        return Err(AppError::new(
+            "PERSISTENCE_PATH_ERROR",
+            format!("Cannot create data dir: {e}"),
+        ));
+    }
+
+    Ok(path.join(APP_STATE_FILE_NAME))
 }
 
 fn export_dir_path(app: &tauri::AppHandle) -> CommandResult<PathBuf> {

@@ -52,7 +52,7 @@ describe('persistence normalization', () => {
     expect(theme['--primary']).toMatch(/^#/);
   });
 
-  it('normalizes Firestore Timestamp-like saved set dates', () => {
+  it('normalizes timestamp-like saved set dates', () => {
     const updatedAt = '2026-04-20T09:00:00.500Z';
     const set = normalizeSavedSet({
       id: 'saved-1',
@@ -117,7 +117,7 @@ describe('persistence normalization', () => {
     });
   });
 
-  it('strips storagePath and downloadUrl from images during migration', () => {
+  it('preserves cloud image fields while upgrading persisted state', () => {
     const normalized = normalizePersistedAppState({
       version: 2,
       writtenSession: {
@@ -172,24 +172,30 @@ describe('persistence normalization', () => {
 
     const writtenImg = normalized.writtenSession.imagesByQuestionId.q1;
     expect(writtenImg).toBeDefined();
-    expect(writtenImg).not.toHaveProperty('storagePath');
-    expect(writtenImg).not.toHaveProperty('downloadUrl');
+    expect(writtenImg?.storagePath).toBe('users/uid/questions/q1/img-1');
+    expect(writtenImg?.downloadUrl).toBe(
+      'https://firebasestorage.googleapis.com/...',
+    );
     expect(writtenImg?.dataUrl).toBe('data:image/png;base64,abc');
 
     const historyImg = normalized.questionHistory[0]?.uploadedAnswerImage;
     expect(historyImg).toBeDefined();
-    expect(historyImg).not.toHaveProperty('storagePath');
-    expect(historyImg).not.toHaveProperty('downloadUrl');
+    expect(historyImg?.storagePath).toBe('users/uid/images/img-2');
+    expect(historyImg?.downloadUrl).toBe(
+      'https://firebasestorage.googleapis.com/...',
+    );
     expect(historyImg?.dataUrl).toBe('data:image/png;base64,def');
 
     const savedSetImg = normalized.savedSets[0]?.writtenSession?.imagesByQuestionId.q2;
     expect(savedSetImg).toBeDefined();
-    expect(savedSetImg).not.toHaveProperty('storagePath');
-    expect(savedSetImg).not.toHaveProperty('downloadUrl');
+    expect(savedSetImg?.storagePath).toBe('users/uid/questions/q2/img-3');
+    expect(savedSetImg?.downloadUrl).toBe(
+      'https://firebasestorage.googleapis.com/...',
+    );
     expect(savedSetImg?.dataUrl).toBe('data:image/png;base64,ghi');
   });
 
-  it('does not strip fields when version is already current', () => {
+  it('preserves cloud image fields when version is already current', () => {
     const normalized = normalizePersistedAppState({
       version: PERSISTED_APP_STATE_VERSION,
       writtenSession: {
@@ -205,32 +211,10 @@ describe('persistence normalization', () => {
       },
     });
 
-    // When version is already current, migration should not run,
-    // so extra fields are still present (they just won't be typed).
-    const img = normalized.writtenSession.imagesByQuestionId.q1 as unknown as Record<string, unknown>;
-    expect(img.storagePath).toBe('users/uid/questions/q1/img-1');
-    expect(img.downloadUrl).toBe('https://firebasestorage.googleapis.com/...');
-  });
-
-  it('strips fields when version is missing entirely', () => {
-    const normalized = normalizePersistedAppState({
-      writtenSession: {
-        imagesByQuestionId: {
-          q1: {
-            id: 'img-1',
-            dataUrl: 'data:image/png;base64,abc',
-            storagePath: 'users/uid/questions/q1/img-1',
-            downloadUrl: 'https://firebasestorage.googleapis.com/...',
-            timestamp: '2026-01-01T00:00:00Z',
-          },
-        },
-      },
-    });
-
     const img = normalized.writtenSession.imagesByQuestionId.q1;
-    expect(img).toBeDefined();
-    expect(img).not.toHaveProperty('storagePath');
-    expect(img).not.toHaveProperty('downloadUrl');
-    expect(img?.dataUrl).toBe('data:image/png;base64,abc');
+    expect(img?.storagePath).toBe('users/uid/questions/q1/img-1');
+    expect(img?.downloadUrl).toBe(
+      'https://firebasestorage.googleapis.com/...',
+    );
   });
 });

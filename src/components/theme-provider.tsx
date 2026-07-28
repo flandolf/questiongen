@@ -51,9 +51,13 @@ export function ThemeProvider({
   storageKey = 'vite-ui-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
-  );
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
+    } catch {
+      return defaultTheme;
+    }
+  });
 
   useEffect(() => {
     syncRootThemeClass(theme);
@@ -63,7 +67,11 @@ export function ThemeProvider({
   const value: ThemeProviderState = {
     theme,
     setTheme: (next: Theme) => {
-      localStorage.setItem(storageKey, next);
+      try {
+        localStorage.setItem(storageKey, next);
+      } catch {
+        // Ignore storage errors (e.g., private mode, quota exceeded).
+      }
       // Mirror to ui-prefs so the index.html inline injector picks the same mode on next boot.
       patchUiPrefs({ mode: next });
       setTheme(next);

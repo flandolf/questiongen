@@ -3019,7 +3019,7 @@ dependencies = [
 
 [[package]]
 name = "questiongen"
-version = "5.2.9"
+version = "5.2.10"
 dependencies = [
  "base64 0.22.1",
  "bytes",

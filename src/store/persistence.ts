@@ -196,8 +196,8 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
     streakData: s.streakData,
     generationHistory: s.generationHistory,
     presets: s.presets,
-    writtenTimer: s.writtenTimer,
-    mcTimer: s.mcTimer,
+    writtenTimer: s.writtenTimer ?? null,
+    mcTimer: s.mcTimer ?? null,
     timeAllocations: s.timeAllocations,
 
     // Restore custom subtopics if present in the snapshot, otherwise use the

@@ -1,8 +1,7 @@
+use crate::constants::DEFAULT_NVIDIA_BASE_URL;
 use crate::http_client::get_json;
 use crate::models::{AppError, CommandResult};
 use serde::{Deserialize, Serialize};
-
-const NVIDIA_BASE: &str = "https://integrate.api.nvidia.com/v1";
 
 // ─── Response types ───────────────────────────────────────────────────────────
 
@@ -89,7 +88,7 @@ pub async fn list_nvidia_models(api_key: String) -> CommandResult<NvidiaModelLis
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
 
-    let response = get_json(&format!("{NVIDIA_BASE}/models"), api_key.trim()).await?;
+    let response = get_json(&format!("{DEFAULT_NVIDIA_BASE_URL}/models"), api_key.trim()).await?;
 
     if !response.status().is_success() {
         let status = response.status();

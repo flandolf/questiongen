@@ -42,7 +42,8 @@
   (excluded from git). Exam-paper references have been intentionally removed.
 - **Anki**: Native `.apkg` generation via `genanki-rs` in
   `src-tauri/src/anki.rs`.
-- **Firebase**: Sync logic in `src/context/FirebaseSyncContext.tsx`.
+- **Supabase**: Auth/sync lives in `src/context/SupabaseSyncContext.tsx`; the
+  initial database and private image bucket migration is under `supabase/`.
 - **CSP**: Disabled in `src-tauri/tauri.conf.json` (`"csp": null`). Required
   because the app loads MathJax 4 from a CDN via `<script>` tag and uses inline
   scripts for theme injection in `index.html`.

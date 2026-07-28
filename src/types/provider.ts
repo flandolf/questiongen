@@ -99,6 +99,18 @@ export const PROVIDER_BASE_URLS: Record<string, string> = Object.fromEntries(
   Object.values(BUILTIN_PROVIDERS).map((p) => [p.id, p.baseUrl]),
 );
 
+export function mergeProvidersWithBuiltins(
+  persisted: Record<string, ProviderState> = {},
+): Record<string, ProviderState> {
+  const providers = { ...persisted };
+  for (const [id, config] of Object.entries(BUILTIN_PROVIDERS)) {
+    providers[id] = providers[id]
+      ? { ...providers[id], config }
+      : createDefaultProviderState(config);
+  }
+  return providers;
+}
+
 /** DeepSeek direct model ids routed through DeepSeek's API. */
 const DEEPSEEK_PLAIN_IDS = new Set(['deepseek-v4-flash', 'deepseek-v4-pro']);
 const BUILTIN_PROVIDER_MODEL_PREFIXES = new Set(['deepseek', 'nvidia']);

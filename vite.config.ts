@@ -35,7 +35,7 @@ export default defineConfig(() => ({
           if (id.includes('node_modules')) {
             if (id.includes('recharts')) return 'recharts';
             if (id.includes('zustand')) return 'zustand';
-            if (id.includes('firebase')) return 'firebase';
+            if (id.includes('@supabase')) return 'supabase';
             if (id.includes('@tauri-apps')) return 'tauri';
             if (id.includes('react') || id.includes('react-router'))
               return 'react-vendor';

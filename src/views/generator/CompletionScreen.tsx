@@ -576,7 +576,7 @@ export const CompletionScreen = memo(function CompletionScreen({
               <CardContent>
                 <Separator />
               </CardContent>
-              <CardFooter className='flex flex-col gap-2 sm:flex-row xl:flex-col'>
+              <CardFooter className='grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1'>
                 <Button
                   type='button'
                   variant='outline'

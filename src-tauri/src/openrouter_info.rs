@@ -1,3 +1,4 @@
+use crate::constants::DEFAULT_OPENROUTER_BASE_URL;
 use crate::http_client::get_json;
 use crate::models::{AppError, CommandResult};
 use once_cell::sync::Lazy;
@@ -5,8 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-const OPENROUTER_BASE: &str = "https://openrouter.ai/api/v1";
 
 // ─── Response types ───────────────────────────────────────────────────────────
 
@@ -224,7 +223,7 @@ fn catalogue_lookup(api_key: &str, model_id: &str) -> Option<(bool, bool)> {
 /// Fetch `GET /api/v1/models`, build model_id → supports_images/files maps, store
 /// them in the catalogue cache, and return the support values for `model_id`.
 async fn fetch_catalogue_and_lookup(api_key: &str, model_id: &str) -> (bool, bool) {
-    let url = format!("{OPENROUTER_BASE}/models");
+    let url = format!("{DEFAULT_OPENROUTER_BASE_URL}/models");
 
     let resp = match get_json(&url, api_key).await {
         Ok(r) if r.status().is_success() => r,
@@ -317,7 +316,7 @@ pub async fn get_model_stats(api_key: String, model_id: String) -> CommandResult
 
     let (author, slug) = split_model_id(&model_id)?;
 
-    let endpoints_url = format!("{OPENROUTER_BASE}/models/{author}/{slug}/endpoints");
+    let endpoints_url = format!("{DEFAULT_OPENROUTER_BASE_URL}/models/{author}/{slug}/endpoints");
 
     // ── Resolve image/file support ─────────────────────────────────────────────
     // Try the catalogue cache first (no I/O). On a miss, run both fetches in
@@ -460,7 +459,11 @@ pub async fn get_credits(api_key: String) -> CommandResult<CreditsInfo> {
         return Err(AppError::new("VALIDATION_ERROR", "API key required."));
     }
 
-    let response = get_json(&format!("{OPENROUTER_BASE}/credits"), api_key.trim()).await?;
+    let response = get_json(
+        &format!("{DEFAULT_OPENROUTER_BASE_URL}/credits"),
+        api_key.trim(),
+    )
+    .await?;
 
     if !response.status().is_success() {
         let status = response.status();

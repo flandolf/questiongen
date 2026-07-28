@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
+import { useSupabaseSyncContext } from '@/context/SupabaseSyncContext';
 import { cn } from '@/lib/utils';
 
 import {
@@ -24,7 +24,7 @@ import {
 // eslint-disable-next-line complexity
 export function SyncSection() {
   const { syncApiKey, setSyncApiKey } = useAppSettings();
-  const firebaseSync = useFirebaseSyncContext();
+  const supabaseSync = useSupabaseSyncContext();
 
   const [syncAuthMode, setSyncAuthMode] = useState<'signin' | 'signup'>(
     'signin',
@@ -32,16 +32,18 @@ export function SyncSection() {
   const [syncAuthEmail, setSyncAuthEmail] = useState('');
   const [syncAuthPassword, setSyncAuthPassword] = useState('');
   const [syncIsSubmitting, setSyncIsSubmitting] = useState(false);
+  const [syncAuthError, setSyncAuthError] = useState('');
 
   const {
     user,
+    isConfigured,
     isLoading: syncLoading,
     isSyncEnabled,
     isOnline,
     syncStatus,
     enableSync,
     disableSync,
-  } = firebaseSync;
+  } = supabaseSync;
 
   const syncEnabled = isSyncEnabled;
   const isSignedIn = !!user;
@@ -74,12 +76,17 @@ export function SyncSection() {
 
   const handleAuth = async () => {
     if (!syncAuthEmail.trim() || !syncAuthPassword) return;
+    setSyncAuthError('');
     setSyncIsSubmitting(true);
     try {
       await enableSync(
         syncAuthEmail,
         syncAuthPassword,
         syncAuthMode === 'signup',
+      );
+    } catch (error) {
+      setSyncAuthError(
+        error instanceof Error ? error.message : 'Unable to connect.',
       );
     } finally {
       setSyncIsSubmitting(false);
@@ -99,7 +106,7 @@ export function SyncSection() {
       <SectionHeader
         key='header'
         title='Cloud Sync'
-        description='Your data is automatically synced to the cloud in realtime using Firestore.'
+        description='Your data and answer images are synced securely across devices using Supabase.'
       />
 
       {!isOnline && (
@@ -268,7 +275,7 @@ export function SyncSection() {
                   value={syncAuthEmail}
                   onChange={(e) => setSyncAuthEmail(e.target.value)}
                   placeholder='your@email.com'
-                  disabled={!isOnline}
+              disabled={!isOnline || !isConfigured}
                 />
               </FieldGroup>
               <FieldGroup label='Password' htmlFor='sync-password'>
@@ -278,7 +285,7 @@ export function SyncSection() {
                   value={syncAuthPassword}
                   onChange={(e) => setSyncAuthPassword(e.target.value)}
                   placeholder='Password'
-                  disabled={!isOnline}
+                  disabled={!isOnline || !isConfigured}
                   onKeyDown={(e) => {
                     if (
                       e.key === 'Enter' &&
@@ -299,6 +306,7 @@ export function SyncSection() {
                   !syncAuthEmail.trim() ||
                   !syncAuthPassword ||
                   !isOnline ||
+                  !isConfigured ||
                   syncIsSubmitting
                 }
               >
@@ -306,6 +314,17 @@ export function SyncSection() {
                 {syncAuthMode === 'signin' ? 'Sign In' : 'Create Account'}
               </Button>
             </div>
+
+            {!isConfigured && (
+              <p className='text-xs text-destructive text-center'>
+                Supabase has not been configured for this build.
+              </p>
+            )}
+            {syncAuthError && (
+              <p className='text-xs text-destructive text-center'>
+                {syncAuthError}
+              </p>
+            )}
 
             <p className='text-xs text-muted-foreground text-center'>
               {syncAuthMode === 'signin'
@@ -322,7 +341,7 @@ export function SyncSection() {
           <ul className='space-y-2 text-sm text-muted-foreground'>
             <li className='flex items-center gap-2'>
               <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />
-              Realtime Database-First Syncing
+              Realtime Supabase Sync
             </li>
             <li className='flex items-center gap-2'>
               <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />
@@ -330,7 +349,7 @@ export function SyncSection() {
             </li>
             <li className='flex items-center gap-2'>
               <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />
-              History, Presets, and Saved Sets
+              History, Images, Presets, and Saved Sets
             </li>
             <li className='flex items-center gap-2'>
               <CheckCircle2 className='h-4 w-4 text-emerald-500 shrink-0' />

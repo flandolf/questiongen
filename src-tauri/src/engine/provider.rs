@@ -1,3 +1,4 @@
+use crate::constants::DEFAULT_OPENROUTER_BASE_URL;
 use crate::llm::{
     call_chat_completion, call_chat_streaming, ChatRequestConfig, ChatStreamingConfig,
 };
@@ -218,7 +219,7 @@ pub async fn complete_chat(
         base_url: config
             .base_url
             .clone()
-            .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string()),
+            .unwrap_or_else(|| DEFAULT_OPENROUTER_BASE_URL.to_string()),
         api_key: config.api_key.clone(),
         model: config.model.clone(),
         provider_id: config.provider_id.clone(),

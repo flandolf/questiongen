@@ -25,7 +25,7 @@ Specialist Mathematics, Chemistry, and Physical Education.
 - **Spaced Repetition**: Practice mode with Leitner system for retention
 - **Analytics Dashboard**: Track performance, generation history, and
   distinctness metrics
-- **Cloud Sync**: Firebase integration for cross-device synchronization of question data, history, and settings (images remain local-only)
+- **Cloud Sync**: Supabase integration for cross-device synchronization of question data, history, settings, and answer images
 - **Progressive Web App**: Installable desktop app built with Tauri
 
 ## Tech Stack
@@ -65,6 +65,17 @@ bun run tauri
 ### Configuration
 
 1. Copy `.env.example` to `.env`
+2. Create a Supabase project and add its URL and publishable key to `.env`
+3. Apply `supabase/migrations/20260728000000_initial_cloud_sync.sql` with
+   `bunx supabase db push`
+
+Cloud sync uses email/password authentication. The migration creates the
+account-scoped sync table, Realtime publication entry, private image bucket,
+and row/storage access policies.
+
+On first Supabase sign-in, records cached on the device are uploaded even if
+they were previously marked as synced to Firebase. Firebase-only cloud data and
+Firebase Auth accounts require a separate administrative export/import.
 
 ## Project Structure
 
@@ -77,7 +88,7 @@ src/
 │   ├── AnalyticsView.tsx    # Performance analytics
 │   ├── SettingsView.tsx     # App settings
 │   └── ...
-├── context/             # React contexts (Firebase, Timer)
+├── context/             # React contexts (Supabase, Timer)
 ├── store/               # Zustand state stores
 ├── lib/                 # Utilities (token estimation, spaced repetition)
 └── types.ts             # TypeScript definitions
@@ -102,7 +113,7 @@ The app follows a hybrid architecture:
 - **Tauri Backend**: File system access, PDF I/O, API proxying
 - **OpenRouter**: AI model inference with streaming
 - **Local-first**: Persistent storage via Tauri's filesystem APIs
-- **Optional Cloud**: Firebase for sync across devices (data only; images are stored locally)
+- **Optional Cloud**: Supabase for realtime sync and private answer-image storage
 
 ## Key Components
 
@@ -114,7 +125,7 @@ The app follows a hybrid architecture:
 4. Backend constructs prompt with VCE-specific rules and constraints
 5. OpenRouter streams response with JSON schema enforcement
 6. Questions are parsed, validated, and scored for distinctness
-7. Results stored locally and optionally synced to Firebase (question data and history; images are kept locally)
+7. Results are stored locally and optionally synced to Supabase, including answer images
 
 ### Quality Assurance
 

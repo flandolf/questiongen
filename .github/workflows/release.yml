@@ -85,6 +85,11 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Write build environment
+        env:
+          ENV_FILE: ${{ secrets.ENV }}
+        run: bun -e 'require("node:fs").writeFileSync(".env", process.env.ENV_FILE)'
+
       - name: Build and publish Tauri release
         uses: tauri-apps/tauri-action@v0
         env:

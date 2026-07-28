@@ -494,7 +494,7 @@ Selected → Duplicate → Selected (new strokes)
    - *Recommendation*: Mark as v2. It requires significant MathJax integration
      work and the text tool is a usable stopgap.
 
-4. **Should sketches sync to Firebase?**
+4. **Should sketches sync to Supabase?**
    - *Recommendation*: Not in this spec. Sketches are large (SVG strings) and
      local-only storage is acceptable. Revisit if users request cross-device
      sketch access.

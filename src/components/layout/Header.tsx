@@ -14,7 +14,7 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
-import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
+import { useSupabaseSyncContext } from '@/context/SupabaseSyncContext';
 import { SPRING } from '@/lib/motion';
 import { cn, getTodayKey } from '@/lib/utils';
 import { useAppStore } from '@/store';
@@ -234,7 +234,7 @@ function GoalsPopover({
 }
 
 export function Header() {
-  const { isSyncEnabled, syncStatus } = useFirebaseSyncContext();
+  const { isSyncEnabled, syncStatus } = useSupabaseSyncContext();
   const streakData = useAppStore((s) => s.streakData);
   const studyGoals = useAppStore((s) => s.studyGoals);
   const hasActiveSession = useAppStore(
@@ -376,14 +376,14 @@ export function Header() {
               ) : (
                 <div
                   className='text-emerald-500/80'
-                  title='Synced to Firestore'
+                  title='Synced to Supabase'
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Cloud className='h-4 w-4' />
                     </TooltipTrigger>
                     <TooltipContent side='bottom'>
-                      Synced to Firestore
+                      Synced to Supabase
                     </TooltipContent>
                   </Tooltip>
                 </div>

@@ -15,6 +15,7 @@ import {
   BUILTIN_PROVIDERS,
   createDefaultProviderState,
   DEFAULT_PROVIDER_ID,
+  mergeProvidersWithBuiltins,
 } from '@/types/provider';
 
 export interface SettingsSlice {
@@ -155,16 +156,9 @@ export interface SettingsSlice {
 }
 
 function buildInitialProviders(): Record<string, ProviderState> {
-  const persisted = EMPTY_PERSISTED_APP_STATE.settings;
-  if (persisted.providers && Object.keys(persisted.providers).length > 0) {
-    return { ...persisted.providers };
-  }
-  // Fallback: create from built-in definitions
-  const providers: Record<string, ProviderState> = {};
-  for (const [id, config] of Object.entries(BUILTIN_PROVIDERS)) {
-    providers[id] = createDefaultProviderState(config);
-  }
-  return providers;
+  return mergeProvidersWithBuiltins(
+    EMPTY_PERSISTED_APP_STATE.settings.providers,
+  );
 }
 
 function getInitialActiveProviderId(): string {

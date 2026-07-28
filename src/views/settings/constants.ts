@@ -14,6 +14,7 @@ export const PRESET_MODELS = [
   { id: 'openai/gpt-5.5', name: 'GPT-5.5', providerId: 'openrouter' },
   { id: 'openai/gpt-5.4-nano', name: 'GPT-5.4 Nano', providerId: 'openrouter' },
   { id: 'openai/gpt-5.4-mini', name: 'GPT-5.4 Mini', providerId: 'openrouter' },
+  { id: 'custom', name: 'Custom…', providerId: 'openrouter' },
 ];
 
 export const PRESET_IMAGE_MODELS = [
@@ -90,7 +91,6 @@ export const NVIDIA_PRESET_MODELS = [
     name: 'Mistral Large 3 675B Instruct 2512',
     providerId: 'nvidia',
   },
-  { id: 'custom', name: 'Custom…' },
 ];
 
 export const NVIDIA_PRESET_IMAGE_MODELS = [
@@ -104,7 +104,6 @@ export const NVIDIA_PRESET_IMAGE_MODELS = [
     name: 'Mistral Large 3 675B Instruct 2512',
     providerId: 'nvidia',
   },
-  { id: 'custom', name: 'Custom…' },
 ];
 
 /**
@@ -147,8 +146,13 @@ export function getModelsForProvider(
 }
 
 export function getImageModelsForProvider(
-  _providerId?: string,
-): typeof PRESET_IMAGE_MODELS {
+  providerId = 'openrouter',
+): PresetModel[] {
+  if (providerId === 'nvidia') return NVIDIA_PRESET_IMAGE_MODELS;
+  if (providerId === 'deepseek') return DEEPSEEK_PRESET_IMAGE_MODELS;
+  if (providerId !== 'openrouter') {
+    return [{ id: 'custom', name: 'Custom…', providerId }];
+  }
   return PRESET_IMAGE_MODELS;
 }
 

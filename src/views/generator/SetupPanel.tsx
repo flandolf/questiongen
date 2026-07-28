@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core';
-import { onAuthStateChanged } from 'firebase/auth';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -18,7 +17,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAppSettings } from '@/AppContext';
@@ -39,7 +38,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { auth } from '@/context/modules/firebase-init';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
 import { normalizeDifficulty } from '@/lib/persistence';
 import { cn } from '@/lib/utils';
@@ -691,7 +689,6 @@ function SetupPanelImpl({
   const { apiKey, model, setModel, showRawLlmOutput } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const customSubtopics = useAppStore((s) => s.customSubtopics);
-  const syncCustomSubtopics = useAppStore((s) => s.syncCustomSubtopics);
   const activeProviderId = useAppStore((s) => s.activeProviderId);
   const providers = useAppStore((s) => s.providers);
   const prefersReducedMotion = useReducedMotion();
@@ -707,23 +704,6 @@ function SetupPanelImpl({
   const hasAnyMathTopic = selectedTopics.some(
     (t) => t === 'Mathematical Methods' || t === 'Specialist Mathematics',
   );
-
-  const syncCustomSubtopicsCb = useCallback(
-    () => syncCustomSubtopics(),
-    [syncCustomSubtopics],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (cancelled || !user) return;
-      void syncCustomSubtopicsCb();
-    });
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
-  }, [syncCustomSubtopicsCb]);
 
   useEffect(() => {
     let cancelled = false;

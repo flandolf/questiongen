@@ -7,16 +7,16 @@ plan status: active
 ## Idea
 
 Allow users to edit existing subtopics and AI-generate new custom subtopics,
-synced via Firebase
+synced via Supabase
 
 ## Implementation
 
-- 1. Backend: Add Firebase sync for custom subtopics (new collection
-     'customSubtopics' with doc per topic)
-- 2. Backend: Add Tauri command to save/load custom subtopics from Firebase
+- 1. Sync: Add Supabase `cloud_records` rows for the `customSubtopics`
+     collection, keyed by topic
+- 2. Sync: Add frontend mutations to save/load custom subtopics from Supabase
 - 3. Backend: Add Tauri command for AI subtopic generation (prompt with topic
      context, output JSON array of subtopic objects)
-- 4. Frontend: Add customSubtopics to store (state, persistence, Firebase sync)
+- 4. Frontend: Add customSubtopics to store (state, persistence, Supabase sync)
 - 5. Frontend: Create SubtopicEditorModal component (edit name, technique_notes,
      group)
 - 6. Frontend: Add '+' button in AdvancedOptions section of SetupPanel
@@ -26,7 +26,7 @@ synced via Firebase
      generated preview, approve/reject)
 - 9. Frontend: Integrate custom subtopics into subtopic selection UI (combine
      catalog + custom)
-- 10. Testing: Verify Firebase sync works, AI generates valid subtopic objects,
+- 10. Testing: Verify Supabase sync works, AI generates valid subtopic objects,
       UI works correctly
 
 ## Required Specs

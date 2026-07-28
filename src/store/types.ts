@@ -155,7 +155,7 @@ export interface AppState {
 
   generationHistory: GenerationRecord[];
 
-  // ─── Generator Parameter Presets (Firebase-synced) ─────────────
+  // ─── Generator Parameter Presets (Supabase-synced) ─────────────
   presets: Preset[];
 
   // ── Custom Subtopics ──────────────────────────────────────────────────────
@@ -182,7 +182,7 @@ export interface AppState {
 }
 
 export interface AppActions {
-  // Preset management (Firebase-synced)
+  // Preset management (Supabase-synced)
   setPresets: (presets: Preset[]) => void;
   addPreset: (preset: Preset) => void;
   updatePreset: (preset: Preset) => void;

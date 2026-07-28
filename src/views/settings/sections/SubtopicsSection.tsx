@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { AiGenerateSubtopicsModal } from '@/components/AiGenerateSubtopicsModal';
 import { SubtopicEditorModal } from '@/components/SubtopicEditorModal';
 import { Button } from '@/components/ui/button';
-import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
+import { useSupabaseSyncContext } from '@/context/SupabaseSyncContext';
 import { useAppStore } from '@/store';
 import type { CustomSubtopic, Topic } from '@/types';
 import {
@@ -20,7 +20,7 @@ import {
 import { SectionHeader } from '@/views/settings/SettingsUI';
 
 export function SubtopicsSection() {
-  const { user } = useFirebaseSyncContext();
+  const { user } = useSupabaseSyncContext();
   const {
     customSubtopics,
     syncCustomSubtopics,

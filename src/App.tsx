@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { AppProvider } from '@/components/AppProvider';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { Toaster } from '@/components/ui/sonner';
-import { FirebaseSyncProvider } from '@/context/FirebaseSyncContext';
+import { SupabaseSyncProvider } from '@/context/SupabaseSyncContext';
 import { useAppearanceSettings } from '@/hooks/useAppearanceSettings';
 import { useTextSizeCssVars } from '@/hooks/useTextSizeCssVars';
 import { AppRoutesGate } from '@/lib/app-routes';
@@ -25,7 +25,7 @@ export default function App() {
 
   return (
     <AppProvider>
-      <FirebaseSyncProvider>
+      <SupabaseSyncProvider>
         <ErrorBoundary>
           <AppRoutesGate />
           <Toaster
@@ -37,7 +37,7 @@ export default function App() {
             }}
           />
         </ErrorBoundary>
-      </FirebaseSyncProvider>
+      </SupabaseSyncProvider>
     </AppProvider>
   );
 }

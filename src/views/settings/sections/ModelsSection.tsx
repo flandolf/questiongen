@@ -23,13 +23,9 @@ import type {
 } from '@/types/provider';
 import { toProviderModelId } from '@/types/provider';
 import {
-  DEEPSEEK_PRESET_IMAGE_MODELS,
-  DEEPSEEK_PRESET_MODELS,
   getImageModelsForProvider,
   getModelsForProvider,
   MARKER_STYLE_OPTIONS,
-  NVIDIA_PRESET_IMAGE_MODELS,
-  NVIDIA_PRESET_MODELS,
 } from '@/views/settings/constants';
 import { fmt } from '@/views/settings/formatters';
 import { ImageModelSelectRow } from '@/views/settings/ImageModelSelectRow';
@@ -431,17 +427,7 @@ export function ModelsSection() {
   );
 
   const modelPresets = useMemo(() => {
-    // Pick presets by active provider so DeepSeek/NVIDIA users see
-    // models that match their endpoint. OpenRouter users get the full
-    // mastered preset list.
-    let base: PresetModel[] = [...getModelsForProvider()];
-    if (activeProviderId === 'nvidia') {
-      base = [...NVIDIA_PRESET_MODELS];
-    } else if (activeProviderId === 'deepseek') {
-      base = [...DEEPSEEK_PRESET_MODELS];
-    } else if (providers[activeProviderId] && activeProviderId !== 'openrouter') {
-      base = [{ id: 'custom', name: 'Custom…', providerId: activeProviderId }];
-    }
+    const base: PresetModel[] = [...getModelsForProvider(activeProviderId)];
 
     if (activeProviderId === 'deepseek' && deepseekModels.models?.data.length) {
       const seen = new Set(base.map((m) => m.id));
@@ -467,15 +453,11 @@ export function ModelsSection() {
       }
     }
     return base;
-  }, [activeProviderId, deepseekModels.models, nvidiaModels.models, providers]);
-  const imageModelPresets = useMemo(() => {
-    if (activeProviderId === 'nvidia') return NVIDIA_PRESET_IMAGE_MODELS;
-    if (activeProviderId === 'deepseek') return DEEPSEEK_PRESET_IMAGE_MODELS;
-    if (providers[activeProviderId] && activeProviderId !== 'openrouter') {
-      return [{ id: 'custom', name: 'Custom…', providerId: activeProviderId }];
-    }
-    return getImageModelsForProvider();
-  }, [activeProviderId, providers]);
+  }, [activeProviderId, deepseekModels.models, nvidiaModels.models]);
+  const imageModelPresets = useMemo(
+    () => getImageModelsForProvider(activeProviderId),
+    [activeProviderId],
+  );
   const [localState, setLocalState] = useState({
     model: settings.model,
     markingModel: settings.markingModel,

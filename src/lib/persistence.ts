@@ -152,12 +152,24 @@ export const EMPTY_PERSISTED_APP_STATE: PersistedAppState = {
   mcSession: DEFAULT_MC_SESSION,
   questionHistory: [],
   mcHistory: [],
+  pdfMarkerHistory: [],
   savedSets: [],
   studyGoals: DEFAULT_STUDY_GOALS,
   streakData: DEFAULT_STREAK_DATA,
   generationHistory: [],
   presets: [],
+  writtenTimer: null,
+  mcTimer: null,
   timeAllocations: DEFAULT_TIME_ALLOCATIONS,
+  customSubtopics: {
+    Biology: [],
+    Chemistry: [],
+    'General Mathematics': [],
+    'Mathematical Methods': [],
+    'Physical Education': [],
+    'Specialist Mathematics': [],
+  },
+  customSubtopicsSynced: false,
 };
 
 export async function loadPersistedAppState(): Promise<PersistedAppState> {
@@ -175,7 +187,7 @@ export async function loadPersistedAppState(): Promise<PersistedAppState> {
         const migratedState = normalizePersistedAppState(decoded);
 
         // Only clear the redundant localStorage fallback after successful decode/normalize
-        // to free up quota for other services (like Firebase).
+        // to free up quota for other browser services.
         try {
           window.localStorage.removeItem(APP_STATE_STORAGE_KEY);
         } catch {
@@ -228,64 +240,8 @@ export async function savePersistedAppState(
   }
 }
 
-function migrateStripFirebaseImageFields(
-  raw: Record<string, unknown>,
-): void {
-  /**
-   * Migration v2 → v3: removes Firebase Storage fields that are no longer
-   * used after the cloud image storage feature was removed.
-   */
-  const writtenSession = isRecord(raw.writtenSession)
-    ? raw.writtenSession
-    : {};
-  const imagesByQuestionId = isRecord(writtenSession.imagesByQuestionId)
-    ? writtenSession.imagesByQuestionId
-    : {};
-  for (const img of Object.values(imagesByQuestionId)) {
-    if (isRecord(img)) {
-      delete img.storagePath;
-      delete img.downloadUrl;
-    }
-  }
-
-  const questionHistory = Array.isArray(raw.questionHistory)
-    ? raw.questionHistory
-    : [];
-  for (const entry of questionHistory) {
-    if (isRecord(entry) && isRecord(entry.uploadedAnswerImage)) {
-      delete entry.uploadedAnswerImage.storagePath;
-      delete entry.uploadedAnswerImage.downloadUrl;
-    }
-  }
-
-  const savedSets = Array.isArray(raw.savedSets) ? raw.savedSets : [];
-  for (const set of savedSets) {
-    if (!isRecord(set)) continue;
-    const setWrittenSession = isRecord(set.writtenSession)
-      ? set.writtenSession
-      : {};
-    const setImages = isRecord(setWrittenSession.imagesByQuestionId)
-      ? setWrittenSession.imagesByQuestionId
-      : {};
-    for (const img of Object.values(setImages)) {
-      if (isRecord(img)) {
-        delete img.storagePath;
-        delete img.downloadUrl;
-      }
-    }
-  }
-}
-
 export function normalizePersistedAppState(raw: unknown): PersistedAppState {
   const data = isRecord(raw) ? raw : {};
-
-  // Run one-shot migrations before normalization
-  if (
-    typeof data.version !== 'number' ||
-    data.version < PERSISTED_APP_STATE_VERSION
-  ) {
-    migrateStripFirebaseImageFields(data);
-  }
 
   return {
     version: PERSISTED_APP_STATE_VERSION,

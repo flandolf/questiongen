@@ -2,6 +2,42 @@ import '@testing-library/jest-dom';
 
 import { vi } from 'vitest';
 
+// Provide a minimal localStorage mock so components/tests that touch storage
+// (e.g., appearance bootstrap, theme provider) can run in jsdom without crashing.
+class LocalStorageMock {
+  private store: Record<string, string> = {};
+
+  clear() {
+    this.store = {};
+  }
+
+  getItem(key: string) {
+    return this.store[key] ?? null;
+  }
+
+  setItem(key: string, value: string) {
+    this.store[key] = String(value);
+  }
+
+  removeItem(key: string) {
+    delete this.store[key];
+  }
+
+  key(index: number) {
+    return Object.keys(this.store)[index] ?? null;
+  }
+
+  get length() {
+    return Object.keys(this.store).length;
+  }
+}
+
+Object.defineProperty(globalThis, 'localStorage', {
+  value: new LocalStorageMock(),
+  writable: true,
+  configurable: true,
+});
+
 // Mock Tauri APIs
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -17,7 +53,7 @@ vi.mock('@tauri-apps/plugin-opener', () => ({
   open: vi.fn(),
 }));
 
-// Mock Firebase mutations to avoid initializing Firebase in tests
+// Mock cloud mutations so store tests remain local and deterministic.
 vi.mock('@/context/modules/sync/mutations', () => ({
   deleteMcHistoryEntry: vi.fn(),
   deleteQuestionHistoryEntry: vi.fn(),

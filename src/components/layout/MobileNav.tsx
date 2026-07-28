@@ -20,7 +20,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
+import { useSupabaseSyncContext } from '@/context/SupabaseSyncContext';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 
@@ -47,7 +47,7 @@ const MORE_NAV: readonly NavItem[] = [
 export function MobileNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
-  const { isSyncEnabled, syncStatus } = useFirebaseSyncContext();
+  const { isSyncEnabled, syncStatus } = useSupabaseSyncContext();
   const hasActiveSession = useAppStore(
     (s) => s.questions.length > 0 || s.mcQuestions.length > 0,
   );
@@ -127,7 +127,7 @@ export function MobileNav() {
             {isSyncEnabled && (
               <div className='flex h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground'>
                 <CloudIcon className={cn(isSyncing && 'animate-pulse')} />
-                <span>{isSyncing ? 'Syncing...' : 'Synced to Firestore'}</span>
+                <span>{isSyncing ? 'Syncing...' : 'Synced to Supabase'}</span>
               </div>
             )}
           </div>

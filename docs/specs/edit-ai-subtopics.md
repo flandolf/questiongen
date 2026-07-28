@@ -7,7 +7,7 @@ Scope: feature
 ## Overview
 
 Allow users to edit existing subtopics and AI-generate new custom subtopics.
-Custom subtopics sync via Firebase and are available alongside catalog subtopics
+Custom subtopics sync via Supabase and are available alongside catalog subtopics
 during question generation.
 
 ---
@@ -34,32 +34,36 @@ interface CustomSubtopic {
 }
 ```
 
-### Firestore Collection
+### Supabase Records
 
-- Path: `users/{uid}/customSubtopics/{topicName}`
-- Document structure: `{ subtopics: CustomSubtopic[] }`
+- Table: `public.cloud_records`
+- Key: `(user_id, collection = 'customSubtopics', record_id = topicName)`
+- Payload: `{ subtopics: CustomSubtopic[], lastModified: number }`
 - Merge on sync (existing entries preserved, new ones added)
 
 ---
 
-## 2. Backend (Tauri/Rust)
+## 2. Sync and generation services
+
+Cloud persistence is implemented by the frontend Supabase client; the Tauri
+backend remains responsible for AI generation commands.
 
 ### 2.1 New Commands
 
 **`get_custom_subtopics(topic: String)`**
 
 - Input: topic name
-- Output: `Vec<CustomSubtopic>` loaded from Firebase
+- Output: `Vec<CustomSubtopic>` loaded from Supabase
 
 **`save_custom_subtopics(topic: String, subtopics: Vec<CustomSubtopic>)`**
 
 - Input: topic name, array of custom subtopics
-- Action: Saves to Firebase (merges with existing)
+- Action: Saves to Supabase (merges with existing)
 
 **`delete_custom_subtopic(topic: String, subtopic_id: String)`**
 
 - Input: topic name, subtopic ID
-- Action: Removes from Firebase
+- Action: Removes from Supabase
 
 **`generate_subtopics(topic: String, count: u8, model: String) -> Vec<GeneratedSubtopic>`**
 
@@ -110,7 +114,7 @@ interface CustomSubtopicsSlice {
 
 - Save to localStorage on change
 - Load on app init
-- Firebase sync via mutations (similar to savedSets)
+- Supabase sync via mutations (similar to savedSets)
 
 ---
 
@@ -177,7 +181,7 @@ interface CustomSubtopicsSlice {
 
 ## 6. Error Handling
 
-- Firebase auth required: Show "Sign in to sync custom subtopics" if not
+- Supabase auth required: Show "Sign in to sync custom subtopics" if not
   authenticated
 - API errors: Show toast with error message, allow retry
 - Invalid generated subtopics: Validate structure before showing preview, skip
@@ -190,5 +194,5 @@ interface CustomSubtopicsSlice {
 - Same name as catalog subtopic: Allow but show warning
 - Deleting a custom subtopic that's used in saved sets: Allow, questions retain
   the name
-- Network offline: Cache changes, sync when online (Firestore handles this)
+- Network offline: Cache changes locally and retry when online
 - Model not available: Fallback to default model or show error

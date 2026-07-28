@@ -15,8 +15,8 @@ want to understand, maintain, or extend the app.
   pages under `src/views/`.
 - Native/backend: Tauri-based Rust backend in `src-tauri/` for native
   integrations and local persistence where applicable.
-- Data sync: Firestore / Firebase integration and optional local
-  persistence/export utilities under `lib/` and `context/`.
+- Data sync: Supabase Auth, Postgres Realtime, and private Storage layered over
+  local persistence/export utilities under `lib/` and `context/`.
 
 ## Project layout (important folders)
 
@@ -42,8 +42,7 @@ want to understand, maintain, or extend the app.
 - Root-level assets / config:
   - `public/`, `icons/` — static assets
   - `gen/` — generated/exported artifacts and schemas
-  - `firebase.json`, `firestore.rules`, `firestore.indexes.json` — Firebase
-    configuration
+  - `supabase/migrations/` — Supabase schema, RLS, Realtime, and Storage setup
 
 ## Core logical subsystems
 
@@ -76,15 +75,16 @@ want to understand, maintain, or extend the app.
 
 4. Persistence and sync
    - Files: `lib/persistence.ts`, `lib/import-export.ts`,
-     `context/FirebaseSyncContext.tsx`, `shared/*.json` (catalogs),
+     `context/SupabaseSyncContext.tsx`, `shared/*.json` (catalogs),
      `src-tauri/persistence.rs` equivalents.
    - Purpose: persist generated questions and user state locally and optionally
-     sync to Firestore.
+     sync to Supabase.
    - Key features:
      - Local save/restore and export (JSON/ZIP) via `lib/import-export.ts` and
        `useLocalBackupExport.ts`.
-     - Firestore sync using `FirebaseSyncContext` and security rules in
-       `firestore.rules`.
+     - Account-scoped Supabase sync using `SupabaseSyncContext`, JSONB records,
+       tombstones, Realtime, and RLS policies from `supabase/migrations/`.
+     - Private answer images in Supabase Storage, resolved through signed URLs.
      - Handling of oversize documents and sync optimizations (`repo` memory
        files reference historical fixes).
 
@@ -140,7 +140,7 @@ want to understand, maintain, or extend the app.
 4. The model adapter returns raw results which are post-processed
    (`math-normalization.ts`, `generator-helpers.ts`).
 5. Results are stored in local store (`src/store.ts`) and optionally persisted
-   via `lib/persistence.ts` and synced to Firestore via `FirebaseSyncContext`.
+   via `lib/persistence.ts` and synced to Supabase via `SupabaseSyncContext`.
 6. Analytics events about the run are emitted to telemetry systems and
    visualized in `AnalyticsView`.
 
@@ -149,7 +149,7 @@ want to understand, maintain, or extend the app.
 - `src/store.ts` acts as the central store for app-level state (questions,
   active session, preferences). The store exposes typed actions used across
   views and components.
-- React contexts (e.g., `AppContext.tsx`, `FirebaseSyncContext.tsx`) provide
+- React contexts (e.g., `AppContext.tsx`, `SupabaseSyncContext.tsx`) provide
   scoped services (auth, sync, settings).
 - Hooks under `src/hooks/` encapsulate common behavior and side-effects (timer,
   local backup, model stats).
@@ -163,8 +163,8 @@ want to understand, maintain, or extend the app.
   Rust in `src-tauri/`.
 - Offline robustness: local export/import and local store to avoid data loss
   when offline.
-- Security and sync: Firestore rules (root-level configs) enforce permitted
-  operations; large payloads are chunked or avoided.
+- Security and sync: Supabase RLS policies scope records and private Storage
+  objects to the authenticated account; image bytes stay out of JSONB payloads.
 
 ## Tests and quality
 
@@ -178,7 +178,7 @@ want to understand, maintain, or extend the app.
 - Add new generation features: extend `lib/generator-*`, add types in
   `types/generator.ts`, and wire a control in `GeneratorView`.
 - Add new persistence targets: update `lib/persistence.ts` and
-  `context/FirebaseSyncContext.tsx`.
+  `context/SupabaseSyncContext.tsx`.
 - Add new native features: update `src-tauri/src/*.rs` and `tauri.conf.json`.
 
 ## Notes and known places to inspect

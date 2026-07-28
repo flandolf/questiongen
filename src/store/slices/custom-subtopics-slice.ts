@@ -1,8 +1,8 @@
 import type { StateCreator } from 'zustand';
 
 import {
-  loadAllCustomSubtopics as loadAllCustomSubtopicsFromFirebase,
-  saveCustomSubtopics as saveCustomSubtopicsToFirebase,
+  loadAllCustomSubtopics as loadAllCustomSubtopicsFromSupabase,
+  saveCustomSubtopics as saveCustomSubtopicsToSupabase,
 } from '@/context/modules/sync/mutations';
 import type { AppActions, AppState } from '@/store/types';
 import type { CustomSubtopic, Topic } from '@/types';
@@ -53,7 +53,7 @@ export const createCustomSubtopicsSlice: StateCreator<
         'Specialist Mathematics',
       ];
 
-      const remoteMap = await loadAllCustomSubtopicsFromFirebase();
+      const remoteMap = await loadAllCustomSubtopicsFromSupabase();
 
       const merged: Record<Topic, CustomSubtopic[]> = {
         ...state.customSubtopics,
@@ -93,7 +93,7 @@ export const createCustomSubtopicsSlice: StateCreator<
 
       await Promise.all(
         topicsToPush.map((topic) =>
-          saveCustomSubtopicsToFirebase(topic, merged[topic] || []),
+          saveCustomSubtopicsToSupabase(topic, merged[topic] || []),
         ),
       );
     } catch (error) {
@@ -114,7 +114,7 @@ export const createCustomSubtopicsSlice: StateCreator<
       },
     }));
 
-    await saveCustomSubtopicsToFirebase(topic, updated);
+    await saveCustomSubtopicsToSupabase(topic, updated);
   },
 
   updateCustomSubtopic: async (topic: Topic, subtopic: CustomSubtopic) => {
@@ -129,7 +129,7 @@ export const createCustomSubtopicsSlice: StateCreator<
       },
     }));
 
-    await saveCustomSubtopicsToFirebase(topic, updated);
+    await saveCustomSubtopicsToSupabase(topic, updated);
   },
 
   deleteCustomSubtopic: async (topic: Topic, subtopicId: string) => {
@@ -144,6 +144,6 @@ export const createCustomSubtopicsSlice: StateCreator<
       },
     }));
 
-    await saveCustomSubtopicsToFirebase(topic, updated);
+    await saveCustomSubtopicsToSupabase(topic, updated);
   },
 });

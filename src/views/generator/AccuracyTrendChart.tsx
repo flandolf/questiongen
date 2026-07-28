@@ -8,7 +8,7 @@ export function AccuracyTrendChart({
   minimal?: boolean;
 }) {
   return (
-    <div style={{ width: '100%', height: minimal ? 40 : 180 }}>
+    <div style={{ width: '100%', height: minimal ? '100%' : 180 }}>
       <ResponsiveContainer width='100%' height='100%'>
         <LineChart
           data={data}

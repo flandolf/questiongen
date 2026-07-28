@@ -44,7 +44,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
-import { useFirebaseSyncContext } from '@/context/FirebaseSyncContext';
+import { useSupabaseSyncContext } from '@/context/SupabaseSyncContext';
 import {
   buildMcAnkiPayload,
   buildWrittenAnkiPayload,
@@ -319,7 +319,7 @@ const CloudStatusIndicator = memo(function CloudStatusIndicator({
     return (
       <div
         className='flex items-center text-sky-500'
-        title='Synced to Firestore'
+        title='Synced to Supabase'
       >
         <Cloud className='h-3.5 w-3.5' />
       </div>
@@ -869,7 +869,7 @@ function compareEntries(a: AnyEntry, b: AnyEntry, sortOrder: SortOrder) {
 // eslint-disable-next-line complexity
 export function HistoryView() {
   const navigate = useNavigate();
-  const { isSyncEnabled } = useFirebaseSyncContext();
+  const { isSyncEnabled } = useSupabaseSyncContext();
   const { questionHistory, deleteQuestionHistoryEntry, clearQuestionHistory } =
     useWrittenSession();
   const { mcHistory, deleteMcHistoryEntry, clearMcHistory } =

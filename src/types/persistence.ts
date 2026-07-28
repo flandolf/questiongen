@@ -184,7 +184,7 @@ export type SyncQueueState = {
   updatedAt: number;
 };
 
-export const PERSISTED_APP_STATE_VERSION = 3;
+export const PERSISTED_APP_STATE_VERSION = 4;
 
 export const API_KEY_STORAGE_KEY = 'questiongen.openrouterApiKey';
 export const QUESTION_HISTORY_STORAGE_KEY = 'questiongen.history';

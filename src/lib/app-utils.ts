@@ -268,12 +268,12 @@ export function formatCostUsd(costUsd: number | null | undefined): string {
 
 /**
  * Recursively removes all undefined keys from an object.
- * Required for Firestore, which throws an error if an object contains 'undefined'.
+ * Produces JSON-safe data by removing properties whose value is `undefined`.
  */
 export function removeUndefined<T>(obj: T): T {
   /**
    * Recursively remove `undefined` properties from objects/arrays.
-   * Useful for preparing data for Firestore which rejects `undefined`.
+   * Useful before sending nested application state to a JSON API.
    */
   if (obj === null || typeof obj !== 'object') return obj;
 

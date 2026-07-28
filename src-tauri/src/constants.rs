@@ -5,6 +5,7 @@ pub const DEFAULT_OPENROUTER_CHAT_URL: &str = "https://openrouter.ai/api/v1/chat
 /// with `/chat/completions` stripped, otherwise provider inference silently regresses
 /// `json_schema` structured-output handling for legacy flows.
 pub const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+pub const DEFAULT_NVIDIA_BASE_URL: &str = "https://integrate.api.nvidia.com/v1";
 
 /// Default LLM model used across the application.
 pub const DEFAULT_MODEL: &str = "openai/gpt-5.4-mini";
@@ -12,7 +13,32 @@ pub const DEFAULT_MODEL: &str = "openai/gpt-5.4-mini";
 /// Build the chat completions URL from a base URL.
 pub fn chat_completions_url(base_url: &str) -> String {
     let base = base_url.trim_end_matches('/');
-    format!("{base}/chat/completions")
+    if base.ends_with("/chat/completions") {
+        base.to_string()
+    } else {
+        format!("{base}/chat/completions")
+    }
+}
+
+#[cfg(test)]
+mod endpoint_tests {
+    use super::*;
+
+    #[test]
+    fn chat_completions_url_accepts_base_or_full_endpoint() {
+        assert_eq!(
+            chat_completions_url(DEFAULT_OPENROUTER_BASE_URL),
+            DEFAULT_OPENROUTER_CHAT_URL
+        );
+        assert_eq!(
+            chat_completions_url(DEFAULT_OPENROUTER_CHAT_URL),
+            DEFAULT_OPENROUTER_CHAT_URL
+        );
+        assert_eq!(
+            chat_completions_url(DEFAULT_NVIDIA_BASE_URL),
+            "https://integrate.api.nvidia.com/v1/chat/completions"
+        );
+    }
 }
 
 // ─── Generation limits ────────────────────────────────────────────────────────

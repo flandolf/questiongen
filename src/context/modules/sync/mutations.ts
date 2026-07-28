@@ -1,18 +1,9 @@
-import {
-  collection,
-  deleteDoc,
-  doc,
-  type DocumentData,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  setDoc,
-  writeBatch,
-} from 'firebase/firestore';
 import debounce from 'lodash.debounce';
 
-import { auth, db } from '@/context/modules/firebase-init';
+import { supabase } from '@/context/modules/supabase';
 import { removeUndefined } from '@/lib/app-utils';
+import { prepareCloudPayload } from '@/lib/supabase-storage';
+import { useAppStore } from '@/store';
 import type { CustomSubtopic } from '@/types';
 import type {
   GenerationRecord,
@@ -22,10 +13,240 @@ import type {
 import type { SavedQuestionSet } from '@/types/persistence';
 import type { Preset, StreakData, StudyGoals } from '@/types/study';
 
-/**
- * Direct, atomic mutations to Firestore.
- * These bypass the old queue system and rely on Firestore's native offline persistence.
- */
+export type CloudCollection =
+  | 'questionHistory'
+  | 'mcHistory'
+  | 'generationHistory'
+  | 'savedSets'
+  | 'customSubtopics'
+  | 'settings';
+
+type CloudRecord = {
+  payload: unknown;
+  updated_at: number;
+  deleted_at: number | null;
+};
+
+const PENDING_DELETIONS_KEY = 'questiongen.supabasePendingDeletions';
+
+type PendingDeletion = {
+  userId: string;
+  collection: CloudCollection;
+  recordId: string;
+};
+
+function readPendingDeletions(): PendingDeletion[] {
+  try {
+    const value: unknown = JSON.parse(
+      localStorage.getItem(PENDING_DELETIONS_KEY) ?? '[]',
+    );
+    if (!Array.isArray(value)) return [];
+    return value.filter(
+      (item): item is PendingDeletion =>
+        item != null &&
+        typeof item === 'object' &&
+        typeof (item as PendingDeletion).userId === 'string' &&
+        typeof (item as PendingDeletion).collection === 'string' &&
+        typeof (item as PendingDeletion).recordId === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writePendingDeletions(items: PendingDeletion[]) {
+  localStorage.setItem(PENDING_DELETIONS_KEY, JSON.stringify(items));
+}
+
+function queuePendingDeletion(item: PendingDeletion) {
+  const items = readPendingDeletions().filter(
+    (existing) =>
+      existing.userId !== item.userId ||
+      existing.collection !== item.collection ||
+      existing.recordId !== item.recordId,
+  );
+  writePendingDeletions([...items, item]);
+}
+
+async function getSessionUserId(): Promise<string | null> {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
+async function upsertRecord(
+  collection: CloudCollection,
+  recordId: string,
+  payload: unknown,
+): Promise<void> {
+  if (!supabase) return;
+  const userId = await getSessionUserId();
+  if (!userId) return;
+  const now = Date.now();
+  const cloudPayload = await prepareCloudPayload(
+    removeUndefined(payload),
+    userId,
+  );
+  const { error } = await supabase.from('cloud_records').upsert(
+    {
+      user_id: userId,
+      collection,
+      record_id: recordId,
+      payload: cloudPayload,
+      updated_at: now,
+      deleted_at: null,
+    },
+    { onConflict: 'user_id,collection,record_id' },
+  );
+  if (error) throw error;
+}
+
+async function tombstoneRecord(
+  collection: CloudCollection,
+  recordId: string,
+): Promise<void> {
+  if (!supabase) return;
+  const userId = await getSessionUserId();
+  if (!userId) return;
+  try {
+    await sendTombstone(userId, collection, recordId);
+  } catch (error) {
+    queuePendingDeletion({ userId, collection, recordId });
+    throw error;
+  }
+}
+
+async function sendTombstone(
+  userId: string,
+  collection: CloudCollection,
+  recordId: string,
+): Promise<void> {
+  if (!supabase) return;
+  const now = Date.now();
+  const { error } = await supabase.from('cloud_records').upsert(
+    {
+      user_id: userId,
+      collection,
+      record_id: recordId,
+      payload: {},
+      updated_at: now,
+      deleted_at: now,
+    },
+    { onConflict: 'user_id,collection,record_id' },
+  );
+  if (error) throw error;
+}
+
+export async function flushPendingDeletions(userId: string) {
+  const pending = readPendingDeletions();
+  const remaining = pending.filter((item) => item.userId !== userId);
+  for (const item of pending.filter((entry) => entry.userId === userId)) {
+    try {
+      await sendTombstone(userId, item.collection, item.recordId);
+    } catch {
+      remaining.push(item);
+    }
+  }
+  writePendingDeletions(remaining);
+}
+
+async function getRecord(
+  collection: CloudCollection,
+  recordId: string,
+): Promise<CloudRecord | null> {
+  if (!supabase) return null;
+  const userId = await getSessionUserId();
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('cloud_records')
+    .select('payload,updated_at,deleted_at')
+    .eq('user_id', userId)
+    .eq('collection', collection)
+    .eq('record_id', recordId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+function logFailure(action: string, error: unknown) {
+  console.error(`[SupabaseSync] Failed to ${action}:`, error);
+}
+
+export async function saveQuestionHistoryEntry(entry: QuestionHistoryEntry) {
+  try {
+    await upsertRecord('questionHistory', entry.id, {
+      ...entry,
+      isUploaded: true,
+    });
+  } catch (error) {
+    logFailure('save question history entry', error);
+  }
+}
+
+export async function deleteQuestionHistoryEntry(id: string) {
+  try {
+    await tombstoneRecord('questionHistory', id);
+  } catch (error) {
+    logFailure('delete question history entry', error);
+  }
+}
+
+export async function saveMcHistoryEntry(entry: McHistoryEntry) {
+  try {
+    await upsertRecord('mcHistory', entry.id, {
+      ...entry,
+      isUploaded: true,
+    });
+  } catch (error) {
+    logFailure('save MC history entry', error);
+  }
+}
+
+export async function deleteMcHistoryEntry(id: string) {
+  try {
+    await tombstoneRecord('mcHistory', id);
+  } catch (error) {
+    logFailure('delete MC history entry', error);
+  }
+}
+
+export async function saveGenerationRecord(entry: GenerationRecord) {
+  try {
+    await upsertRecord('generationHistory', entry.id, {
+      ...entry,
+      isUploaded: true,
+    });
+  } catch (error) {
+    logFailure('save generation record', error);
+  }
+}
+
+export async function deleteGenerationRecord(id: string) {
+  try {
+    await tombstoneRecord('generationHistory', id);
+  } catch (error) {
+    logFailure('delete generation record', error);
+  }
+}
+
+export async function saveSavedSet(entry: SavedQuestionSet) {
+  try {
+    await upsertRecord('savedSets', entry.id, {
+      ...entry,
+      isUploaded: true,
+    });
+  } catch (error) {
+    logFailure('save saved set', error);
+  }
+}
+
+export async function deleteSavedSet(id: string) {
+  try {
+    await tombstoneRecord('savedSets', id);
+  } catch (error) {
+    logFailure('delete saved set', error);
+  }
+}
 
 type PendingSettingsUpdate = {
   apiKey?: string;
@@ -40,227 +261,36 @@ let pendingSettingsUpdate: PendingSettingsUpdate = {};
 const flushPendingSettingsUpdate = debounce(async () => {
   const patch = pendingSettingsUpdate;
   pendingSettingsUpdate = {};
-
-  if (
-    patch.apiKey === undefined &&
-    patch.providerKeys === undefined &&
-    patch.studyGoals === undefined &&
-    patch.streakData === undefined &&
-    patch.presets === undefined
-  ) {
-    return;
-  }
-
-  const uid = getUid();
-  if (!uid) return;
-
-  const now = Date.now();
+  if (Object.keys(patch).length === 0) return;
 
   try {
-    await setDoc(
-      doc(db, `users/${uid}/settings`, 'profile'),
-      removeUndefined({
-        ...patch,
-        updatedAt: serverTimestamp(),
-        lastModified: now,
-      }),
-      { merge: true },
-    );
+    const existing = await getRecord('settings', 'profile');
+    const now = Date.now();
+    await upsertRecord('settings', 'profile', {
+      ...(existing?.deleted_at ? {} : (existing?.payload ?? {})),
+      ...patch,
+      lastModified: now,
+    });
     localStorage.setItem('sync_settings_lastWrite', now.toString());
   } catch (error) {
-    console.error('[Sync] Failed to update settings profile:', error);
+    logFailure('update settings profile', error);
   }
 }, 1500);
 
 function queueSettingsUpdate(update: PendingSettingsUpdate) {
-  const now = Date.now();
-  localStorage.setItem('sync_settings_lastWrite', now.toString());
-  pendingSettingsUpdate = {
-    ...pendingSettingsUpdate,
-    ...update,
-  };
+  localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
+  pendingSettingsUpdate = { ...pendingSettingsUpdate, ...update };
   void flushPendingSettingsUpdate();
 }
 
-/**
- * Persist a `QuestionHistoryEntry` to Firestore under the current user.
- * Marks the entry as uploaded and sets `updatedAt` to server time.
- *
- * Errors are caught and logged; callers do not receive thrown errors.
- *
- * @param entry - The question history entry to persist. Must include an `id`.
- */
-export async function saveQuestionHistoryEntry(entry: QuestionHistoryEntry) {
-  const uid = getUid();
-  if (!uid) {
-    console.warn('[Sync] No UID available to save question history entry');
-    return;
-  }
-  try {
-    await setDoc(
-      doc(db, `users/${uid}/questionHistory`, entry.id),
-      removeUndefined({
-        ...entry,
-        isUploaded: true,
-        updatedAt: serverTimestamp(),
-      }),
-    );
-  } catch (error) {
-    console.error('[Sync] Failed to save question history entry:', error);
-  }
-}
-
-/**
- * Delete a `QuestionHistoryEntry` from the current user's Firestore.
- *
- * @param id - The id of the question history entry to delete.
- */
-export async function deleteQuestionHistoryEntry(id: string) {
-  const uid = getUid();
-  if (!uid) return;
-  await deleteDoc(doc(db, `users/${uid}/questionHistory`, id));
-}
-
-/**
- * Persist a `McHistoryEntry` to Firestore under the current user.
- * Marks the entry as uploaded and sets `updatedAt` to server time.
- *
- * @param entry - The multiple-choice history entry to persist. Must include an `id`.
- */
-export async function saveMcHistoryEntry(entry: McHistoryEntry) {
-  const uid = getUid();
-  if (!uid) {
-    console.warn('[Sync] No UID available to save MC history entry');
-    return;
-  }
-  try {
-    await setDoc(
-      doc(db, `users/${uid}/mcHistory`, entry.id),
-      removeUndefined({
-        ...entry,
-        isUploaded: true,
-        updatedAt: serverTimestamp(),
-      }),
-    );
-  } catch (error) {
-    console.error('[Sync] Failed to save MC history entry:', error);
-  }
-}
-
-/**
- * Delete an `McHistoryEntry` from the current user's Firestore.
- *
- * @param id - The id of the MC history entry to delete.
- */
-export async function deleteMcHistoryEntry(id: string) {
-  const uid = getUid();
-  if (!uid) return;
-  await deleteDoc(doc(db, `users/${uid}/mcHistory`, id));
-}
-
-/**
- * Persist a `GenerationRecord` to Firestore under the current user.
- * Marks the entry as uploaded and sets `updatedAt` to server time.
- *
- * @param entry - The generation record to persist. Must include an `id`.
- */
-export async function saveGenerationRecord(entry: GenerationRecord) {
-  const uid = getUid();
-  if (!uid) {
-    console.warn('[Sync] No UID available to save generation record');
-    return;
-  }
-  try {
-    await setDoc(
-      doc(db, `users/${uid}/generationHistory`, entry.id),
-      removeUndefined({
-        ...entry,
-        isUploaded: true,
-        updatedAt: serverTimestamp(),
-      }),
-    );
-  } catch (error) {
-    console.error('[Sync] Failed to save generation record:', error);
-  }
-}
-
-/**
- * Delete a `GenerationRecord` from the current user's Firestore.
- *
- * @param id - The id of the generation record to delete.
- */
-export async function deleteGenerationRecord(id: string) {
-  const uid = getUid();
-  if (!uid) return;
-  await deleteDoc(doc(db, `users/${uid}/generationHistory`, id));
-}
-
-/**
- * Save or update a `SavedQuestionSet` for the current user.
- * Writes `updatedAt` as a server timestamp.
- *
- * @param entry - The saved question set to persist. Must include an `id`.
- */
-export async function saveSavedSet(entry: SavedQuestionSet) {
-  const uid = getUid();
-  if (!uid) return;
-  try {
-    await setDoc(
-      doc(db, `users/${uid}/savedSets`, entry.id),
-      removeUndefined({
-        ...entry,
-        updatedAt: serverTimestamp(),
-      }),
-    );
-  } catch (error) {
-    console.error('[Sync] Failed to save saved set:', error);
-  }
-}
-
-/**
- * Delete a saved question set for the current user.
- *
- * @param id - The id of the saved set to delete.
- */
-export async function deleteSavedSet(id: string) {
-  const uid = getUid();
-  if (!uid) return;
-  await deleteDoc(doc(db, `users/${uid}/savedSets`, id));
-}
-
-/**
- * Update the user's study goals and streak data under `users/{uid}/settings/profile`.
- * Writes are coalesced with other settings changes so rapid edits only emit one
- * Firestore write while preserving merge semantics.
- *
- * @param goals - The new study goals to persist.
- * @param streakData - The associated streak data to persist.
- */
 export function updateStudyGoals(goals: StudyGoals, streakData: StreakData) {
   queueSettingsUpdate({ studyGoals: goals, streakData });
 }
 
-/**
- * Update the user's presets under `users/{uid}/settings/profile`.
- * Uses the shared settings queue so presets changes can batch with other fields.
- *
- * @param presets - Array of `Preset` objects to persist.
- */
 export function updatePresets(presets: Preset[]) {
   queueSettingsUpdate({ presets });
 }
 
-/**
- * Update the stored API keys for the user under `users/{uid}/settings/profile`.
- * Syncs both the active provider's key (as `apiKey` for backward compatibility)
- * and a `providerKeys` map containing all provider API keys.
- *
- * Uses the shared settings queue so rapid changes across settings only emit a
- * single merged Firestore write.
- *
- * @param activeApiKey - The active provider's API key (for backward compat).
- * @param providerKeys - Record mapping provider ID to API key.
- */
 export function updateProviderApiKeys(
   activeApiKey: string,
   providerKeys: Record<string, string>,
@@ -268,216 +298,139 @@ export function updateProviderApiKeys(
   queueSettingsUpdate({ apiKey: activeApiKey, providerKeys });
 }
 
-/**
- * Clear synced API keys from the user's Firestore profile.
- * Called when the user disables API key sync to ensure their key is removed
- * from the cloud. Also cancels any pending queued key updates to prevent a
- * race where a debounced write re-populates the remote profile.
- */
 export async function clearSyncedApiKeys() {
-  // Cancel any pending settings update that might contain API keys
   pendingSettingsUpdate = {};
-  const uid = getUid();
-  if (!uid) return;
   try {
-    await setDoc(
-      doc(db, `users/${uid}/settings`, 'profile'),
-      {
-        apiKey: '',
-        providerKeys: {},
-        updatedAt: serverTimestamp(),
-        lastModified: Date.now(),
-      },
-      { merge: true },
-    );
-    localStorage.setItem('sync_settings_lastWrite', Date.now().toString());
+    const existing = await getRecord('settings', 'profile');
+    const now = Date.now();
+    await upsertRecord('settings', 'profile', {
+      ...(existing?.deleted_at ? {} : (existing?.payload ?? {})),
+      apiKey: '',
+      providerKeys: {},
+      lastModified: now,
+    });
+    localStorage.setItem('sync_settings_lastWrite', now.toString());
   } catch (error) {
-    console.error('[Sync] Failed to clear synced API keys:', error);
+    logFailure('clear synced API keys', error);
   }
 }
 
-/**
- * Migrates old settings documents (main, goals, presets) to the consolidated 'profile' document.
- * This should be called once when the user logs in.
- */
-export async function migrateSettings() {
-  const uid = getUid();
-  if (!uid) return;
-
-  const profileRef = doc(db, `users/${uid}/settings`, 'profile');
-  const profileSnap = await getDoc(profileRef);
-
-  // If profile already exists, we assume migration is done (or it's a new user)
-  if (profileSnap.exists()) return;
-
-  console.info('[Sync] Starting settings migration to consolidated profile...');
-
-  const mainRef = doc(db, `users/${uid}/settings`, 'main');
-  const goalsRef = doc(db, `users/${uid}/settings`, 'goals');
-  const presetsRef = doc(db, `users/${uid}/settings`, 'presets');
-
-  const [mainSnap, goalsSnap, presetsSnap] = await Promise.all([
-    getDoc(mainRef),
-    getDoc(goalsRef),
-    getDoc(presetsRef),
-  ]);
-
-  if (!mainSnap.exists() && !goalsSnap.exists() && !presetsSnap.exists()) {
-    return;
-  }
-
-  const batch = writeBatch(db);
-  const combinedData: DocumentData = {
-    updatedAt: serverTimestamp(),
+function currentSettingsPayload(lastModified = Date.now()) {
+  const state = useAppStore.getState();
+  return {
+    apiKey: state.syncApiKey ? state.apiKey : '',
+    providerKeys: state.syncApiKey
+      ? Object.fromEntries(
+          Object.entries(state.providers).map(([id, provider]) => [
+            id,
+            provider.apiKey,
+          ]),
+        )
+      : {},
+    studyGoals: state.studyGoals,
+    streakData: state.streakData,
+    presets: state.presets,
+    lastModified,
   };
-
-  if (mainSnap.exists()) {
-    Object.assign(combinedData, mainSnap.data());
-    batch.delete(mainRef);
-  }
-  if (goalsSnap.exists()) {
-    Object.assign(combinedData, goalsSnap.data());
-    batch.delete(goalsRef);
-  }
-  if (presetsSnap.exists()) {
-    Object.assign(combinedData, presetsSnap.data());
-    batch.delete(presetsRef);
-  }
-
-  batch.set(profileRef, combinedData);
-
-  try {
-    await batch.commit();
-    console.info('[Sync] Settings migration successful.');
-  } catch (error) {
-    console.error('[Sync] Settings migration failed:', error);
-  }
 }
 
-// ─── Custom Subtopics ───────────────────────────────────────────────────────────
+export async function migrateSettings() {
+  try {
+    const existing = await getRecord('settings', 'profile');
+    const remoteLastModified = existing?.deleted_at
+      ? 0
+      : ((existing?.payload as { lastModified?: number } | undefined)
+          ?.lastModified ?? 0);
+    const localLastModified = Number.parseInt(
+      localStorage.getItem('sync_settings_lastWrite') ?? '0',
+      10,
+    );
+    if (
+      !existing ||
+      existing.deleted_at ||
+      localLastModified > remoteLastModified
+    ) {
+      await upsertRecord(
+        'settings',
+        'profile',
+        currentSettingsPayload(localLastModified || Date.now()),
+      );
+    }
+  } catch (error) {
+    logFailure('initialize settings profile', error);
+  }
+}
 
 export async function saveCustomSubtopics(
   topic: string,
   subtopics: CustomSubtopic[],
 ) {
-  const uid = getUid();
-  if (!uid) {
-    console.warn('[Sync] No UID available to save custom subtopics');
-    return;
-  }
   try {
     const now = Date.now();
-    await setDoc(
-      doc(db, `users/${uid}/customSubtopics`, topic),
-      removeUndefined({
-        subtopics,
-        lastModified: now,
-        updatedAt: serverTimestamp(),
-      }),
-      { merge: true },
-    );
+    await upsertRecord('customSubtopics', topic, {
+      subtopics,
+      lastModified: now,
+    });
   } catch (error) {
-    console.error('[Sync] Failed to save custom subtopics:', error);
+    logFailure('save custom subtopics', error);
   }
 }
 
 export async function loadCustomSubtopics(
   topic: string,
 ): Promise<CustomSubtopic[]> {
-  const uid = getUid();
-  if (!uid) {
-    console.warn('[Sync] No UID available to load custom subtopics');
+  try {
+    const record = await getRecord('customSubtopics', topic);
+    if (!record || record.deleted_at) return [];
+    const payload = record.payload as { subtopics?: CustomSubtopic[] };
+    return Array.isArray(payload.subtopics) ? payload.subtopics : [];
+  } catch (error) {
+    logFailure('load custom subtopics', error);
     return [];
   }
-  try {
-    const snap = await getDoc(doc(db, `users/${uid}/customSubtopics`, topic));
-    if (snap.exists()) {
-      const data = snap.data();
-      return (data.subtopics as CustomSubtopic[]) || [];
-    }
-  } catch (error) {
-    console.error('[Sync] Failed to load custom subtopics:', error);
-  }
-  return [];
 }
 
-/**
- * Load all custom subtopics documents for the current user and return a mapping
- * of topic -> { subtopics, updatedAt } where `updatedAt` is normalized to ms.
- */
 export async function loadAllCustomSubtopics(): Promise<
   Record<string, { subtopics: CustomSubtopic[]; updatedAt: number | null }>
 > {
-  const uid = getUid();
-  if (!uid) {
-    console.warn('[Sync] No UID available to load custom subtopics');
-    return {};
-  }
+  if (!supabase) return {};
+  const userId = await getSessionUserId();
+  if (!userId) return {};
+  const { data, error } = await supabase
+    .from('cloud_records')
+    .select('record_id,payload,updated_at,deleted_at')
+    .eq('user_id', userId)
+    .eq('collection', 'customSubtopics');
+  if (error) throw error;
 
-  type TimestampLike = {
-    toDate?: () => Date;
-    seconds?: number;
-    nanoseconds?: number;
-  };
-
-  function toMs(value: unknown): number | null {
-    if (value == null) return null;
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return Math.abs(value) < 1_000_000_000_000 ? value * 1000 : value;
-    }
-    if (typeof value === 'object') {
-      const ts = value as TimestampLike;
-      const maybeToDate = ts.toDate;
-      if (typeof maybeToDate === 'function') {
-        try {
-          const d = maybeToDate();
-          if (d instanceof Date && !Number.isNaN(d.getTime())) {
-            return d.getTime();
-          }
-        } catch {
-          // fall through
-        }
-      }
-      const seconds = ts.seconds;
-      const nanos = ts.nanoseconds;
-      if (typeof seconds === 'number' && Number.isFinite(seconds)) {
-        return seconds * 1000 + Math.floor((nanos ?? 0) / 1_000_000);
-      }
-    }
-    return null;
+  const rows = (data ?? []) as unknown as Array<{
+    record_id: string;
+    payload: unknown;
+    updated_at: number;
+    deleted_at: number | null;
+  }>;
+  const result: Record<
+    string,
+    { subtopics: CustomSubtopic[]; updatedAt: number | null }
+  > = {};
+  for (const row of rows) {
+    if (row.deleted_at != null) continue;
+    const payload = row.payload as {
+      subtopics?: CustomSubtopic[];
+      lastModified?: number;
+    };
+    result[row.record_id] = {
+      subtopics: Array.isArray(payload.subtopics) ? payload.subtopics : [],
+      updatedAt: payload.lastModified ?? row.updated_at,
+    };
   }
-
-  try {
-    const snap = await getDocs(collection(db, `users/${uid}/customSubtopics`));
-    const result: Record<
-      string,
-      { subtopics: CustomSubtopic[]; updatedAt: number | null }
-    > = {};
-    snap.forEach((d) => {
-      const data = d.data();
-      const subtopics = (data.subtopics as CustomSubtopic[]) || [];
-      const updatedAt = toMs(data.lastModified) ?? toMs(data.updatedAt);
-      result[d.id] = { subtopics, updatedAt };
-    });
-    return result;
-  } catch (error) {
-    console.error('[Sync] Failed to load all custom subtopics:', error);
-    throw error;
-  }
+  return result;
 }
 
 export async function deleteCustomSubtopic(topic: string, subtopicId: string) {
-  const uid = getUid();
-  if (!uid) return;
-  try {
-    const existing = await loadCustomSubtopics(topic);
-    const filtered = existing.filter((s) => s.id !== subtopicId);
-    await saveCustomSubtopics(topic, filtered);
-  } catch (error) {
-    console.error('[Sync] Failed to delete custom subtopic:', error);
-  }
-}
-
-function getUid() {
-  return auth.currentUser?.uid;
+  const existing = await loadCustomSubtopics(topic);
+  await saveCustomSubtopics(
+    topic,
+    existing.filter((subtopic) => subtopic.id !== subtopicId),
+  );
 }

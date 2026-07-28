@@ -34,5 +34,7 @@ export type McQuestion = {
 export type StudentAnswerImage = {
   id: string;
   dataUrl: string;
+  storagePath?: string;
+  downloadUrl?: string;
   timestamp: string;
 };

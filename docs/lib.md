@@ -11,8 +11,8 @@ Key responsibilities:
 - [src/lib/token-estimation.ts](src/lib/token-estimation.ts#L1) — Estimating
   token usage for prompts and batching.
 - [src/lib/persistence.ts](src/lib/persistence.ts#L1) — Local persistence
-  helpers and state migration logic. Images are stored locally (data URLs) and
-  are not synced to cloud storage.
+  helpers and state migration logic. Images remain data URLs locally and are
+  stored privately in Supabase Storage when cloud sync is enabled.
 - [src/lib/question-cache.ts](src/lib/question-cache.ts#L1) — Cache layer for
   generated questions.
 - [src/lib/sketchpad-renderer.ts](src/lib/sketchpad-renderer.ts#L1) /
