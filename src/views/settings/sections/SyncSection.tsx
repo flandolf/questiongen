@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSupabaseSyncContext } from '@/context/SupabaseSyncContext';
@@ -18,12 +17,10 @@ import {
   Card,
   FieldGroup,
   SectionHeader,
-  ToggleRow,
 } from '../SettingsUI';
 
 // eslint-disable-next-line complexity
 export function SyncSection() {
-  const { syncApiKey, setSyncApiKey } = useAppSettings();
   const supabaseSync = useSupabaseSyncContext();
 
   const [syncAuthMode, setSyncAuthMode] = useState<'signin' | 'signup'>(
@@ -217,18 +214,6 @@ export function SyncSection() {
             </div>
           )}
         </div>
-
-        {isSignedIn && syncEnabled && (
-          <div className='pt-3 border-t border-border'>
-            <ToggleRow
-              id='sync-api-key'
-              checked={syncApiKey}
-              onChange={setSyncApiKey}
-              label='Sync API Key'
-              description="Include your OpenRouter API key in cloud sync so it's available on all your devices."
-            />
-          </div>
-        )}
 
         {!isSignedIn && (
           <div className='space-y-4 pt-2'>

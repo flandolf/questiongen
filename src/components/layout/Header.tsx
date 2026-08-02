@@ -334,15 +334,12 @@ export function Header() {
     { to: '/saved', label: 'Saved', icon: Bookmark },
   ];
 
-  const isAndroid =
-    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
-
   return (
     <motion.header
       initial={{ y: -50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={SPRING}
-      className={`flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md border-b border-border/40 w-full z-50 ${isAndroid ? 'mt-8' : ''}`}
+      className='flex items-center justify-between h-14 px-4 bg-background/80 backdrop-blur-md border-b border-border/40 w-full z-50'
     >
       {/* Left: Navigation */}
       <nav className='flex items-center gap-1.5 no-scrollbar'>

@@ -15,20 +15,16 @@ export function buildPersistedSnapshot(s: AppState): PersistedAppState {
   return {
     version: 2,
     settings: {
-      apiKey: s.apiKey,
       model: s.model,
       markingModel: s.markingModel,
       useSeparateMarkingModel: s.useSeparateMarkingModel,
       imageMarkingModel: s.imageMarkingModel,
       useSeparateImageMarkingModel: s.useSeparateImageMarkingModel,
-      providers: s.providers,
-      activeProviderId: s.activeProviderId,
       debugMode: s.debugMode,
       questionTextSize: s.questionTextSize,
       responseTextSize: s.responseTextSize,
       includeExamContext: s.includeExamContext,
       autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
-      syncApiKey: s.syncApiKey,
       localBackupFolderPath: s.localBackupFolderPath,
       localBackupIntervalMinutes: s.localBackupIntervalMinutes,
       theme: s.theme,
@@ -103,10 +99,6 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
   const defaultSettings = EMPTY_PERSISTED_APP_STATE.settings;
 
   return {
-    providers: settings.providers ?? defaultSettings.providers,
-    activeProviderId:
-      settings.activeProviderId ?? defaultSettings.activeProviderId,
-    apiKey: settings.apiKey || defaultSettings.apiKey,
     model: settings.model?.trim() || defaultSettings.model,
     markingModel: settings.markingModel?.trim() || defaultSettings.markingModel,
     useSeparateMarkingModel: settings.useSeparateMarkingModel,
@@ -123,7 +115,6 @@ export function snapshotToState(s: PersistedAppState): Partial<AppState> {
     autoSyncIntervalMinutes:
       settings.autoSyncIntervalMinutes ??
       defaultSettings.autoSyncIntervalMinutes,
-    syncApiKey: settings.syncApiKey,
     localBackupFolderPath:
       settings.localBackupFolderPath ?? defaultSettings.localBackupFolderPath,
     localBackupIntervalMinutes:

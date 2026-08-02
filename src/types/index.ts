@@ -9,7 +9,6 @@ export * from './history';
 export * from './logs';
 export * from './marking';
 export * from './persistence';
-export * from './provider';
 export * from './questions';
 export * from './study';
 export * from './telemetry';

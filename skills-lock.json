@@ -7,6 +7,12 @@
       "skillPath": ".agents/skills/impeccable/SKILL.md",
       "computedHash": "cf21fc8e433b09525fbf9c08949d1e76aa83a65f98b751490c3918cba5c02663"
     },
+    "login-with-chatgpt": {
+      "source": "opencoredev/login-with-chatgpt",
+      "sourceType": "github",
+      "skillPath": "skills/login-with-chatgpt/SKILL.md",
+      "computedHash": "b5f2ff103a1f9f714a7b27b0f71b34bea00502f2a8fcbb2c5644fc4f4f204baf"
+    },
     "ponytail": {
       "source": "dietrichgebert/ponytail",
       "sourceType": "github",

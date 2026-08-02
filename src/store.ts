@@ -3,7 +3,7 @@
  *
  * This file provides a unified access point for the application's state and actions,
  * which are partitioned into modular slices:
- * - SettingsSlice: App-wide configuration (API keys, models, themes).
+ * - SettingsSlice: App-wide configuration (models, themes, preferences).
  * - SessionSlice: Active generation/marking session state and logic.
  * - HistorySlice: Local history of generated questions and performance stats.
  *

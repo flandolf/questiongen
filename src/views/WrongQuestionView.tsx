@@ -54,9 +54,8 @@ import type {
   QuestionHistoryEntry,
   StudentAnswerImage,
 } from '@/types';
-import { getModelCredentials } from '@/types/provider';
 import { CompletionScreen } from '@/views/generator/CompletionScreen';
-import { McAnswerCard, McSketchpadPanel } from '@/views/generator/McAnswerCard';
+import { McAnswerCard } from '@/views/generator/McAnswerCard';
 import { QuestionSplitLayout } from '@/views/generator/QuestionSplitLayout';
 import { WrittenAnswerCard } from '@/views/generator/WrittenAnswerCard';
 import { WrittenFeedbackPanel } from '@/views/generator/WrittenFeedbackPanel';
@@ -446,7 +445,6 @@ interface McQuestionState {
   awardedMarks: number | undefined;
   mcAppealText: string;
   mcOverrideInput: string;
-  mcSketchpadActive: boolean;
   result: ReattemptResult | null;
   timeSeconds: number;
 }
@@ -457,9 +455,6 @@ type QuestionState = WrittenQuestionState | McQuestionState;
 
 interface ReattemptViewProps {
   questions: WrongEntry[];
-  apiKey: string;
-  baseUrl?: string;
-  providerId?: string;
   model: string;
   onExit: (results: ReattemptResult[]) => void;
   onDelete: (entry: WrongEntry) => void;
@@ -468,9 +463,6 @@ interface ReattemptViewProps {
 }
 function ReattemptView({
   questions,
-  apiKey,
-  baseUrl,
-  providerId,
   model,
   onExit,
   onDelete,
@@ -548,13 +540,6 @@ function ReattemptView({
   const writtenEntry = isWritten ? entry : null;
   const isLast = idx === questions.length - 1;
   const completedCount = results.filter((r) => r.correct).length;
-  const sketchSessionKey = useMemo(() => {
-    const mode = entry.kind === 'written' ? 'written' : 'multiple-choice';
-    return `wrong-${mode}-${entry.id}`;
-  }, [entry]);
-
-  const [, setWrittenSketchpadActive] = useState(false);
-
   // Session timer
   const [startedAt] = useState(() => Date.now());
 
@@ -577,7 +562,6 @@ function ReattemptView({
   );
   const [mcAppealText, setMcAppealText] = useState<string>('');
   const [mcOverrideInput, setMcOverrideInput] = useState<string>('');
-  const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
 
   // --- Save current question state before leaving it ---
   const saveCurrentState = useCallback(() => {
@@ -611,7 +595,6 @@ function ReattemptView({
             awardedMarks,
             mcAppealText,
             mcOverrideInput,
-            mcSketchpadActive,
             result: results.find((r) => r.id === currentEntry.id) ?? null,
             timeSeconds: totalTime,
           };
@@ -629,7 +612,6 @@ function ReattemptView({
     awardedMarks,
     mcAppealText,
     mcOverrideInput,
-    mcSketchpadActive,
     results,
     questionStartedAt,
     savedStates,
@@ -643,7 +625,6 @@ function ReattemptView({
         // Fresh question - reset everything
         setMcAppealText('');
         setMcOverrideInput('');
-        setMcSketchpadActive(false);
         return;
       }
       if ('writtenAnswer' in state) {
@@ -658,7 +639,6 @@ function ReattemptView({
         setAwardedMarks(state.awardedMarks);
         setMcAppealText(state.mcAppealText);
         setMcOverrideInput(state.mcOverrideInput);
-        setMcSketchpadActive(state.mcSketchpadActive);
       }
     },
     [savedStates],
@@ -706,9 +686,6 @@ function ReattemptView({
           studentAnswer: writtenAnswer,
           studentAnswerImageDataUrl: image?.dataUrl,
           model,
-          apiKey,
-          baseUrl,
-          providerId,
         },
       });
       const resp = normalizeMarkResponse(raw, writtenEntry.question.maxMarks);
@@ -935,7 +912,6 @@ function ReattemptView({
                 rightSlot={
                   <WrittenAnswerCard
                     questionId={entry.id}
-                    sketchSessionKey={sketchSessionKey}
                     answer={writtenAnswer}
                     image={image}
                     isMarking={isMarking}
@@ -952,7 +928,6 @@ function ReattemptView({
                     }}
                     onImageRemove={() => setImage(undefined)}
                     onSubmit={() => void doMark()}
-                    onSketchpadActiveChange={setWrittenSketchpadActive}
                   />
                 }
               />
@@ -968,63 +943,17 @@ function ReattemptView({
                   </div>
                 </div>
               }
-              leftBelowSlot={
-                mcSketchpadActive ? (
-                  <div className='min-w-0'>
-                    <UnifiedMcqOptionsGrid
-                      options={entry.question.options}
-                      selectedAnswer={selectedAnswer}
-                      correctAnswer={entry.question.correctAnswer}
-                      answered={Boolean(selectedAnswer)}
-                      revealCorrectness={Boolean(selectedAnswer)}
-                      lockSelection={false}
-                      onSelect={handleSelectAnswer}
-                      columns={1}
-                    />
-                  </div>
-                ) : undefined
-              }
               rightSlot={
-                mcSketchpadActive ? (
-                  <McSketchpadPanel
-                    questionId={entry.id}
-                    sketchSessionKey={sketchSessionKey}
-                    onImageDrop={(files) => {
-                      void fileToDataUrl(files[0]).then((dataUrl) =>
-                        setImage({
-                          id: crypto.randomUUID(),
-                          timestamp: new Date().toISOString(),
-                          dataUrl,
-                        }),
-                      );
-                    }}
-                    onImageRemove={() => setImage(undefined)}
-                    onToggleSketchpad={() => setMcSketchpadActive(false)}
-                  />
-                ) : (
-                  <McAnswerCard
-                    questionId={entry.id}
-                    options={entry.question.options}
-                    correctAnswer={entry.question.correctAnswer}
-                    explanationMarkdown={entry.question.explanationMarkdown}
-                    selectedAnswer={selectedAnswer}
-                    hideCorrectAnswer={false}
-                    onSelectAnswer={handleSelectAnswer}
-                    onApplyOverride={handleApplyMcOverride}
-                    isSketchpadOpen={mcSketchpadActive}
-                    onToggleSketchpad={() => setMcSketchpadActive((v) => !v)}
-                    onImageDrop={(files) => {
-                      void fileToDataUrl(files[0]).then((dataUrl) =>
-                        setImage({
-                          id: crypto.randomUUID(),
-                          timestamp: new Date().toISOString(),
-                          dataUrl,
-                        }),
-                      );
-                    }}
-                    onImageRemove={() => setImage(undefined)}
-                  />
-                )
+                <McAnswerCard
+                  questionId={entry.id}
+                  options={entry.question.options}
+                  correctAnswer={entry.question.correctAnswer}
+                  explanationMarkdown={entry.question.explanationMarkdown}
+                  selectedAnswer={selectedAnswer}
+                  hideCorrectAnswer={false}
+                  onSelectAnswer={handleSelectAnswer}
+                  onApplyOverride={handleApplyMcOverride}
+                />
               }
             />
           )}
@@ -1035,7 +964,6 @@ function ReattemptView({
         contextPrompt={entry.question.promptMarkdown}
         studentAnswer={isWritten ? writtenAnswer : selectedAnswer}
         image={image}
-        sketchSessionKey={sketchSessionKey}
       />
     </div>
   );
@@ -1076,17 +1004,12 @@ export default function WrongQuestionView() {
     (s) => s.updateQuestionHistoryEntry,
   );
   const updateMcHistoryEntry = useAppStore((s) => s.updateMcHistoryEntry);
-  const providers = useAppStore((s) => s.providers);
   const model = useAppStore((s) => s.model);
   const markingModel = useAppStore((s) => s.markingModel);
   const useSeparateMarkingModel = useAppStore((s) => s.useSeparateMarkingModel);
   const effectiveModel =
     useSeparateMarkingModel && markingModel?.trim() ? markingModel : model;
 
-  const effectiveCredentials = getModelCredentials(effectiveModel, providers);
-  const effectiveApiKey = effectiveCredentials?.apiKey ?? '';
-  const effectiveBaseUrl = effectiveCredentials?.baseUrl;
-  const effectiveProviderId = effectiveCredentials?.providerId;
   const navigate = useNavigate();
 
   const allWrong = useMemo<WrongEntry[]>(
@@ -1199,9 +1122,6 @@ export default function WrongQuestionView() {
       <div className='h-full flex flex-col'>
         <ReattemptView
           questions={reattemptQueue}
-          apiKey={effectiveApiKey}
-          baseUrl={effectiveBaseUrl}
-          providerId={effectiveProviderId}
           model={effectiveModel}
           onDelete={handleDelete}
           onMarkCorrect={handleMarkCorrect}

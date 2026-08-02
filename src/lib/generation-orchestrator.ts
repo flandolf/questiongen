@@ -21,11 +21,9 @@ import type {
   McQuestion,
   Topic,
 } from '@/types';
-import { getModelCredentials } from '@/types/provider';
 
 export const getCanGenerate = (s: AppState) =>
   s.selectedTopics.length > 0 &&
-  s.apiKey.trim().length > 0 &&
   s.model.trim().length > 0 &&
   s.questionCount >= 1 &&
   s.questionCount <= 20 &&
@@ -112,14 +110,7 @@ async function generateTopicQuestions(
     customFocusArea,
     modelReasoningEnabled,
     modelReasoningEffort,
-    providers,
   } = store;
-
-  const credentials = getModelCredentials(model, providers);
-  if (!credentials) {
-    throw new Error('No valid API credentials configured for selected model');
-  }
-  const { apiKey: modelApiKey, baseUrl, modelId, providerId } = credentials;
 
   try {
     const topicSubtopics = getSubtopicsForTopic(topic, store);
@@ -155,10 +146,7 @@ async function generateTopicQuestions(
           topics: [topic],
           difficulty,
           questionCount: count,
-          model: modelId,
-          apiKey: modelApiKey,
-          baseUrl,
-          providerId,
+          model,
           techMode,
           includeExamContext,
           subtopics: shuffled,
@@ -223,10 +211,7 @@ async function generateTopicQuestions(
                 topics: [topic],
                 difficulty,
                 questionCount: call.count,
-                model: modelId,
-                apiKey: modelApiKey,
-                baseUrl,
-                providerId,
+                model,
                 techMode,
                 includeExamContext,
                 subtopics: call.subtopics,

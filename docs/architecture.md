@@ -11,7 +11,7 @@ Quick links:
 - App: [src/App.tsx](src/App.tsx#L1)
 - Store: [src/store.ts](src/store.ts#L1)
 - Native Backend: Tauri (Rust) in `src-tauri/` providing prompt handling,
-  parsing, PDF/Anki exports, and OpenRouter integration.
+  parsing, PDF/Anki exports, and local ChatGPT sidecar integration.
 
 Quick links:
 

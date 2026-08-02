@@ -1,18 +1,15 @@
 use crate::catalog;
+use crate::engine::chatgpt::{complete, generate_request_id, ChatGptConfig, CompletionRequest};
 use crate::engine::context::EngineContext;
 use crate::engine::output::parse_structured;
 use crate::engine::prompt::{marking_system_prompt, marking_user_prompt};
-use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{
-    emit_status, emit_stream_end, emit_stream_error, emit_stream_start, rust_log,
-    validate_credentials,
+    emit_status, emit_stream_end, emit_stream_error, emit_stream_start, rust_log, validate_model,
 };
-use crate::llm::generate_request_id;
 use crate::models::{
     AppError, BatchMarkItem, BatchMarkRequest, BatchMarkResponse, CommandResult, MarkAnswerRequest,
     MarkAnswerResponse, MarkPdfRequest, MarkPdfResponse, MarkPdfResultItem,
 };
-use crate::openrouter_info::{compute_generation_cost, get_cached_model_stats};
 use crate::schemas;
 use std::time::Instant;
 
@@ -22,33 +19,13 @@ pub async fn mark_answer(
     ctx: &EngineContext,
     request: MarkAnswerRequest,
 ) -> CommandResult<MarkAnswerResponse> {
-    validate_credentials(&request.api_key, &request.model)?;
+    validate_model(&request.model)?;
 
     let request_id = generate_request_id();
-    let provider_id = request.provider_id.clone().unwrap_or_else(|| {
-        let url = request
-            .base_url
-            .as_deref()
-            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL)
-            .trim()
-            .trim_end_matches('/')
-            .to_ascii_lowercase();
-        if url.contains("openrouter.ai") {
-            "openrouter".to_string()
-        } else if url.contains("deepseek.com") {
-            "deepseek".to_string()
-        } else if url.contains("nvidia.com") {
-            "nvidia".to_string()
-        } else {
-            "custom".to_string()
-        }
-    });
-
     emit_stream_start(
         &ctx.app,
         &request_id,
         "marking",
-        &provider_id,
         &request.model,
         Some(request.question.topic.clone()),
         Some(request.question.id.clone()),
@@ -69,12 +46,6 @@ pub async fn mark_answer(
     let marking_guidance = catalog::topic_marking_guidance(&topic);
     let marking_scheme_style = "criterion-per-mark"; // Default style
 
-    // Default to OpenRouter so legacy marking calls without an explicit
-    // base_url continue to send json_schema structured output.
-    let marking_base_url = request
-        .base_url
-        .as_deref()
-        .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
     let system_prompt = marking_system_prompt(
         max_marks,
         marking_guidance,
@@ -127,21 +98,15 @@ pub async fn mark_answer(
         }
     }
 
-    let response_format = schemas::marking_format(&request.model, marking_base_url, request.provider_id.as_deref());
+    let response_format = schemas::marking_format();
 
-    let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
+    let llm_config = ChatGptConfig::new(&request.model)
         .with_max_tokens(estimate_marking_tokens(max_marks))
         .with_reasoning(
             request.reasoning_enabled,
             request.reasoning_effort.as_deref(),
         )
         .with_request_id(&request_id);
-    if let Some(ref url) = request.base_url {
-        llm_config = llm_config.with_base_url(url);
-    }
-    if let Some(ref id) = request.provider_id {
-        llm_config = llm_config.with_provider_id(id);
-    }
 
     let completion_request = CompletionRequest::new(
         &system_prompt,
@@ -170,8 +135,7 @@ pub async fn mark_answer(
             e.code,
             format!(
                 "Marking failed while parsing the model response. \
-                 The model may not support structured outputs (JSON schema) for this endpoint. \
-                 Try switching to an OpenRouter-hosted model, or check your provider supports JSON mode. \
+                 ChatGPT returned an invalid structured response. \
                  Original error: {}",
                 e.message
             ),
@@ -202,13 +166,7 @@ pub async fn mark_answer(
         response.completion_tokens = completion.completion_tokens;
         response.total_tokens = completion.total_tokens;
 
-        let stats = get_cached_model_stats(&request.api_key, &request.model);
-        response.estimated_cost_usd = compute_generation_cost(
-            Some(completion.prompt_tokens as u64),
-            Some(completion.completion_tokens as u64),
-            stats.as_ref().and_then(|s| s.prompt_price_per_token),
-            stats.as_ref().and_then(|s| s.completion_price_per_token),
-        );
+        response.estimated_cost_usd = None;
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
@@ -278,7 +236,7 @@ pub async fn mark_pdf(
     ctx: &EngineContext,
     request: MarkPdfRequest,
 ) -> CommandResult<MarkPdfResponse> {
-    validate_credentials(&request.api_key, &request.model)?;
+    validate_model(&request.model)?;
 
     let mut results = Vec::new();
 
@@ -297,9 +255,6 @@ pub async fn mark_pdf(
                 student_answer_image_data_url: None,
                 student_answer_image_data_urls: None,
                 model: request.model.clone(),
-                api_key: request.api_key.clone(),
-                base_url: request.base_url.clone(),
-                provider_id: request.provider_id.clone(),
                 marker_style: request.marker_style.clone(),
                 custom_marker_style: request.custom_marker_style.clone(),
                 reasoning_enabled: request.reasoning_enabled,

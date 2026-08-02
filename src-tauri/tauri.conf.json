@@ -4,9 +4,9 @@
   "version": "5.2.10",
   "identifier": "com.andy.questiongen",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bun run build:chatgpt-sidecar && bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run build:chatgpt-sidecar && bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -24,6 +24,9 @@
   },
   "bundle": {
     "active": true,
+    "externalBin": [
+      "binaries/questiongen-chatgpt"
+    ],
     "targets": "all",
     "createUpdaterArtifacts": true,
     "resources": [

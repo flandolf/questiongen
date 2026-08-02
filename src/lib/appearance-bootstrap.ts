@@ -34,7 +34,6 @@ export function readStoredMode(): 'dark' | 'light' | 'system' {
   }
   return 'dark';
 }
-
 export function resolveCurrentMode(): 'dark' | 'light' {
   const mode = readStoredMode();
   if (mode === 'dark') return 'dark';
@@ -163,25 +162,4 @@ export function applyAppearanceToDocument(params: {
   }
 
   return customThemeVars;
-}
-
-export function setupAndroidViewportHeight(): void {
-  if (!/Android/i.test(window.navigator.userAgent)) {
-    return;
-  }
-
-  document.documentElement.classList.add('platform-android');
-
-  const setAndroidViewportHeight = () => {
-    const viewportHeight =
-      window.visualViewport?.height ?? window.innerHeight;
-    document.documentElement.style.setProperty(
-      '--android-app-height',
-      `${Math.round(viewportHeight)}px`,
-    );
-  };
-
-  setAndroidViewportHeight();
-  window.visualViewport?.addEventListener('resize', setAndroidViewportHeight);
-  window.addEventListener('resize', setAndroidViewportHeight);
 }

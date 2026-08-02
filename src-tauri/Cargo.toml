@@ -36,7 +36,7 @@ tauri-plugin-dialog = "2.7.1"
 tauri-plugin-process = "2"
 tauri-plugin-store = "2"
 tauri-plugin-updater = "2"
-tauri-plugin-sharekit = { git = "https://github.com/Choochmeque/tauri-plugin-sharekit" }
+tauri-plugin-shell = "2"
 rand = "0.10.1"
 genanki-rs = "0.4"
 regex = "1"

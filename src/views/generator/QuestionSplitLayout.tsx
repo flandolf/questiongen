@@ -13,7 +13,7 @@ interface QuestionSplitLayoutProps {
 
 /**
  * A shared layout component that provides the "side-by-side" split view for questions.
- * Handles the responsive grid and special width ratios for the sketchpad.
+ * Handles the responsive question-and-answer grid.
  */
 export function QuestionSplitLayout({
   leftSlot,
@@ -24,7 +24,7 @@ export function QuestionSplitLayout({
 }: QuestionSplitLayoutProps) {
   // Defaults and persistence
   const STORAGE_KEY = `question-split-${mode}`;
-  const DEFAULT_LEFT_PCT = 40; // Question 40% / Sketchpad 60%
+  const DEFAULT_LEFT_PCT = 40;
   const MIN_PCT = 25;
   const MAX_PCT = 75;
 

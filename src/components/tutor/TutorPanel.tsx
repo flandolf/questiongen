@@ -15,7 +15,6 @@ import {
   Eye,
   FileText,
   Info,
-  Loader2,
   Maximize2,
   MessageSquarePlus,
   Minimize2,
@@ -52,24 +51,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { listChatGPTModels } from '@/lib/chatgpt';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/store';
-import { getLatestSketch } from '@/store/sketchpad-sync';
 import { useTutorStore } from '@/store/tutor';
 import type { StudentAnswerImage } from '@/types';
-import {
-  getModelCredentials,
-  getProviderLabelForModel,
-  type ProviderState,
-} from '@/types/provider';
-import { PRESET_IMAGE_MODELS, PRESET_MODELS } from '@/views/settings/constants';
 
 interface TutorPanelProps {
   questionId: string;
   contextPrompt: string;
   studentAnswer?: string;
   image?: StudentAnswerImage;
-  sketchSessionKey?: string;
   className?: string;
 }
 
@@ -110,8 +101,7 @@ const TutorHeader = ({
   clearSession,
   handleExportTranscript,
   studentAnswer,
-  providers,
-  activeProviderId,
+  models,
 }: {
   modelName: string;
   totalTokensSession: number;
@@ -131,13 +121,7 @@ const TutorHeader = ({
   clearSession: (qid: string) => void;
   handleExportTranscript: () => void;
   studentAnswer?: string;
-  /**
-   * Provider context for accurate per-model badges. Without this,
-   * NVIDIA + custom-provider models with `author/slug` ids mis-label
-   * as OpenRouter.
-   */
-  providers?: Record<string, ProviderState>;
-  activeProviderId?: string;
+  models: string[];
 }) => (
   <div
     className={cn(
@@ -182,41 +166,11 @@ const TutorHeader = ({
                       <SelectValue placeholder='Select model' />
                     </SelectTrigger>
                     <SelectContent>
-                      {[...PRESET_MODELS, ...PRESET_IMAGE_MODELS]
-                        .filter(
-                          (m, i, self) =>
-                            self.findIndex((t) => t.id === m.id) === i,
-                        )
-                        .map((m) => {
-                          const provider =
-                            m.id !== 'custom'
-                              ? getProviderLabelForModel(
-                                  m.id,
-                                  providers ?? {},
-                                  activeProviderId,
-                                )
-                              : '';
-                          return (
-                            <SelectItem
-                              key={m.id}
-                              value={m.id}
-                              className='text-xs'
-                            >
-                              {m.id === 'custom' ? (
-                                m.name
-                              ) : (
-                                <span className='flex items-center gap-2 min-w-0'>
-                                  <span className='truncate'>{m.name}</span>
-                                  {provider && (
-                                    <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
-                                      {provider}
-                                    </span>
-                                  )}
-                                </span>
-                              )}
-                            </SelectItem>
-                          );
-                        })}
+                      {models.map((model) => (
+                        <SelectItem key={model} value={model} className='text-xs'>
+                          {model}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -603,7 +557,7 @@ const MessageItem = ({
           {hasImages && msg.role === 'user' && (
             <div className='mt-2 flex gap-1.5 opacity-80'>
               <span className='text-[10px] font-bold uppercase tracking-wider bg-white/20 px-1.5 py-0.5 rounded'>
-                Sketches/Images Included
+                Images Included
               </span>
             </div>
           )}
@@ -818,10 +772,6 @@ async function performTutorChat(params: {
   userMessageContent: string;
   messages: { role: string; content: string | TutorApiContentPart[] }[];
   image?: StudentAnswerImage;
-  sketchpadDataUrl?: string;
-  apiKey: string;
-  baseUrl?: string;
-  providerId?: string;
   isDiagnostic: boolean;
   currentRequestParts?: TutorApiContentPart[];
   appendUserMessage?: boolean;
@@ -834,10 +784,6 @@ async function performTutorChat(params: {
     userMessageContent,
     messages,
     image,
-    sketchpadDataUrl,
-    apiKey,
-    baseUrl,
-    providerId,
     isDiagnostic,
     currentRequestParts,
     appendUserMessage = true,
@@ -860,11 +806,10 @@ async function performTutorChat(params: {
   }
   if (
     image?.dataUrl ||
-    sketchpadDataUrl ||
     currentRequestParts?.some((p) => p.type === 'image_url')
   ) {
     systemContent +=
-      '\n\n--- VISUAL CONTEXT ---\nThe student has provided images/sketches. Use these to understand their working and provide targeted feedback.';
+      '\n\n--- VISUAL CONTEXT ---\nThe student has provided an image. Use it to understand their working and provide targeted feedback.';
   }
 
   if (isDiagnostic) {
@@ -904,13 +849,6 @@ async function performTutorChat(params: {
         });
       }
 
-      if (sketchpadDataUrl) {
-        userContentParts.push({
-          type: 'image_url',
-          image_url: { url: sketchpadDataUrl },
-        });
-      }
-
       apiMessages.push({
         role: 'user',
         content: userContentParts,
@@ -923,9 +861,6 @@ async function performTutorChat(params: {
     request: {
       messages: apiMessages,
       model: activeModel,
-      apiKey: apiKey,
-      baseUrl,
-      providerId,
       diagnostic: isDiagnostic,
     },
   });
@@ -942,7 +877,6 @@ const TutorChatArea = ({
   showContext,
   onToggleContext: _onToggleContext,
   streamedContent,
-  sketchStatus,
   copiedId,
   showScrollButton,
   scrollAreaRef,
@@ -970,7 +904,6 @@ const TutorChatArea = ({
   showContext: boolean;
   onToggleContext: () => void;
   streamedContent: string;
-  sketchStatus: string;
   copiedId: string | null;
   showScrollButton: boolean;
   scrollAreaRef: React.RefObject<HTMLDivElement | null>;
@@ -1028,7 +961,6 @@ const TutorChatArea = ({
             isGenerating={isGenerating}
             isCompact={isCompact}
             streamedContent={streamedContent}
-            sketchStatus={sketchStatus}
           />
 
           {messages.length > 0 && !isGenerating && (
@@ -1056,12 +988,10 @@ const TutorStreamingChunk = ({
   isGenerating,
   isCompact,
   streamedContent,
-  sketchStatus,
 }: {
   isGenerating: boolean;
   isCompact: boolean;
   streamedContent: string;
-  sketchStatus: string;
 }) => {
   if (!isGenerating) return null;
 
@@ -1103,9 +1033,7 @@ const TutorStreamingChunk = ({
               ))}
             </div>
             <span className='text-[9px] uppercase tracking-[0.2em] text-muted-foreground/60 animate-pulse font-bold'>
-              {sketchStatus === 'sending'
-                ? 'Uploading Context...'
-                : 'Formulating Response...'}
+              Formulating Response...
             </span>
           </div>
         )}
@@ -1174,11 +1102,8 @@ const TutorInputArea = ({
   isCompact,
   isGenerating,
   inputValue,
-  includeSketch,
-  sketchStatus,
   image,
   setInputValue,
-  setIncludeSketch,
   handleSend,
   handleStop,
   handleKeyDown,
@@ -1187,8 +1112,6 @@ const TutorInputArea = ({
   isCompact: boolean;
   isGenerating: boolean;
   inputValue: string;
-  includeSketch: boolean;
-  sketchStatus: string;
   image?: StudentAnswerImage;
   messages: {
     id: string;
@@ -1197,7 +1120,6 @@ const TutorInputArea = ({
     createdAt: number;
   }[];
   setInputValue: (val: string) => void;
-  setIncludeSketch: (inc: boolean) => void;
   handleSend: () => void;
   handleStop: () => void;
   handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
@@ -1209,34 +1131,8 @@ const TutorInputArea = ({
       isCompact ? 'p-3' : 'p-5',
     )}
   >
-    <TutorSketchStatus sketchStatus={sketchStatus} isCompact={isCompact} />
-
     <div className='relative flex items-center gap-3'>
       <div className='flex flex-row gap-2 shrink-0'>
-        <Button
-          variant='ghost'
-          size='icon'
-          className={cn(
-            'shrink-0 transition-all active:scale-95 border border-transparent',
-            isCompact ? 'h-8 w-8 rounded-lg' : 'h-9 w-9 rounded-xl',
-            includeSketch
-              ? 'bg-primary/10 text-primary border-primary/30 shadow-[0_0_15px_-5px_rgba(var(--primary),0.3)] opacity-100'
-              : 'text-muted-foreground/70 hover:text-foreground hover:bg-muted',
-          )}
-          onClick={() => setIncludeSketch(!includeSketch)}
-          disabled={isGenerating}
-          title={includeSketch ? 'Sketch Attached' : 'Attach Sketchpad Content'}
-        >
-          <div className='relative'>
-            <PencilRuler className='h-4 w-4' />
-            {includeSketch && (
-              <motion.div
-                layoutId='sketch-dot'
-                className='absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full border-2 border-background'
-              />
-            )}
-          </div>
-        </Button>
         <Button
           variant='ghost'
           size='icon'
@@ -1328,44 +1224,6 @@ const TutorAttachmentPreviews = ({ image }: { image?: StudentAnswerImage }) => {
     </div>
   );
 };
-
-const TutorSketchStatus = ({
-  sketchStatus,
-  isCompact,
-}: {
-  sketchStatus: string;
-  isCompact: boolean;
-}) => (
-  <AnimatePresence>
-    {sketchStatus !== 'idle' && sketchStatus !== 'none' && (
-      <motion.div
-        initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-        animate={{
-          opacity: 1,
-          height: 'auto',
-          marginBottom: isCompact ? 8 : 12,
-        }}
-        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-        className='overflow-hidden'
-      >
-        <div className='flex items-center gap-2 px-1'>
-          <div className='flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-full px-3 py-1'>
-            {sketchStatus === 'processing' ? (
-              <Loader2 className='h-2.5 w-2.5 animate-spin text-primary' />
-            ) : (
-              <Activity className='h-2.5 w-2.5 text-primary animate-pulse' />
-            )}
-            <span className='font-mono uppercase tracking-[0.15em] text-[9px] text-primary/80 font-bold'>
-              {sketchStatus === 'processing'
-                ? 'Syncing Canvas'
-                : 'Uploading Context'}
-            </span>
-          </div>
-        </div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
 
 function calculateTutorMetrics(result: TutorChatResponse) {
   const totalTokens = result.total_tokens ?? result.totalTokens ?? 0;
@@ -1485,7 +1343,6 @@ export function TutorPanel({
   contextPrompt,
   studentAnswer,
   image,
-  sketchSessionKey,
   className,
 }: TutorPanelProps) {
   const {
@@ -1536,16 +1393,9 @@ export function TutorPanel({
     })),
   );
 
-  const effectiveSessionKey = sketchSessionKey || questionId;
-
   const { tutorModel, tutorPersona } = useAppSettings();
-  const providers = useAppStore((s) => s.providers);
-  const activeProviderId = useAppStore((s) => s.activeProviderId);
+  const [accountModels, setAccountModels] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [includeSketch, setIncludeSketch] = useState(false);
-  const [sketchStatus, setSketchStatus] = useState<
-    'idle' | 'processing' | 'sending' | 'none'
-  >('idle');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -1563,24 +1413,21 @@ export function TutorPanel({
   const activeModel = session?.modelOverride || tutorModel;
   const activePersona = session?.personaOverride || tutorPersona;
 
-  // Helper to get friendly model name with provider badge
-  const modelName = useMemo(() => {
-    if (!activeModel) return '';
-    const preset = [...PRESET_MODELS, ...PRESET_IMAGE_MODELS].find(
-      (m) => m.id === activeModel,
-    );
-    const name = preset
-      ? preset.name
-      : activeModel.split('/').pop() || activeModel;
-    // Resolve via providers + activeProviderId so NVIDIA / custom models
-    // stop mis-labelling as OpenRouter.
-    const provider = getProviderLabelForModel(
-      activeModel,
-      providers,
-      activeProviderId,
-    );
-    return provider ? `${name}  ·  ${provider}` : name;
-  }, [activeModel, providers, activeProviderId]);
+  const modelName = activeModel;
+
+  useEffect(() => {
+    let cancelled = false;
+    void listChatGPTModels()
+      .then((models) => {
+        if (!cancelled) setAccountModels(models);
+      })
+      .catch(() => {
+        if (!cancelled) setAccountModels([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Keyboard shortcuts (Cmd+Shift+T to toggle, Cmd+Shift+M for compact)
   useEffect(() => {
@@ -1688,31 +1535,8 @@ export function TutorPanel({
     return content.find((part) => part.type === 'text')?.text || '';
   };
 
-  const loadTutorSketchpadDataUrl = async (
-    input: string | TutorApiContentPart[],
-    appendUserMessage: boolean,
-  ): Promise<string | undefined> => {
-    if (
-      !appendUserMessage ||
-      !includeSketch ||
-      !effectiveSessionKey ||
-      typeof input !== 'string'
-    ) {
-      return undefined;
-    }
-
-    // Always export fresh from the live canvas at send time — never use sketchDataUrl
-    // state, which was captured at "Attach Sketch" button press and may be stale.
-    const retrieveLatestSketch = getLatestSketch;
-    const dataUrl = await retrieveLatestSketch(effectiveSessionKey, {
-      forceLightTheme: true,
-    });
-    return dataUrl;
-  };
-
   const buildTutorRequestDetails = (
     input: string | TutorApiContentPart[],
-    sketchpadDataUrl: string | undefined,
     appendUserMessage: boolean,
   ) => {
     if (!appendUserMessage) {
@@ -1722,7 +1546,7 @@ export function TutorPanel({
       };
     }
 
-    return prepareRequestParts(input, image?.dataUrl, sketchpadDataUrl);
+    return prepareRequestParts(input, image?.dataUrl);
   };
 
   const submitTutorChat = async ({
@@ -1751,24 +1575,8 @@ export function TutorPanel({
     setStreamedContent('');
 
     try {
-      // (debug log removed)
-      setSketchStatus('processing');
-
-      const sketchpadDataUrl = await loadTutorSketchpadDataUrl(
-        input,
-        appendUserMessage,
-      );
-      if (includeSketch && !sketchpadDataUrl) {
-        toast.error('Failed to capture sketch. Is the sketchpad active?');
-      }
-      setSketchStatus(sketchpadDataUrl ? 'sending' : 'none');
-
       if (storeUserMessage) {
-        const contentToStore = prepareContentToStore(
-          input,
-          image?.dataUrl,
-          sketchpadDataUrl,
-        );
+        const contentToStore = prepareContentToStore(input, image?.dataUrl);
         addMessage(questionId, {
           id: crypto.randomUUID(),
           role: 'user',
@@ -1778,32 +1586,16 @@ export function TutorPanel({
       }
 
       const { effectiveUserContent, currentRequestParts } =
-        buildTutorRequestDetails(input, sketchpadDataUrl, appendUserMessage);
-
-      // Resolve API credentials based on the model ID (not the active provider)
-      const credentials = getModelCredentials(activeModel, providers);
-      if (!credentials) {
-        toast.error(
-          'No valid API credentials configured for the selected model',
-        );
-        setIsGenerating(false);
-        setSketchStatus('idle');
-        setStreamedContent('');
-        return;
-      }
+        buildTutorRequestDetails(input, appendUserMessage);
 
       const result = await performTutorChat({
-        activeModel: credentials.modelId,
+        activeModel,
         activePersona,
         contextPrompt,
         studentAnswer,
         userMessageContent: effectiveUserContent,
         messages: historyMessages,
         image,
-        sketchpadDataUrl,
-        apiKey: credentials.apiKey,
-        baseUrl: credentials.baseUrl,
-        providerId: credentials.providerId,
         isDiagnostic,
         currentRequestParts,
         appendUserMessage,
@@ -1830,9 +1622,7 @@ export function TutorPanel({
       });
     } finally {
       setIsGenerating(false);
-      setSketchStatus('idle');
       setStreamedContent('');
-      setIncludeSketch(false);
     }
   };
 
@@ -1968,7 +1758,6 @@ export function TutorPanel({
     messages,
     streamedContent,
     showScrollButton,
-    sketchStatus,
     lastLayoutUpdate,
   ]);
 
@@ -2037,15 +1826,12 @@ export function TutorPanel({
   const prepareContentToStore = (
     input: string | TutorApiContentPart[],
     imageUrl?: string,
-    sketchUrl?: string,
   ): string | TutorApiContentPart[] => {
     if (Array.isArray(input)) return input;
 
     const parts: TutorApiContentPart[] = [{ type: 'text', text: input }];
     if (imageUrl)
       parts.push({ type: 'image_url', image_url: { url: imageUrl } });
-    if (sketchUrl)
-      parts.push({ type: 'image_url', image_url: { url: sketchUrl } });
 
     return parts.length > 1 ? parts : input;
   };
@@ -2053,7 +1839,6 @@ export function TutorPanel({
   const prepareRequestParts = (
     input: string | TutorApiContentPart[],
     imageUrl?: string,
-    sketchUrl?: string,
   ) => {
     if (Array.isArray(input)) {
       return {
@@ -2069,12 +1854,6 @@ export function TutorPanel({
       currentRequestParts.push({
         type: 'image_url',
         image_url: { url: imageUrl },
-      });
-    }
-    if (sketchUrl) {
-      currentRequestParts.push({
-        type: 'image_url',
-        image_url: { url: sketchUrl },
       });
     }
 
@@ -2187,8 +1966,11 @@ export function TutorPanel({
           clearSession={clearSession}
           handleExportTranscript={handleExportTranscript}
           studentAnswer={studentAnswer}
-          providers={providers}
-          activeProviderId={activeProviderId}
+          models={
+            activeModel && !accountModels.includes(activeModel)
+              ? [...accountModels, activeModel]
+              : accountModels
+          }
         />
 
         <TutorChatArea
@@ -2202,7 +1984,6 @@ export function TutorPanel({
           showContext={showContext}
           onToggleContext={toggleContextVisibility}
           streamedContent={streamedContent}
-          sketchStatus={sketchStatus}
           copiedId={copiedId}
           showScrollButton={showScrollButton}
           scrollAreaRef={scrollAreaRef}
@@ -2226,12 +2007,9 @@ export function TutorPanel({
           isCompact={isCompact}
           isGenerating={isGenerating}
           inputValue={inputValue}
-          includeSketch={includeSketch}
-          sketchStatus={sketchStatus}
           image={image}
           messages={messages}
           setInputValue={setInputValue}
-          setIncludeSketch={setIncludeSketch}
           handleSend={() => {
             void handleSend();
           }}

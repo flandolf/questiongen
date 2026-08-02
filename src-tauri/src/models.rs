@@ -31,7 +31,6 @@ impl AbortSignal {
 pub struct AppError {
     pub code: &'static str,
     pub message: String,
-    pub status: Option<u16>,
 }
 
 impl AppError {
@@ -39,26 +38,7 @@ impl AppError {
         Self {
             code,
             message: message.into(),
-            status: None,
         }
-    }
-
-    pub fn with_status(mut self, status: u16) -> Self {
-        self.status = Some(status);
-        self
-    }
-
-    pub fn is_transient(&self) -> bool {
-        if let Some(status) = self.status {
-            if status == 429 || (500..600).contains(&status) {
-                return true;
-            }
-        }
-
-        // Fallback for non-HTTP errors or explicit codes
-        matches!(self.code, "NETWORK_ERROR" | "TIMEOUT_ERROR")
-            || self.message.to_lowercase().contains("timeout")
-            || self.message.to_lowercase().contains("network")
     }
 }
 
@@ -88,33 +68,22 @@ impl From<std::io::Error> for AppError {
 
 pub type CommandResult<T> = Result<T, AppError>;
 
-// ─── Model Routing ────────────────────────────────────────────────────────────
-
-/// Canonical route shape: every AI task stores an explicit `{ providerId, modelId }`
-/// route. The backend resolves provider-specific behavior from `provider_id`
-/// instead of guessing from `base_url` heuristics.
+// ─── Model selection ──────────────────────────────────────────────────────────
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelRoute {
-    pub provider_id: String,
     pub model_id: String,
 }
 
 impl ModelRoute {
-    pub fn new(provider_id: impl Into<String>, model_id: impl Into<String>) -> Self {
+    pub fn new(model_id: impl Into<String>) -> Self {
         Self {
-            provider_id: provider_id.into(),
             model_id: model_id.into(),
         }
     }
 }
 
-/// Cost estimate quality labels. Display priority:
-/// 1. actual   — provider returned exact cost in response
-/// 2. priced   — known per-token pricing from provider catalogue
-/// 3. manual   — user-provided pricing override
-/// 4. estimated — rough heuristic fallback
-/// 5. unknown  — no pricing data available
+/// Cost estimate quality labels.
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -127,7 +96,6 @@ pub enum CostQuality {
 }
 
 /// Unified streaming event contract for all text LLM calls.
-/// Provider-specific event names are replaced by one canonical set.
 #[derive(Debug, Clone)]
 pub enum LlmStreamEvent {
     Start {
@@ -232,42 +200,6 @@ impl Serialize for LlmStreamEvent {
     }
 }
 
-// ─── OpenAI-compatible chat wire types (provider-neutral) ─────────────────────
-
-#[derive(Debug, Deserialize)]
-pub struct ChatCompletionResponse {
-    pub choices: Vec<ChatCompletionChoice>,
-    pub usage: Option<ChatCompletionUsage>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ChatCompletionChoice {
-    pub message: ChatCompletionMessage,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ChatCompletionMessage {
-    pub content: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ChatCompletionUsage {
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub total_tokens: u32,
-    #[serde(default)]
-    pub completion_tokens_details: Option<ChatCompletionTokenDetails>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ChatCompletionTokenDetails {
-    #[serde(default)]
-    pub reasoning_tokens: Option<u32>,
-}
-
-// Back-compat alias for existing code referencing OpenRouter wire types
-pub type OpenRouterResponse = ChatCompletionResponse;
-
 // ─── Shared question types ────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -320,12 +252,6 @@ pub struct GenerateQuestionsRequest {
     pub difficulty: String,
     pub question_count: usize,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    /// Explicit provider id so the backend does not have to guess from base_url.
-    /// When absent, falls back to base_url heuristics for backward compatibility.
-    #[serde(default)]
-    pub provider_id: Option<String>,
     pub include_exam_context: Option<bool>,
     pub tech_mode: Option<String>,
     pub subtopics: Option<Vec<String>>,
@@ -391,11 +317,6 @@ pub struct MarkAnswerRequest {
     #[serde(default)]
     pub student_answer_image_data_urls: Option<Vec<String>>,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    /// Explicit provider id so the backend does not have to guess from base_url.
-    #[serde(default)]
-    pub provider_id: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
     #[serde(default)]
@@ -507,10 +428,6 @@ pub struct McOptionExplanation {
 pub struct AnalyzeImageRequest {
     pub image_path: String,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub provider_id: Option<String>,
     pub prompt: Option<String>,
 }
 
@@ -536,10 +453,6 @@ pub struct TutorMessage {
 pub struct TutorChatRequest {
     pub messages: Vec<TutorMessage>,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub provider_id: Option<String>,
     /// If true, triggers diagnostic mode (lower temperature for precise analysis).
     pub diagnostic: Option<bool>,
 }
@@ -561,10 +474,6 @@ pub struct TutorChatResponse {
 #[serde(rename_all = "camelCase")]
 pub struct CleanupTopicsRequest {
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub provider_id: Option<String>,
     pub unknown_topics: Vec<String>,
     pub canonical_topics: Vec<String>,
 }
@@ -612,10 +521,6 @@ pub struct MarkPdfRequest {
     pub questions: Vec<GeneratedQuestion>,
     pub page_mapping: Vec<MarkPdfPageMapping>,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub provider_id: Option<String>,
     pub marker_style: Option<String>,
     pub custom_marker_style: Option<String>,
     #[serde(default)]
@@ -636,10 +541,6 @@ pub struct MarkPdfPageMapping {
 pub struct DiscoverPdfQuestionsRequest {
     pub pdf_base64: String,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub provider_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -718,10 +619,6 @@ pub struct GenerateMcQuestionsRequest {
     pub difficulty: String,
     pub question_count: usize,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub provider_id: Option<String>,
     pub include_exam_context: Option<bool>,
     pub tech_mode: Option<String>,
     pub subtopics: Option<Vec<String>>,
@@ -775,10 +672,6 @@ pub struct GenerateMcQuestionsResponse {
 pub struct GenerateSubtopicsRequest {
     pub topic: String,
     pub model: String,
-    pub api_key: String,
-    pub base_url: Option<String>,
-    #[serde(default)]
-    pub provider_id: Option<String>,
     pub existing_subtopics: Option<Vec<String>>,
     pub focus_area: Option<String>,
     pub pdf_content: Option<String>,
@@ -814,8 +707,6 @@ pub struct GenerateSubtopicsResponse {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PersistedSettings {
-    #[serde(default)]
-    pub api_key: String,
     #[serde(default = "default_model")]
     pub model: String,
     #[serde(default = "default_model")]
@@ -836,8 +727,6 @@ pub struct PersistedSettings {
     pub include_exam_context: bool,
     #[serde(default)]
     pub auto_sync_interval_minutes: u32,
-    #[serde(default)]
-    pub sync_api_key: bool,
     #[serde(default)]
     pub local_backup_folder_path: String,
     #[serde(default)]

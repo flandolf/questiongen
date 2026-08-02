@@ -1,20 +1,11 @@
-use crate::llm::{
-    is_anthropic_model, json_object_format, json_schema_format, json_schema_format_anthropic,
-    supports_json_schema_format_for, supports_json_schema_format_for_base_url,
-};
-
-/// Helper: resolve whether a provider supports json_schema.
-fn supports_schema(model: &str, provider_id: Option<&str>, base_url: &str) -> bool {
-    match provider_id {
-        Some(id) => supports_json_schema_format_for(model, id),
-        None => supports_json_schema_format_for_base_url(model, base_url),
-    }
+fn json_schema_format(name: &str, schema: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": { "name": name, "strict": true, "schema": schema }
+    })
 }
 
-pub fn written_format(model: &str, base_url: &str, provider_id: Option<&str>) -> serde_json::Value {
-    if !supports_schema(model, provider_id, base_url) {
-        return json_object_format();
-    }
+pub fn written_format() -> serde_json::Value {
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -54,17 +45,10 @@ pub fn written_format(model: &str, base_url: &str, provider_id: Option<&str>) ->
         }
     });
 
-    if is_anthropic_model(model) {
-        json_schema_format_anthropic("written_questions", schema)
-    } else {
-        json_schema_format("written_questions", schema)
-    }
+    json_schema_format("written_questions", schema)
 }
 
-pub fn mc_format(model: &str, base_url: &str, provider_id: Option<&str>) -> serde_json::Value {
-    if !supports_schema(model, provider_id, base_url) {
-        return json_object_format();
-    }
+pub fn mc_format() -> serde_json::Value {
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -127,17 +111,10 @@ pub fn mc_format(model: &str, base_url: &str, provider_id: Option<&str>) -> serd
         }
     });
 
-    if is_anthropic_model(model) {
-        json_schema_format_anthropic("mc_questions", schema)
-    } else {
-        json_schema_format("mc_questions", schema)
-    }
+    json_schema_format("mc_questions", schema)
 }
 
-pub fn marking_format(model: &str, base_url: &str, provider_id: Option<&str>) -> serde_json::Value {
-    if !supports_schema(model, provider_id, base_url) {
-        return json_object_format();
-    }
+pub fn marking_format() -> serde_json::Value {
     let schema = serde_json::json!({
         "type": "object",
         "additionalProperties": false,
@@ -243,11 +220,7 @@ pub fn marking_format(model: &str, base_url: &str, provider_id: Option<&str>) ->
         }
     });
 
-    if is_anthropic_model(model) {
-        json_schema_format_anthropic("mark_answer", schema)
-    } else {
-        json_schema_format("mark_answer", schema)
-    }
+    json_schema_format("mark_answer", schema)
 }
 
 #[cfg(test)]
@@ -256,11 +229,7 @@ mod tests {
 
     #[test]
     fn marking_schema_requires_every_declared_property_for_strict_mode() {
-        let format = marking_format(
-            "openai/gpt-5.4-mini",
-            crate::constants::DEFAULT_OPENROUTER_BASE_URL,
-            None,
-        );
+        let format = marking_format();
         let schema = &format["json_schema"]["schema"];
         let properties = schema["properties"].as_object().unwrap();
         let required = schema["required"].as_array().unwrap();

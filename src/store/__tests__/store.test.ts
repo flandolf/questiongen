@@ -8,8 +8,7 @@ describe('AppStore', () => {
     // Since Zustand stores are singletons in this setup, we might need to manually reset
     // Manual reset of some key properties for testing
     useAppStore.setState({
-      apiKey: '',
-      model: 'gpt-4o',
+      model: '',
       questions: [],
       mcQuestions: [],
       selectedTopics: [],
@@ -18,13 +17,13 @@ describe('AppStore', () => {
 
   it('should have initial state', () => {
     const state = useAppStore.getState();
-    expect(state.apiKey).toBe('');
+    expect(state.model).toBe('');
     expect(state.isGenerating).toBe(false);
   });
 
-  it('should update API key', () => {
-    useAppStore.getState().setApiKey('test-key');
-    expect(useAppStore.getState().apiKey).toBe('test-key');
+  it('should update the ChatGPT model', () => {
+    useAppStore.getState().setModel('gpt-5.6-sol');
+    expect(useAppStore.getState().model).toBe('gpt-5.6-sol');
   });
 
   it('should update selected topics', () => {

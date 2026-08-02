@@ -23,9 +23,9 @@ want to understand, maintain, or extend the app.
 - `src/` — frontend source code (TypeScript + React):
   - `App.tsx`, `main.tsx` — app entry and root layout.
   - `store.ts` — primary client-side store and shared state interfaces.
-  - `AppContext.tsx` — global React contexts for app-level state and providers.
+  - `AppContext.tsx` — focused selector hooks for app-level state.
   - `components/` — UI components, grouped by feature (layout, question, ui,
-    theme, sketchpad, etc.).
+    theme, tutor, etc.).
   - `hooks/` — custom React hooks used across the app.
   - `lib/` — core logic modules (see below).
   - `views/` — top-level pages and feature views (GeneratorView, AnalyticsView,
@@ -91,20 +91,18 @@ want to understand, maintain, or extend the app.
 5. UI layer and components
    - Files: `src/components/` and `src/views/`.
    - Responsibilities:
-     - Present generation controls, editor and preview, sketchpad tooling,
-       analytics dashboards, history, and settings.
+     - Present generation controls, answer entry and upload, analytics
+       dashboards, history, and settings.
      - Components are split by feature (layout/header, question UI,
-       markdown/math rendering, sketchpad, theme provider).
-     - `MarkdownMath.tsx` handles rendering mixed Markdown + math;
-       `Sketchpad.tsx` + `sketchpad-renderer.ts` handle sketch capture and
-       rendering.
+       markdown/math rendering, tutor, theme).
+     - `MarkdownMath.tsx` handles rendering mixed Markdown + math.
 
-6. Sketchpad and drawing pipeline
-   - Files: `src/components/Sketchpad.tsx`, `lib/sketchpad-renderer.ts`,
-     `src/components/sketchpadUtils.ts`.
-   - Purpose: capture freehand input, raster/vector export, and integrate
-     sketches into questions or answers. Includes performance optimizations and
-     persistence hooks.
+6. ChatGPT account integration
+   - Files: `server/`, `src/lib/chatgpt.ts`, `src-tauri/src/chatgpt.rs`, and
+     `src-tauri/src/engine/chatgpt.rs`.
+   - Purpose: run the Login with ChatGPT handler in a bundled local sidecar,
+     discover account models, and route native generation and marking through
+     the authenticated local server.
 
 7. Spaced repetition and study flows
    - Files: `lib/spaced-repetition.ts`, `types/spaced-repetition.ts`.
@@ -126,8 +124,8 @@ want to understand, maintain, or extend the app.
     - Purpose: platform features such as file-system access, local native
       persistence, special parsing or heavy compute done in Rust for
       performance.
-    - Notable modules: `parsing.rs`, `persistence.rs`, `quality.rs`,
-      `openrouter.rs` (model/adapter helpers).
+    - Notable modules: `parsing.rs`, `persistence.rs`, `quality.rs`, and
+      `engine/chatgpt.rs`.
 
 ## Data flow (typical generation flow)
 
@@ -183,19 +181,16 @@ want to understand, maintain, or extend the app.
 
 ## Notes and known places to inspect
 
-- `lib/token-estimation.ts` — useful when adding new model providers to estimate
-  cost.
+- `lib/token-estimation.ts` — generation token estimation.
 - `lib/math-normalization.ts` — central for any math/LaTeX changes.
-- `src/components/Sketchpad.tsx` and `lib/sketchpad-renderer.ts` — for
-  visual/sketch changes.
-- `store.ts` and `AppContext.tsx` — if you need to change app-wide state or
-  providers.
+- `store.ts` and `AppContext.tsx` — app-wide state and selector hooks.
+- `server/` and `src-tauri/src/engine/chatgpt.rs` — ChatGPT authentication and
+  completion routing.
 
 ## JSON Schemas (model response formats)
 
 The Rust backend exposes named JSON schema response formats used when calling
-LLMs. These are defined in `src-tauri/src/lib.rs` and wrapped by helper builders
-in `src-tauri/src/openrouter.rs`.
+ChatGPT. These are defined in `src-tauri/src/schemas.rs`.
 
 - **written_questions**: expected response for written (long-form) questions.
 
@@ -335,10 +330,3 @@ in `src-tauri/src/openrouter.rs`.
   }
 }
 ```
-
-Notes:
-
-- The Rust code wraps these schemas with `json_schema_format` or
-  `json_schema_format_anthropic` (see
-  [src-tauri/src/openrouter.rs](src-tauri/src/openrouter.rs#L522)), which
-  adjusts constraints for Anthropic model compatibility.

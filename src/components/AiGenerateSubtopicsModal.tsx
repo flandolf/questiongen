@@ -7,8 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAppStore } from '@/store';
 import type { CustomSubtopic, GeneratedSubtopic, Topic } from '@/types';
-import { getModelCredentials } from '@/types/provider';
-import { PRESET_MODELS } from '@/views/settings/constants';
 
 interface AiGenerateSubtopicsModalProps {
   open: boolean;
@@ -25,10 +23,7 @@ export function AiGenerateSubtopicsModal({
   onAdd,
   onClose,
 }: AiGenerateSubtopicsModalProps) {
-  const providers = useAppStore((s) => s.providers);
-  const [model, setModel] = useState(
-    PRESET_MODELS[0]?.id || 'anthropic/claude-3.5-sonnet',
-  );
+  const model = useAppStore((s) => s.model);
   const [focusArea, setFocusArea] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
@@ -66,22 +61,12 @@ export function AiGenerateSubtopicsModal({
     setError(null);
     void (async () => {
       try {
-        const credentials = getModelCredentials(model, providers);
-        if (!credentials) {
-          setError('No valid API credentials configured for selected model');
-          setIsGenerating(false);
-          return;
-        }
-
         const response = await invoke<{ subtopics: GeneratedSubtopic[] }>(
           'generate_subtopics',
           {
             request: {
               topic,
-              model: credentials.modelId,
-              apiKey: credentials.apiKey,
-              baseUrl: credentials.baseUrl,
-              providerId: credentials.providerId,
+              model,
               existingSubtopics: existingSubtopicNames,
               focusArea,
               pdfContent: pdfBase64,
@@ -183,21 +168,6 @@ export function AiGenerateSubtopicsModal({
 
         <div className='flex-1 overflow-y-auto'>
           <div className='px-6 py-5 space-y-6'>
-            <div className='space-y-2'>
-              <Label className='text-sm font-medium'>Model</Label>
-              <select
-                className='flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20'
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-              >
-                {PRESET_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div className='space-y-2'>
               <Label className='text-sm font-medium text-muted-foreground'>
                 Focus area (optional)

@@ -15,10 +15,6 @@ Key responsibilities:
   stored privately in Supabase Storage when cloud sync is enabled.
 - [src/lib/question-cache.ts](src/lib/question-cache.ts#L1) — Cache layer for
   generated questions.
-- [src/lib/sketchpad-renderer.ts](src/lib/sketchpad-renderer.ts#L1) /
-  [src/components/sketchpadUtils.ts](src/components/sketchpadUtils.ts#L1) —
-  Sketchpad rendering and utilities.
-
 Developer notes:
 
 - Core logic is covered by unit tests in

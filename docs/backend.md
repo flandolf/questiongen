@@ -1,7 +1,7 @@
 **Backend / Tauri (src-tauri) Guide**
 
 Summary: Native Rust code provides JSON schema validation, prompt processing,
-parsing, PDF/Anki export, and integrations (OpenRouter). Key files:
+parsing, PDF/Anki export, and local ChatGPT sidecar integration. Key files:
 
 - [src-tauri/src/main.rs](src-tauri/src/main.rs#L1) — Tauri command registration
   and bridge to frontend.

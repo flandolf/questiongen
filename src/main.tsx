@@ -11,7 +11,6 @@ import {
   persistUiPrefsAppearance,
   resolveCurrentMode,
   resolveInitialAppearance,
-  setupAndroidViewportHeight,
 } from './lib/appearance-bootstrap';
 
 function bootstrap() {
@@ -29,8 +28,6 @@ function bootstrap() {
     customThemeSeedColor: initialAppearance.customThemeSeedColor,
     customThemeVars,
   });
-
-  setupAndroidViewportHeight();
 
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <StrictMode>

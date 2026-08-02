@@ -19,7 +19,7 @@ fn extract_value(raw: &str) -> CommandResult<serde_json::Value> {
     if raw.trim().is_empty() {
         return Err(AppError::new(
             "MODEL_PARSE_ERROR",
-            "The model returned an empty response. This often means the model does not support the requested output format (e.g. JSON schema) on this provider.",
+            "ChatGPT returned an empty response.",
         ));
     }
 

@@ -8,8 +8,8 @@ Specialist Mathematics, Chemistry, and Physical Education.
 
 ## Features
 
-- **AI-Powered Question Generation**: Uses OpenRouter API to generate exam-style
-  questions aligned with VCE study design
+- **AI-Powered Question Generation**: Uses models available on the connected
+  ChatGPT account to generate exam-style questions aligned with VCE study design
 - **Multiple Question Types**: Support for multiple-choice (4 options) and
   written-response questions
 - **Subject Coverage**:
@@ -34,8 +34,8 @@ Specialist Mathematics, Chemistry, and Physical Education.
 - **Desktop**: Tauri 2 (Rust backend)
 - **State Management**: Zustand
 - **Math Rendering**: MathJax 4
-- **AI**: OpenRouter API with streaming support
-- **File Handling**: PDF parsing via OpenRouter plugins
+- **AI**: Login with ChatGPT through a bundled local sidecar
+- **File Handling**: PDF input through ChatGPT's authenticated response proxy
 - **Analytics**: Recharts for data visualization
 
 ## Development
@@ -96,7 +96,7 @@ src/
 src-tauri/
 ├── src/
 │   ├── lib.rs          # Rust backend with Tauri commands
-│   ├── openrouter.rs   # OpenRouter API integration
+│   ├── engine/         # Prompting, ChatGPT routing, and validation
 │   ├── parsing.rs      # Question parsing/validation
 │   ├── persistence.rs  # Local storage
 │   └── quality.rs      # Question distinctness scoring
@@ -110,8 +110,8 @@ reports/                # VCAA examiners' reports (PDFs excluded from git)
 The app follows a hybrid architecture:
 
 - **React Frontend**: UI, state management, routing
-- **Tauri Backend**: File system access, PDF I/O, API proxying
-- **OpenRouter**: AI model inference with streaming
+- **Tauri Backend**: File system access, PDF I/O, and local sidecar lifecycle
+- **ChatGPT**: Account authentication and model inference through Login with ChatGPT
 - **Local-first**: Persistent storage via Tauri's filesystem APIs
 - **Optional Cloud**: Supabase for realtime sync and private answer-image storage
 
@@ -123,7 +123,7 @@ The app follows a hybrid architecture:
 2. Optional: Attach exam PDFs for style reference
 3. Optional: Include examiners' reports for marking guidance
 4. Backend constructs prompt with VCE-specific rules and constraints
-5. OpenRouter streams response with JSON schema enforcement
+5. The local ChatGPT sidecar requests a structured response
 6. Questions are parsed, validated, and scored for distinctness
 7. Results are stored locally and optionally synced to Supabase, including answer images
 

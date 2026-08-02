@@ -27,15 +27,8 @@ import Titlebar from './Titlebar';
  *  - border-border  → var(--border-subtle)
  */
 export function AppShell() {
-  const [isAndroid, setIsAndroid] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const theme = useAppStore((s) => s.theme);
-
-  useEffect(() => {
-    if (typeof navigator !== 'undefined') {
-      setIsAndroid(/Android/i.test(navigator.userAgent));
-    }
-  }, []);
 
   useEffect(() => {
     void applyDesignTheme(theme);
@@ -62,15 +55,13 @@ export function AppShell() {
   return (
     <TooltipProvider delayDuration={120}>
       <div className='app-shell flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground'>
-        {!isAndroid && <Titlebar />}
+        <Titlebar />
 
         <SidebarProvider
           className='min-h-0 flex-1'
           style={
             {
-              '--sidebar-top': isAndroid
-                ? 'var(--android-status-bar-offset)'
-                : '2.25rem',
+              '--sidebar-top': '2.25rem',
             } as React.CSSProperties
           }
         >

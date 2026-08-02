@@ -39,14 +39,9 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type { AppState } from '@/store/types';
 import type { GeneratedQuestion, MarkAnswerResponse } from '@/types';
-import type { ProviderState } from '@/types/provider';
 
-import { MARKER_STYLE_OPTIONS, PRESET_MODELS } from './settings/constants';
-import { ModelSearchPanel } from './settings/ModelSearchPanel';
+import { MARKER_STYLE_OPTIONS } from './settings/constants';
 import {
-  CustomModelInput,
-  FieldGroup,
-  ModelSelectRow,
   STAGGER_CONTAINER_VARIANTS,
   STAGGER_ITEM_VARIANTS,
 } from './settings/SettingsUI';
@@ -342,83 +337,20 @@ const QuestionItem = ({
 };
 
 interface MarkingSettingsProps {
-  apiKey: string;
-  markingModel: string;
   markerStyle: AppState['markerStyle'];
   customMarkerStyle: string;
-  showCustomModel: boolean;
-  customModelId: string;
-  setMarkingModel: (v: string) => void;
   setMarkerStyle: (v: AppState['markerStyle']) => void;
   setCustomMarkerStyle: (v: string) => void;
-  setCustomModelId: (v: string) => void;
-  setShowCustomModel: (v: boolean) => void;
-  setSearchOpen: (v: boolean) => void;
-  /** Provider context for accurate per-model badges. */
-  providers?: Record<string, ProviderState>;
-  activeProviderId?: string;
 }
 
 const MarkingSettings = ({
-  apiKey,
-  markingModel,
   markerStyle,
   customMarkerStyle,
-  showCustomModel,
-  customModelId,
-  setMarkingModel,
   setMarkerStyle,
   setCustomMarkerStyle,
-  setCustomModelId,
-  setShowCustomModel,
-  setSearchOpen,
-  providers,
-  activeProviderId,
 }: MarkingSettingsProps) => {
   return (
     <div className='p-4 space-y-4'>
-      <FieldGroup label='Marking Model' htmlFor='pdf-model-select'>
-        <ModelSelectRow
-          id='pdf-model-select'
-          value={markingModel}
-          models={PRESET_MODELS}
-          disabled={!apiKey}
-          providers={providers}
-          activeProviderId={activeProviderId}
-          onSelect={(v) => {
-            if (v === 'custom') {
-              setShowCustomModel(true);
-            } else {
-              setShowCustomModel(false);
-              setMarkingModel(v);
-            }
-          }}
-          onSearch={() => setSearchOpen(true)}
-        />
-      </FieldGroup>
-
-      <AnimatePresence>
-        {showCustomModel && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className='overflow-hidden'
-          >
-            <CustomModelInput
-              id='pdf-custom-model-id'
-              label='Custom Model ID'
-              value={customModelId}
-              onChange={setCustomModelId}
-              onApply={() => {
-                setMarkingModel(customModelId.trim());
-                setShowCustomModel(false);
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className='space-y-3'>
         <Label className='text-[10px] uppercase font-bold tracking-wider text-muted-foreground opacity-70'>
           Marking Strategy
@@ -479,11 +411,8 @@ const MarkingSettings = ({
 export function PDFMarkerView() {
   const navigate = useNavigate();
   const {
-    apiKey,
-    markingModel,
     markerStyle,
     customMarkerStyle,
-    setMarkingModel,
     setMarkerStyle,
     setCustomMarkerStyle,
     pdfMarkerPdfBase64,
@@ -502,14 +431,8 @@ export function PDFMarkerView() {
     discoverPdfQuestions,
     resetPdfMarker,
   } = useAppStore();
-  const providers = useAppStore((s) => s.providers);
-  const activeProviderId = useAppStore((s) => s.activeProviderId);
-
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showCustomModel, setShowCustomModel] = useState(false);
-  const [customModelId, setCustomModelId] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [scrollToPage, setScrollToPage] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1.5);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
@@ -793,18 +716,6 @@ export function PDFMarkerView() {
   return (
     <TooltipProvider>
       <div className='flex h-full gap-4 p-6 overflow-hidden bg-background'>
-        {searchOpen && (
-          <ModelSearchPanel
-            target='marking'
-            apiKey={apiKey}
-            onClose={() => setSearchOpen(false)}
-            onSelect={(id) => {
-              setMarkingModel(id);
-              setShowCustomModel(false);
-              setSearchOpen(false);
-            }}
-          />
-        )}
         {/* Left Panel: Questions and Mapping */}
         <div className='w-1/3 flex flex-col gap-4 min-w-100'>
           <Card className='flex-1 overflow-hidden flex flex-col shadow-xl border-border/40 bg-card/50 backdrop-blur-md'>
@@ -923,20 +834,10 @@ export function PDFMarkerView() {
                   className='overflow-hidden border-b bg-muted/10'
                 >
                   <MarkingSettings
-                    apiKey={apiKey}
-                    markingModel={markingModel}
                     markerStyle={markerStyle}
                     customMarkerStyle={customMarkerStyle}
-                    showCustomModel={showCustomModel}
-                    customModelId={customModelId}
-                    setMarkingModel={setMarkingModel}
                     setMarkerStyle={setMarkerStyle}
                     setCustomMarkerStyle={setCustomMarkerStyle}
-                    setCustomModelId={setCustomModelId}
-                    setShowCustomModel={setShowCustomModel}
-                    setSearchOpen={setSearchOpen}
-                    providers={providers}
-                    activeProviderId={activeProviderId}
                   />
                 </motion.div>
               )}

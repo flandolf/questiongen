@@ -103,12 +103,10 @@ function mergeCustomSubtopics(
 }
 
 type SettingsProfileUpdates = Partial<
-  Pick<AppState, 'apiKey' | 'studyGoals' | 'streakData' | 'presets'>
+  Pick<AppState, 'studyGoals' | 'streakData' | 'presets'>
 >;
 
 type SettingsProfile = {
-  apiKey?: string;
-  providerKeys?: Record<string, string>;
   studyGoals?: StudyGoals;
   streakData?: StreakData;
   presets?: Preset[];
@@ -120,22 +118,12 @@ function applySettingsProfile(
   localWriteTimestamp: number,
 ) {
   if ((profile.lastModified ?? 0) <= localWriteTimestamp) return;
-  const state = useAppStore.getState();
   const updates: SettingsProfileUpdates = {};
-  if (state.syncApiKey && 'apiKey' in profile)
-    updates.apiKey = profile.apiKey ?? '';
   if (profile.studyGoals) updates.studyGoals = profile.studyGoals;
   if (profile.streakData) updates.streakData = profile.streakData;
   if (profile.presets) updates.presets = profile.presets;
 
-  if (state.syncApiKey && profile.providerKeys) {
-    const providers = { ...state.providers };
-    for (const [id, apiKey] of Object.entries(profile.providerKeys)) {
-      if (providers[id]) providers[id] = { ...providers[id], apiKey };
-    }
-    updates.apiKey = providers[state.activeProviderId]?.apiKey ?? updates.apiKey;
-    useAppStore.setState({ ...updates, providers });
-  } else if (Object.keys(updates).length > 0) {
+  if (Object.keys(updates).length > 0) {
     useAppStore.setState(updates);
   }
 }
@@ -151,7 +139,6 @@ const EMPTY_CUSTOM_SUBTOPICS: Record<Topic, CustomSubtopic[]> = {
 
 function resetUserScopedSyncState() {
   useAppStore.setState({
-    apiKey: EMPTY_PERSISTED_APP_STATE.settings.apiKey,
     studyGoals: EMPTY_PERSISTED_APP_STATE.studyGoals,
     streakData: EMPTY_PERSISTED_APP_STATE.streakData,
     presets: EMPTY_PERSISTED_APP_STATE.presets,

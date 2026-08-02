@@ -1,26 +1,10 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, CheckCircle2, Search } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import {
-  getProviderLabelForModel,
-  type PresetModel,
-  type ProviderResolutionContext,
-  type ProviderState,
-} from '@/types/provider';
-import { getProviderLabel } from '@/views/settings/constants';
 
 export const SECTION_ANIMATION_VARIANTS = {
   hidden: { opacity: 0, y: 10, filter: 'blur(10px)' },
@@ -65,38 +49,17 @@ export function AnimatedSection({
   children: React.ReactNode;
   className?: string;
 }) {
-  const isAndroid =
-    typeof document !== 'undefined' &&
-    document.documentElement.classList.contains('platform-android');
-
-  const itemVariants = isAndroid
-    ? {
-        hidden: { opacity: 0, y: 10, z: 0 },
-        visible: {
-          opacity: 1,
-          y: 0,
-          z: 0,
-          transition: { duration: 0.3, ease: 'easeOut' as const },
-        },
-      }
-    : STAGGER_ITEM_VARIANTS;
-
   return (
     <motion.div
       variants={STAGGER_CONTAINER_VARIANTS}
       initial='hidden'
       animate='visible'
       className={className}
-      style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
     >
       {React.Children.map(children, (child, index) => {
         if (!React.isValidElement(child)) return child;
         return (
-          <motion.div
-            key={child.key ?? index}
-            variants={itemVariants}
-            style={isAndroid ? { willChange: 'opacity, transform' } : undefined}
-          >
+          <motion.div key={child.key ?? index} variants={STAGGER_ITEM_VARIANTS}>
             {child}
           </motion.div>
         );
@@ -104,7 +67,6 @@ export function AnimatedSection({
     </motion.div>
   );
 }
-
 export function SectionHeader({
   title,
   description,
@@ -259,194 +221,6 @@ export function ToggleRow({
             {description}
           </p>
         )}
-      </div>
-    </div>
-  );
-}
-
-export function ModelSelectRow({
-  id,
-  value,
-  models,
-  disabled,
-  onSelect,
-  onSearch,
-  placeholder = 'Select model...',
-  providers,
-  activeProviderId,
-  resolutionContext,
-}: {
-  id: string;
-  value: string;
-  models: PresetModel[];
-  disabled?: boolean;
-  onSelect: (v: string) => void;
-  onSearch?: () => void;
-  placeholder?: string;
-  /**
-   * Optional context for accurate per-provider labelling. When provided,
-   * NVIDIA + custom-provider models stop mis-labelling as "OpenRouter".
-   * Falls back to the shape-only heuristic when omitted.
-   */
-  providers?: Record<string, ProviderState>;
-  activeProviderId?: string;
-  /** Optional rich resolution context (catalog Sets, listing hints etc.).
-   *  Per-row `providerId` from each preset item is threaded automatically
-   *  as the listing hint. */
-  resolutionContext?: ProviderResolutionContext;
-}) {
-  // Resolve a label for a single model id using whichever context is available.
-  // Provider-context path uses the accurate `getProviderForModel` resolver
-  // (NVIDIA-priority for author/slug, custom providers for non-built-in ids).
-  const resolveLabel = React.useCallback(
-    (modelId: string, listingProviderId?: string): string => {
-      if (!providers) return getProviderLabel(modelId, activeProviderId);
-      const ctx: ProviderResolutionContext = {
-        ...(resolutionContext ?? {}),
-        activeProviderId,
-        listingProviderId,
-      };
-      return getProviderLabelForModel(modelId, providers, ctx);
-    },
-    [providers, activeProviderId, resolutionContext],
-  );
-  const isKnown = models.some((m) => m.id === value);
-  const extraEntry =
-    !isKnown && value && value !== 'custom'
-      ? [
-          {
-            id: value,
-            name: value.includes('/')
-              ? value.split('/').slice(1).join('/')
-              : value,
-          },
-        ]
-      : [];
-  const selectVal = value && value !== 'custom' ? value : isKnown ? value : '';
-
-  return (
-    <div className='flex flex-row items-center gap-2'>
-      <Select value={selectVal} onValueChange={onSelect} disabled={disabled}>
-        <SelectTrigger
-          id={id}
-          className='flex-1 min-w-0 h-9 bg-background/50 border-border/40 hover:bg-muted/50 transition-colors text-xs font-medium'
-        >
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent className='max-h-80'>
-          {extraEntry.map((m) => {
-            const provider = resolveLabel(m.id);
-            return (
-              <SelectItem
-                key={m.id}
-                value={m.id}
-                className='text-xs font-medium'
-              >
-                <span className='flex items-center gap-2 min-w-0'>
-                  <span className='truncate font-mono text-[10px] opacity-70'>
-                    {m.name}
-                  </span>
-                  {provider && (
-                    <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
-                      {provider}
-                    </span>
-                  )}
-                  <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold leading-none'>
-                    custom
-                  </span>
-                </span>
-              </SelectItem>
-            );
-          })}
-          {extraEntry.length > 0 && (
-            <div className='my-1 border-t border-border/40' />
-          )}
-          {models.map((m) => {
-            const provider =
-              m.id !== 'custom' ? resolveLabel(m.id, m.providerId) : '';
-            return (
-              <SelectItem
-                key={m.id}
-                value={m.id}
-                className='text-xs font-medium'
-              >
-                {m.id === 'custom' ? (
-                  m.name
-                ) : (
-                  <span className='flex items-center gap-2 min-w-0'>
-                    <span className='truncate'>{m.name}</span>
-                    {provider && (
-                      <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
-                        {provider}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </SelectItem>
-            );
-          })}
-        </SelectContent>
-      </Select>
-      {onSearch && (
-        <Button
-          variant='outline'
-          size='icon'
-          disabled={disabled}
-          onClick={onSearch}
-          title='Search provider models'
-          className='h-9 w-9 border-border/40 hover:bg-primary/5 hover:text-primary transition-all active:scale-90'
-        >
-          <Search className='h-3.5 w-3.5' />
-        </Button>
-      )}
-    </div>
-  );
-}
-
-export function CustomModelInput({
-  id,
-  value,
-  onChange,
-  onApply,
-  label,
-  hint,
-}: {
-  id: string;
-  value: string;
-  onChange: (v: string) => void;
-  onApply: () => void;
-  label: string;
-  hint?: string;
-}) {
-  return (
-    <div className='p-4 rounded-xl border border-border/40 bg-muted/40 shadow-inner space-y-4'>
-      <FieldGroup
-        label={label}
-        htmlFor={id}
-        hint={
-          hint ?? 'Format: provider/model-name (e.g. anthropic/claude-3-opus)'
-        }
-      >
-        <div className='relative'>
-          <Input
-            id={id}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder='provider/model-name'
-            className='font-mono text-xs h-9 bg-background/80 border-border/40 focus:ring-primary/30 transition-all'
-            onKeyDown={(e) => e.key === 'Enter' && value.trim() && onApply()}
-          />
-        </div>
-      </FieldGroup>
-      <div className='flex justify-end'>
-        <Button
-          size='sm'
-          disabled={!value.trim()}
-          onClick={onApply}
-          className='h-8 text-xs font-semibold px-4 active:scale-95 transition-transform'
-        >
-          Initialize Engine
-        </Button>
       </div>
     </div>
   );

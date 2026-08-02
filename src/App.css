@@ -89,14 +89,6 @@ body,
   height: 100%;
 }
 
-:root {
-  --android-status-bar-offset: 0px;
-}
-
-.platform-android {
-  --android-status-bar-offset: max(env(safe-area-inset-top, 0px), 28px);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -138,16 +130,6 @@ body,
   body {
     min-height: 100vh;
     background: var(--color-background);
-  }
-
-  .app-shell {
-    padding-top: var(--android-status-bar-offset);
-  }
-
-  .platform-android .android-header-safe-top {
-    padding-top: max(env(safe-area-inset-top, 0px), 28px);
-    margin-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
-    height: calc(3.5rem + max(env(safe-area-inset-top, 0px), 12px));
   }
 
   .spin {

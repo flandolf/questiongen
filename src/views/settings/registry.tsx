@@ -3,10 +3,8 @@ import {
   Clock,
   Cloud,
   Cpu,
-  CreditCard,
   GraduationCap,
   HardDriveDownload,
-  Key,
   Layers,
   Palette,
   ScrollText,
@@ -18,10 +16,8 @@ import type { ComponentType, ReactNode } from 'react';
 
 import type { Section } from '@/views/settings/types';
 
-import { ApiSection } from './sections/ApiSection';
 import { AppearanceSection } from './sections/AppearanceSection';
 import { CleanupSection } from './sections/CleanupSection';
-import { CreditsSection } from './sections/CreditsSection';
 import { DebugSection } from './sections/DebugSection';
 import { GenerationSettingsSection } from './sections/GenerationSettingsSection';
 import { GoalsSection } from './sections/GoalsSection';
@@ -51,15 +47,7 @@ type SectionComponentMap = Record<Section, ComponentType>;
 export const SETTINGS_SIDEBAR_CATEGORIES: readonly SidebarCategory[] = [
   {
     label: 'AI & Models',
-    items: [
-      { id: 'api', label: 'API Key', icon: <Key className='h-4 w-4' /> },
-      { id: 'models', label: 'Models', icon: <Cpu className='h-4 w-4' /> },
-      {
-        id: 'credits',
-        label: 'Credits',
-        icon: <CreditCard className='h-4 w-4' />,
-      },
-    ],
+    items: [{ id: 'models', label: 'ChatGPT', icon: <Cpu className='h-4 w-4' /> }],
   },
   {
     label: 'Study & Generation',
@@ -129,9 +117,7 @@ export const SETTINGS_SIDEBAR_CATEGORIES: readonly SidebarCategory[] = [
  * type also gives a typecheck error if a section forgets to register.
  */
 export const SETTINGS_SECTIONS: SectionComponentMap = {
-  api: ApiSection,
   models: ModelsSection,
-  credits: CreditsSection,
   appearance: AppearanceSection,
   goals: GoalsSection,
   generation: GenerationSettingsSection,

@@ -19,7 +19,7 @@ import { APP_VERSION, type Section } from './settings/types';
  * and section→component mappings live in `./settings/registry`.
  */
 export function SettingsView() {
-  const [activeSection, setActiveSection] = useState<Section>('api');
+  const [activeSection, setActiveSection] = useState<Section>('models');
   const ActiveSectionComponent = getSectionComponent(activeSection);
 
   return (

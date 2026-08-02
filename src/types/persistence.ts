@@ -13,7 +13,6 @@ import type {
   QuestionHistoryEntry,
 } from './history';
 import type { MarkAnswerResponse } from './marking';
-import type { ProviderState } from './provider';
 import type {
   GeneratedQuestion,
   McQuestion,
@@ -25,23 +24,17 @@ import type { TimeAllocationConfig } from './time-allocation';
 import type { TimerState } from './timer';
 
 export type PersistedSettings = {
-  apiKey: string;
   model: string;
   markingModel: string;
   useSeparateMarkingModel: boolean;
   imageMarkingModel: string;
   useSeparateImageMarkingModel: boolean;
-  /** Provider configurations keyed by provider ID. */
-  providers?: Record<string, ProviderState>;
-  /** ID of the currently active provider. */
-  activeProviderId?: string;
   debugMode: boolean;
   showRawLlmOutput?: boolean;
   questionTextSize?: number;
   responseTextSize?: number;
   includeExamContext?: boolean;
   autoSyncIntervalMinutes?: number;
-  syncApiKey?: boolean;
   /** Absolute path to a user-chosen folder for timed JSON exports (desktop app). */
   localBackupFolderPath?: string;
   /** Minutes between automatic exports; 0 disables. */
@@ -107,7 +100,7 @@ export type PersistedWrittenSession = {
   presentedAtByQuestionId: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
-  activeTabByQuestionId?: Record<string, 'response' | 'upload' | 'sketchpad'>;
+  activeTabByQuestionId?: Record<string, 'response' | 'upload'>;
   feedbackByQuestionId: Record<string, MarkAnswerResponse>;
   rawModelOutput: string;
   generationTelemetry?: GenerationTelemetry | null;
@@ -186,7 +179,6 @@ export type SyncQueueState = {
 
 export const PERSISTED_APP_STATE_VERSION = 4;
 
-export const API_KEY_STORAGE_KEY = 'questiongen.openrouterApiKey';
 export const QUESTION_HISTORY_STORAGE_KEY = 'questiongen.history';
 export const MC_HISTORY_STORAGE_KEY = 'questiongen.mcHistory';
 export const DEBUG_MODE_STORAGE_KEY = 'questiongen.debugMode';

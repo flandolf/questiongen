@@ -14,7 +14,6 @@ import type {
   McHistoryEntry,
   QuestionHistoryEntry,
 } from '@/types';
-import { getModelCredentials } from '@/types/provider';
 
 export interface SessionSlice {
   // Written session
@@ -23,7 +22,7 @@ export interface SessionSlice {
   writtenQuestionPresentedAtById: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   imagesByQuestionId: Record<string, AppState['imagesByQuestionId'][string]>;
-  activeTabByQuestionId: Record<string, 'response' | 'upload' | 'sketchpad'>;
+  activeTabByQuestionId: Record<string, 'response' | 'upload'>;
   feedbackByQuestionId: Record<
     string,
     AppState['feedbackByQuestionId'][string]
@@ -307,12 +306,6 @@ export const createSessionSlice: StateCreator<
     if (!answer && !image) return;
     if (!markingModel.trim() || s.isMarking) return;
 
-    const credentials = getModelCredentials(markingModel, s.providers);
-    if (!credentials) {
-      toast.error('No valid API credentials for marking model');
-      return;
-    }
-
     set({ isMarking: true, errorMessage: null });
 
     try {
@@ -323,10 +316,7 @@ export const createSessionSlice: StateCreator<
           question: activeQuestion,
           studentAnswer: answer,
           studentAnswerImageDataUrl: image?.dataUrl,
-          model: credentials.modelId,
-          apiKey: credentials.apiKey,
-          baseUrl: credentials.baseUrl,
-          providerId: credentials.providerId,
+          model: markingModel,
           markerStyle: s.markerStyle,
           customMarkerStyle: s.customMarkerStyle,
           reasoningEnabled: s.markingReasoningEnabled,
@@ -406,12 +396,6 @@ export const createSessionSlice: StateCreator<
     const appealText = s.markAppealByQuestionId[activeQuestion.id] || '';
     if (!appealText.trim() || !markingModel.trim()) return;
 
-    const credentials = getModelCredentials(markingModel, s.providers);
-    if (!credentials) {
-      toast.error('No valid API credentials for marking model');
-      return;
-    }
-
     set({ isMarking: true, errorMessage: null });
 
     try {
@@ -430,10 +414,7 @@ export const createSessionSlice: StateCreator<
           question: activeQuestion,
           studentAnswer: arguedAnswer,
           studentAnswerImageDataUrl: image?.dataUrl,
-          model: credentials.modelId,
-          apiKey: credentials.apiKey,
-          baseUrl: credentials.baseUrl,
-          providerId: credentials.providerId,
+          model: markingModel,
           markerStyle: s.markerStyle,
           customMarkerStyle: s.customMarkerStyle,
           reasoningEnabled: s.markingReasoningEnabled,

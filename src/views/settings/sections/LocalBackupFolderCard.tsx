@@ -188,7 +188,7 @@ export function LocalBackupFolderCard({
       </div>
       <p className='text-xs text-muted-foreground'>
         Exports run on a timer while the app is open. Files use the same format
-        as manual exports. Your API key is never included.
+        as manual exports. Your ChatGPT login is never included.
       </p>
 
       <div className='flex flex-wrap items-center gap-2'>

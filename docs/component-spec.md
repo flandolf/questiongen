@@ -187,7 +187,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 **Usage:**
 ```tsx
 <Input label="Subject" placeholder="e.g. Mathematical Methods" />
-<Input label="API Key" type="password" error="Invalid key format" />
+<Button>Connect ChatGPT</Button>
 <Input leftIcon={<Search />} placeholder="Search questions..." />
 ```
 
@@ -1064,7 +1064,7 @@ interface QuestionCardProps {
 - Padding: `space-6`
 - Header row: Question number + type badge + difficulty badge + alignment score
 - Body: MathJax-rendered question text
-- Footer: Action buttons (Show answer, Sketchpad, Flag)
+- Footer: Action buttons (Show answer, Flag)
 - Expandable answer section with animation
 
 ### 4.2 SessionComposer

@@ -1,30 +1,13 @@
 import type { StateCreator } from 'zustand';
 
-import {
-  clearSyncedApiKeys,
-  updatePresets,
-  updateProviderApiKeys,
-} from '@/context/modules/sync/mutations';
+import { updatePresets } from '@/context/modules/sync/mutations';
 import { normalizeHexColor } from '@/lib/color-helpers';
 import { EMPTY_PERSISTED_APP_STATE } from '@/lib/persistence';
 import { cleanPresetSubtopics } from '@/lib/preset-utils';
 import { normalizeThemeName, resolve } from '@/store/helpers';
 import type { AppActions, AppState } from '@/store/types';
-import type { ProviderState } from '@/types';
-import {
-  BUILTIN_PROVIDERS,
-  createDefaultProviderState,
-  DEFAULT_PROVIDER_ID,
-  mergeProvidersWithBuiltins,
-} from '@/types/provider';
 
 export interface SettingsSlice {
-  // Provider state
-  providers: Record<string, ProviderState>;
-  activeProviderId: string;
-
-  apiKey: string;
-  showApiKey: boolean;
   model: string;
   markingModel: string;
   useSeparateMarkingModel: boolean;
@@ -36,7 +19,6 @@ export interface SettingsSlice {
   responseTextSize: number;
   includeExamContext: boolean;
   autoSyncIntervalMinutes: number;
-  syncApiKey: boolean;
   localBackupFolderPath: string;
   localBackupIntervalMinutes: number;
   theme: string;
@@ -87,15 +69,7 @@ export interface SettingsSlice {
   shuffleQuestions: boolean;
   generationStrategy: AppState['generationStrategy'];
 
-  // Provider actions
-  setActiveProvider: (providerId: string) => void;
-  setProviderApiKey: (providerId: string, key: string) => void;
-  addCustomProvider: (name: string, baseUrl: string) => string;
-  removeCustomProvider: (providerId: string) => void;
-
   // Actions
-  setApiKey: (key: string) => void;
-  setShowApiKey: (show: boolean) => void;
   setModel: (model: string) => void;
   setMarkingModel: (model: string) => void;
   setUseSeparateMarkingModel: (enabled: boolean) => void;
@@ -103,12 +77,10 @@ export interface SettingsSlice {
   setUseSeparateImageMarkingModel: (enabled: boolean) => void;
   setDebugMode: (enabled: boolean) => void;
   setShowRawLlmOutput: (enabled: boolean) => void;
-  clearApiKey: () => void;
   setQuestionTextSize: (size: number) => void;
   setResponseTextSize: (size: number) => void;
   setIncludeExamContext: (enabled: boolean) => void;
   setAutoSyncIntervalMinutes: (minutes: number) => void;
-  setSyncApiKey: (enabled: boolean) => void;
   setLocalBackupFolderPath: (path: string) => void;
   setLocalBackupIntervalMinutes: (minutes: number) => void;
   setTheme: (theme: string) => void;
@@ -155,28 +127,12 @@ export interface SettingsSlice {
   resetPreferences: () => void;
 }
 
-function buildInitialProviders(): Record<string, ProviderState> {
-  return mergeProvidersWithBuiltins(
-    EMPTY_PERSISTED_APP_STATE.settings.providers,
-  );
-}
-
-function getInitialActiveProviderId(): string {
-  return (
-    EMPTY_PERSISTED_APP_STATE.settings.activeProviderId ?? DEFAULT_PROVIDER_ID
-  );
-}
-
 export const createSettingsSlice: StateCreator<
   AppState & AppActions,
   [],
   [],
   SettingsSlice
-> = (set, get) => ({
-  providers: buildInitialProviders(),
-  activeProviderId: getInitialActiveProviderId(),
-  apiKey: EMPTY_PERSISTED_APP_STATE.settings.apiKey,
-  showApiKey: false,
+> = (set) => ({
   model: EMPTY_PERSISTED_APP_STATE.settings.model,
   markingModel: EMPTY_PERSISTED_APP_STATE.settings.markingModel,
   useSeparateMarkingModel: Boolean(
@@ -196,7 +152,6 @@ export const createSettingsSlice: StateCreator<
   ),
   autoSyncIntervalMinutes:
     EMPTY_PERSISTED_APP_STATE.settings.autoSyncIntervalMinutes ?? 0,
-  syncApiKey: Boolean(EMPTY_PERSISTED_APP_STATE.settings.syncApiKey),
   localBackupFolderPath:
     EMPTY_PERSISTED_APP_STATE.settings.localBackupFolderPath ?? '',
   localBackupIntervalMinutes:
@@ -244,189 +199,14 @@ export const createSettingsSlice: StateCreator<
   shuffleQuestions: false,
   generationStrategy: 'single-pass',
 
-  // Provider actions
-  setActiveProvider: (providerId) => {
-    const state = get();
-    const provider = state.providers[providerId];
-    if (!provider) return;
-    const ms = provider.modelSelections;
-    set({
-      activeProviderId: providerId,
-      apiKey: provider.apiKey,
-      model: ms.model,
-      markingModel: ms.markingModel,
-      useSeparateMarkingModel: ms.useSeparateMarkingModel,
-      imageMarkingModel: ms.imageMarkingModel,
-      useSeparateImageMarkingModel: ms.useSeparateImageMarkingModel,
-      tutorModel: ms.tutorModel,
-    });
-  },
-  setProviderApiKey: (providerId, key) => {
-    set((s) => ({
-      providers: {
-        ...s.providers,
-        [providerId]: { ...s.providers[providerId], apiKey: key },
-      },
-    }));
-    const state = get();
-    if (state.syncApiKey) {
-      const providerKeys = Object.fromEntries(
-        Object.entries(state.providers).map(([id, p]) => [
-          id,
-          id === providerId ? key : p.apiKey,
-        ]),
-      );
-      void updateProviderApiKeys(
-        state.activeProviderId === providerId ? key : state.apiKey,
-        providerKeys,
-      );
-    }
-  },
-  addCustomProvider: (name, baseUrl) => {
-    const id = `custom-${crypto.randomUUID()}`;
-    set((s) => ({
-      providers: {
-        ...s.providers,
-        [id]: createDefaultProviderState({
-          id,
-          name,
-          baseUrl: baseUrl.replace(/\/$/, ''),
-        }),
-      },
-    }));
-    return id;
-  },
-  removeCustomProvider: (providerId) => {
-    if (providerId === DEFAULT_PROVIDER_ID || BUILTIN_PROVIDERS[providerId]) {
-      return; // cannot remove built-in providers
-    }
-    set((s) => {
-      const next = { ...s.providers };
-      delete next[providerId];
-      const newActiveId =
-        s.activeProviderId === providerId
-          ? DEFAULT_PROVIDER_ID
-          : s.activeProviderId;
-      const activeProvider = next[newActiveId];
-      if (!activeProvider)
-        return { providers: next, activeProviderId: DEFAULT_PROVIDER_ID };
-      return {
-        providers: next,
-        activeProviderId: newActiveId,
-        apiKey: activeProvider.apiKey,
-        model: activeProvider.modelSelections.model,
-        markingModel: activeProvider.modelSelections.markingModel,
-        useSeparateMarkingModel:
-          activeProvider.modelSelections.useSeparateMarkingModel,
-        imageMarkingModel: activeProvider.modelSelections.imageMarkingModel,
-        useSeparateImageMarkingModel:
-          activeProvider.modelSelections.useSeparateImageMarkingModel,
-        tutorModel: activeProvider.modelSelections.tutorModel,
-      };
-    });
-    const state = get();
-    if (state.syncApiKey) {
-      const providerKeys = Object.fromEntries(
-        Object.entries(state.providers).map(([id, p]) => [id, p.apiKey]),
-      );
-      void updateProviderApiKeys(state.apiKey, providerKeys);
-    }
-  },
-
   // Actions
-  setApiKey: (key) => {
-    const state = get();
-    set({
-      apiKey: key,
-      providers: {
-        ...state.providers,
-        [state.activeProviderId]: {
-          ...state.providers[state.activeProviderId],
-          apiKey: key,
-        },
-      },
-    });
-    if (state.syncApiKey) {
-      const providerKeys = Object.fromEntries(
-        Object.entries(state.providers).map(([id, p]) => [
-          id,
-          id === state.activeProviderId ? key : p.apiKey,
-        ]),
-      );
-      void updateProviderApiKeys(key, providerKeys);
-    }
-  },
-  setShowApiKey: (show) => set({ showApiKey: show }),
-  setModel: (model) =>
-    set((s) => ({
-      model,
-      providers: {
-        ...s.providers,
-        [s.activeProviderId]: {
-          ...s.providers[s.activeProviderId],
-          modelSelections: {
-            ...s.providers[s.activeProviderId].modelSelections,
-            model,
-          },
-        },
-      },
-    })),
-  setMarkingModel: (markingModel) =>
-    set((s) => ({
-      markingModel,
-      providers: {
-        ...s.providers,
-        [s.activeProviderId]: {
-          ...s.providers[s.activeProviderId],
-          modelSelections: {
-            ...s.providers[s.activeProviderId].modelSelections,
-            markingModel,
-          },
-        },
-      },
-    })),
+  setModel: (model) => set({ model }),
+  setMarkingModel: (markingModel) => set({ markingModel }),
   setUseSeparateMarkingModel: (useSeparateMarkingModel) =>
-    set((s) => ({
-      useSeparateMarkingModel,
-      providers: {
-        ...s.providers,
-        [s.activeProviderId]: {
-          ...s.providers[s.activeProviderId],
-          modelSelections: {
-            ...s.providers[s.activeProviderId].modelSelections,
-            useSeparateMarkingModel,
-          },
-        },
-      },
-    })),
-  setImageMarkingModel: (imageMarkingModel) =>
-    set((s) => ({
-      imageMarkingModel,
-      providers: {
-        ...s.providers,
-        [s.activeProviderId]: {
-          ...s.providers[s.activeProviderId],
-          modelSelections: {
-            ...s.providers[s.activeProviderId].modelSelections,
-            imageMarkingModel,
-          },
-        },
-      },
-    })),
+    set({ useSeparateMarkingModel }),
+  setImageMarkingModel: (imageMarkingModel) => set({ imageMarkingModel }),
   setUseSeparateImageMarkingModel: (useSeparateImageMarkingModel) =>
-    set((s) => ({
-      useSeparateImageMarkingModel,
-      providers: {
-        ...s.providers,
-        [s.activeProviderId]: {
-          ...s.providers[s.activeProviderId],
-          modelSelections: {
-            ...s.providers[s.activeProviderId].modelSelections,
-            useSeparateImageMarkingModel,
-          },
-        },
-      },
-    })),
+    set({ useSeparateImageMarkingModel }),
   setDebugMode: (debugMode) => set({ debugMode }),
   setShowRawLlmOutput: (showRawLlmOutput) => set({ showRawLlmOutput }),
   setQuestionTextSize: (questionTextSize) => set({ questionTextSize }),
@@ -434,18 +214,6 @@ export const createSettingsSlice: StateCreator<
   setIncludeExamContext: (includeExamContext) => set({ includeExamContext }),
   setAutoSyncIntervalMinutes: (autoSyncIntervalMinutes) =>
     set({ autoSyncIntervalMinutes }),
-  setSyncApiKey: (syncApiKey) => {
-    set({ syncApiKey });
-    const state = get();
-    if (syncApiKey) {
-      const providerKeys = Object.fromEntries(
-        Object.entries(state.providers).map(([id, p]) => [id, p.apiKey]),
-      );
-      void updateProviderApiKeys(state.apiKey, providerKeys);
-    } else {
-      void clearSyncedApiKeys();
-    }
-  },
   setLocalBackupFolderPath: (localBackupFolderPath) =>
     set({ localBackupFolderPath }),
   setLocalBackupIntervalMinutes: (localBackupIntervalMinutes) =>
@@ -456,20 +224,7 @@ export const createSettingsSlice: StateCreator<
   setInterfaceFont: (interfaceFont) => set({ interfaceFont }),
   setHeadingFont: (headingFont) => set({ headingFont }),
   setTutorPersona: (tutorPersona) => set({ tutorPersona }),
-  setTutorModel: (tutorModel) =>
-    set((s) => ({
-      tutorModel,
-      providers: {
-        ...s.providers,
-        [s.activeProviderId]: {
-          ...s.providers[s.activeProviderId],
-          modelSelections: {
-            ...s.providers[s.activeProviderId].modelSelections,
-            tutorModel,
-          },
-        },
-      },
-    })),
+  setTutorModel: (tutorModel) => set({ tutorModel }),
   setMarkerStyle: (markerStyle) => set({ markerStyle }),
   setCustomMarkerStyle: (customMarkerStyle) => set({ customMarkerStyle }),
   setModelReasoningEnabled: (modelReasoningEnabled) =>
@@ -480,30 +235,6 @@ export const createSettingsSlice: StateCreator<
     set({ markingReasoningEnabled }),
   setMarkingReasoningEffort: (markingReasoningEffort) =>
     set({ markingReasoningEffort }),
-  clearApiKey: () =>
-    set((s) => {
-      const next = {
-        apiKey: '',
-        providers: {
-          ...s.providers,
-          [s.activeProviderId]: {
-            ...s.providers[s.activeProviderId],
-            apiKey: '',
-          },
-        },
-      };
-      if (s.syncApiKey) {
-        const providerKeys = Object.fromEntries(
-          Object.entries(s.providers).map(([id, p]) => [
-            id,
-            id === s.activeProviderId ? '' : p.apiKey,
-          ]),
-        );
-        void updateProviderApiKeys('', providerKeys);
-      }
-      return next;
-    }),
-
   setPresets: (presets) => set({ presets }),
   addPreset: (preset) =>
     set((s) => {

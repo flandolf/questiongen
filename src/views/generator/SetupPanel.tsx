@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -18,7 +17,6 @@ import {
   Zap,
 } from 'lucide-react';
 import { memo, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
@@ -39,6 +37,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
+import { listChatGPTModels } from '@/lib/chatgpt';
 import { normalizeDifficulty } from '@/lib/persistence';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
@@ -65,9 +64,7 @@ import {
   toScopedSubtopicGroups,
 } from '@/types';
 import type { CostQuality } from '@/types/events';
-import { getModelCredentials, getProviderLabelForModel } from '@/types/provider';
 
-import { getModelsForProvider } from '../settings/constants';
 import {
   BatchTimeline,
   GenerationTimeline,
@@ -184,7 +181,6 @@ type SetupPanelProps = {
   onSetAverageMarksPerQuestion: (marks: number) => void;
   avoidSimilarQuestions: boolean;
   onSetAvoidSimilarQuestions: (enabled: boolean) => void;
-  hasApiKey: boolean;
   canGenerate: boolean;
   isGenerating: boolean;
   isPaused: boolean;
@@ -667,7 +663,6 @@ function SetupPanelImpl({
   onSetQuestionCount,
   averageMarksPerQuestion,
   onSetAverageMarksPerQuestion,
-  hasApiKey,
   isGenerating,
   isPaused,
   onTogglePause,
@@ -685,75 +680,33 @@ function SetupPanelImpl({
   liveCostUsd,
   liveCostQuality,
 }: SetupPanelProps) {
-  const navigate = useNavigate();
-  const { apiKey, model, setModel, showRawLlmOutput } = useAppSettings();
+  const { model, setModel, showRawLlmOutput } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const customSubtopics = useAppStore((s) => s.customSubtopics);
-  const activeProviderId = useAppStore((s) => s.activeProviderId);
-  const providers = useAppStore((s) => s.providers);
   const prefersReducedMotion = useReducedMotion();
 
-  const [promptPricePerToken, setPromptPricePerToken] = useState<number | null>(
-    null,
-  );
-  const [completionPricePerToken, setCompletionPricePerToken] = useState<
-    number | null
-  >(null);
+  const promptPricePerToken = null;
+  const completionPricePerToken = null;
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const hasAnyMathTopic = selectedTopics.some(
     (t) => t === 'Mathematical Methods' || t === 'Specialist Mathematics',
   );
 
+  const [accountModels, setAccountModels] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
-    async function fetchStats() {
-      if (!apiKey || !model || model === 'custom') return;
-      const credentials = getModelCredentials(model, providers, {
-        activeProviderId,
+    void listChatGPTModels()
+      .then((models) => {
+        if (!cancelled) setAccountModels(models);
+      })
+      .catch(() => {
+        if (!cancelled) setAccountModels([]);
       });
-      if (!credentials) return;
-      try {
-        const stats = await invoke<{
-          promptPricePerToken?: number | null;
-          completionPricePerToken?: number | null;
-        }>(
-          credentials.providerId === 'openrouter'
-            ? 'get_model_stats'
-            : 'get_provider_model_stats',
-          credentials.providerId === 'openrouter'
-            ? { apiKey: credentials.apiKey, modelId: credentials.modelId }
-            : {
-                apiKey: credentials.apiKey,
-                modelId: credentials.modelId,
-                providerId: credentials.providerId,
-                baseUrl: credentials.baseUrl,
-              },
-        );
-        const resolvedStats =
-          'stats' in stats
-            ? (
-                stats as {
-                  stats: {
-                    promptPricePerToken?: number | null;
-                    completionPricePerToken?: number | null;
-                  };
-                }
-              ).stats
-            : stats;
-        if (cancelled) return;
-        setPromptPricePerToken(resolvedStats.promptPricePerToken ?? null);
-        setCompletionPricePerToken(resolvedStats.completionPricePerToken ?? null);
-      } catch {
-        setPromptPricePerToken(null);
-        setCompletionPricePerToken(null);
-      }
-    }
-    void fetchStats();
     return () => {
       cancelled = true;
     };
-  }, [apiKey, model, providers, activeProviderId]);
+  }, []);
 
   const flatSelectedSubtopics = useMemo(
     () =>
@@ -797,16 +750,11 @@ function SetupPanelImpl({
   ]);
 
   const displayModels = useMemo(() => {
-    const presets = getModelsForProvider(activeProviderId);
-    const known = presets.filter((m) => m.id !== 'custom');
-    if (model && model !== 'custom' && !known.some((m) => m.id === model)) {
-      return [
-        ...known,
-        { id: model, name: model.split('/').slice(1).join('/') || model },
-      ];
-    }
-    return known;
-  }, [activeProviderId, model]);
+    const models = model && !accountModels.includes(model)
+      ? [...accountModels, model]
+      : accountModels;
+    return models.map((id) => ({ id, name: id }));
+  }, [accountModels, model]);
 
   // Display name for the currently-selected model. Falls back to the raw
   // model id if the lookup misses, and to `undefined` when neither the lookup
@@ -818,25 +766,8 @@ function SetupPanelImpl({
     [displayModels, model],
   );
 
-  // Provider label for the active model, rendered as a static pill beside the
-  // trigger so users still see at-a-glance which provider they're sending to
-  // (the badge inside each SelectItem only shows when the dropdown is open).
-  // Uses providers + activeProviderId so NVIDIA + custom-provider models
-  // stop mis-labelling as OpenRouter.
-  const activeProviderLabel = useMemo(
-    () =>
-      model
-        ? getProviderLabelForModel(model, providers, activeProviderId)
-        : undefined,
-    [model, providers, activeProviderId],
-  );
-
   const generationDisabledReasons = useMemo(() => {
     const reasons: string[] = [];
-    if (!hasApiKey) {
-      const name = activeProviderId === 'deepseek' ? 'DeepSeek' : 'OpenRouter';
-      reasons.push(`${name} API key is missing`);
-    }
     if (!model || model.trim().length === 0)
       reasons.push('AI model not selected');
     if (selectedTopics.length === 0)
@@ -846,8 +777,6 @@ function SetupPanelImpl({
     if (isGenerating) reasons.push('Generation in progress');
     return reasons;
   }, [
-    hasApiKey,
-    activeProviderId,
     model,
     selectedTopics.length,
     questionCount,
@@ -1067,27 +996,6 @@ function SetupPanelImpl({
                   )}
                 </div>
 
-                {!hasApiKey && (
-                  <div className='flex items-start gap-2.5 rounded-md border border-border bg-card px-3 py-2.5'>
-                    <AlertTriangle className='h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5' />
-                    <div className='flex-1 min-w-0'>
-                      <p className='text-xs font-medium text-foreground'>
-                        API key missing
-                      </p>
-                      <p className='text-[11px] text-muted-foreground mt-0.5'>
-                        Configure one in Settings before generating.
-                      </p>
-                      <Button
-                        variant='link'
-                        size='sm'
-                        onClick={() => void navigate('/settings')}
-                        className='mt-0.5 h-auto px-0 text-[11px] font-medium text-foreground hover:no-underline'
-                      >
-                        Open Settings
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </aside>
 
               {/* ── RIGHT COLUMN ── */}
@@ -1245,11 +1153,6 @@ function SetupPanelImpl({
                 <span className='text-xs text-muted-foreground/60 shrink-0'>
                   Model
                 </span>
-                {activeProviderLabel && (
-                  <span className='shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground font-medium leading-none font-mono'>
-                    {activeProviderLabel}
-                  </span>
-                )}
                 <Select value={model} onValueChange={setModel}>
                   <SelectTrigger className='h-7 w-52 text-xs border-border bg-transparent hover:bg-muted/40 focus:ring-0'>
                     {/*
@@ -1262,28 +1165,11 @@ function SetupPanelImpl({
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {displayModels.map((m) => {
-                      const provider = getProviderLabelForModel(
-                        m.id,
-                        providers,
-                        activeProviderId,
-                      );
-                      return (
-                        <SelectItem key={m.id} value={m.id} className='text-xs'>
-                          {/* ItemText content + provider badge share one flex span
-                              so the checkmark (absolute right-2) sits in the
-                              right-margin space instead of overlapping the badge. */}
-                          <span className='flex items-center gap-2 min-w-0'>
-                            <span className='truncate'>{m.name}</span>
-                            {provider && (
-                              <span className='shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium leading-none'>
-                                {provider}
-                              </span>
-                            )}
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
+                    {displayModels.map((m) => (
+                      <SelectItem key={m.id} value={m.id} className='text-xs'>
+                        {m.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

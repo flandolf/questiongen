@@ -1,3 +1,4 @@
+pub mod chatgpt;
 pub mod cleanup;
 pub mod context;
 pub mod generation;
@@ -6,7 +7,6 @@ pub mod marking;
 pub mod output;
 pub mod pdf;
 pub mod prompt;
-pub mod provider;
 pub mod subtopics;
 pub mod tutor;
 
@@ -22,11 +22,8 @@ pub use pdf::discover_pdf_questions;
 pub use subtopics::generate_subtopics;
 pub use tutor::tutor_chat;
 
-/// Shared helper: validate API key and model are non-empty.
-pub fn validate_credentials(api_key: &str, model: &str) -> CommandResult<()> {
-    if api_key.trim().is_empty() {
-        return Err(AppError::new("VALIDATION_ERROR", "API key required."));
-    }
+/// Shared helper: models must come from the connected ChatGPT account.
+pub fn validate_model(model: &str) -> CommandResult<()> {
     if model.trim().is_empty() {
         return Err(AppError::new("VALIDATION_ERROR", "Model required."));
     }
@@ -79,7 +76,6 @@ pub fn emit_stream_start(
     app: &tauri::AppHandle,
     request_id: &str,
     task: &str,
-    provider_id: &str,
     model_id: &str,
     topic: Option<String>,
     question_id: Option<String>,
@@ -89,7 +85,7 @@ pub fn emit_stream_start(
         &LlmStreamEvent::Start {
             request_id: request_id.to_string(),
             task: task.to_string(),
-            route: ModelRoute::new(provider_id, model_id),
+            route: ModelRoute::new(model_id),
             topic,
             question_id,
         },
@@ -168,7 +164,7 @@ mod tests {
         let ev = LlmStreamEvent::Start {
             request_id: "r".into(),
             task: "t".into(),
-            route: ModelRoute::new("p", "m"),
+            route: ModelRoute::new("m"),
             topic: None,
             question_id: None,
         };
@@ -223,7 +219,7 @@ mod tests {
         let ev = LlmStreamEvent::Start {
             request_id: "req-abc".into(),
             task: "generate_questions".into(),
-            route: ModelRoute::new("openrouter", "anthropic/claude-3.5-sonnet"),
+            route: ModelRoute::new("gpt-5.6-terra"),
             topic: Some("Chemistry".into()),
             question_id: Some("q-1".into()),
         };
@@ -232,8 +228,7 @@ mod tests {
         assert_eq!(json["event"], "start");
         assert_eq!(json["requestId"], "req-abc");
         assert_eq!(json["task"], "generate_questions");
-        assert_eq!(json["route"]["providerId"], "openrouter");
-        assert_eq!(json["route"]["modelId"], "anthropic/claude-3.5-sonnet");
+        assert_eq!(json["route"]["modelId"], "gpt-5.6-terra");
         assert_eq!(json["topic"], "Chemistry");
         assert_eq!(json["questionId"], "q-1");
     }
@@ -243,7 +238,7 @@ mod tests {
         let ev = LlmStreamEvent::Start {
             request_id: "req-xyz".into(),
             task: "tutor_chat".into(),
-            route: ModelRoute::new("nvidia", "meta/llama-3.1-70b"),
+            route: ModelRoute::new("gpt-5.6-terra"),
             topic: None,
             question_id: None,
         };
@@ -252,8 +247,7 @@ mod tests {
         assert_eq!(json["event"], "start");
         assert_eq!(json["requestId"], "req-xyz");
         assert_eq!(json["task"], "tutor_chat");
-        assert_eq!(json["route"]["providerId"], "nvidia");
-        assert_eq!(json["route"]["modelId"], "meta/llama-3.1-70b");
+        assert_eq!(json["route"]["modelId"], "gpt-5.6-terra");
         assert!(json.get("topic").is_none() || json["topic"].is_null());
         assert!(json.get("questionId").is_none() || json["questionId"].is_null());
     }

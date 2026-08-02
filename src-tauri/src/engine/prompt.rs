@@ -1,17 +1,7 @@
 use crate::catalog;
 use crate::constants;
 use crate::difficulty::difficulty_guidance;
-use crate::llm::{supports_json_schema_format_for, supports_json_schema_format_for_base_url};
 use crate::text_clean::sanitize_for_api;
-
-/// Resolve whether a provider supports json_schema, preferring explicit
-/// provider_id over base_url heuristics.
-fn supports_schema(model: &str, provider_id: Option<&str>, base_url: &str) -> bool {
-    match provider_id {
-        Some(id) => supports_json_schema_format_for(model, id),
-        None => supports_json_schema_format_for_base_url(model, base_url),
-    }
-}
 
 // ─── Prompt Section Types ─────────────────────────────────────────────────────
 
@@ -41,10 +31,6 @@ pub enum PromptSection {
     /// (no `\nThe`-style escapes, single line of prose, etc.).
     /// Delegates to `json_string_content_rules`.
     JsonStringContentRules,
-    /// Schema guidance for providers that only support json_object.
-    SchemaGuidance {
-        is_mc: bool,
-    },
     /// Marking-specific sections.
     MarkingIdentity {
         max_marks: u8,
@@ -78,13 +64,6 @@ impl PromptSection {
             PromptSection::FieldContract => topic_field_contract().to_string(),
             PromptSection::JsonOutputNote => strict_json_output_note().to_string(),
             PromptSection::JsonStringContentRules => json_string_content_rules().to_string(),
-            PromptSection::SchemaGuidance { is_mc } => {
-                if *is_mc {
-                    mc_schema_guidance_text().to_string()
-                } else {
-                    written_schema_guidance_text().to_string()
-                }
-            }
             PromptSection::MarkingIdentity {
                 max_marks,
                 marker_style,
@@ -166,28 +145,6 @@ fn strict_json_output_note() -> &'static str {
      {\"questions\":[{\"id\":\"Q1\",\"topic\":\"Chemistry\",\"subtopic\":\"Stoichiometry\",\"promptMarkdown\":\"Calculate the mass...\",\"maxMarks\":5}]}\n\n\
      EXAMPLE (MC):\n\
      {\"questions\":[{\"id\":\"Q1\",\"topic\":\"Physics\",\"subtopic\":\"Vectors\",\"promptMarkdown\":\"A force of 10N...\",\"options\":[{\"label\":\"A\",\"text\":\"5N\"},{\"label\":\"B\",\"text\":\"10N\"},{\"label\":\"C\",\"text\":\"15N\"},{\"label\":\"D\",\"text\":\"20N\"}],\"correctAnswer\":\"B\",\"explanationMarkdown\":\"Using F=ma...\"}]}"
-}
-
-fn written_schema_guidance_text() -> &'static str {
-    "REQUIRED JSON FIELDS (written):\n\
-     Top-level object with a \"questions\" array. Each element:\n\
-     - \"id\" (string): unique identifier for the question (e.g. \"Q1\")\n\
-     - \"topic\" (string): exact subject name (e.g. \"Chemistry\", \"Mathematical Methods\")\n\
-     - \"subtopic\" (string or null): specific focus area label\n\
-     - \"promptMarkdown\" (string): the full question stem, only the question (no solution)\n\
-     - \"maxMarks\" (integer): marks for the question, between 1 and 30"
-}
-
-fn mc_schema_guidance_text() -> &'static str {
-    "REQUIRED JSON FIELDS (MC):\n\
-     Top-level object with a \"questions\" array. Each element:\n\
-     - \"id\" (string): unique identifier (e.g. \"Q1\")\n\
-     - \"topic\" (string): exact subject name\n\
-     - \"subtopic\" (string or null): specific focus area label\n\
-     - \"promptMarkdown\" (string): the question stem only (no options in stem)\n\
-     - \"options\" (array of objects): exactly 4 items, each with \"label\" (\"A\"-\"D\") and \"text\" (string)\n\
-     - \"correctAnswer\" (string): one of \"A\", \"B\", \"C\", \"D\"\n\
-     - \"explanationMarkdown\" (string): explain why correct answer is right and why each distractor is wrong"
 }
 
 fn json_string_content_rules() -> &'static str {
@@ -837,17 +794,8 @@ fn exemplars_note(topics: &[String], is_mc: bool) -> String {
 // ─── High-Level Prompt Builders ───────────────────────────────────────────────
 
 /// Build a system prompt for written question generation.
-///
-/// `base_url` controls whether the OpenRouter-only `json_schema` structured-
-/// output payload is sent. NVIDIA NIMs and custom OpenAI-compatible endpoints
-/// only honour `json_object`, so we pass `""` (or any non-OpenRouter URL)
-/// when calling from non-OpenRouter providers.
-///
-/// `provider_id` is the canonical provider identifier (e.g. "openrouter",
-/// "deepseek", "nvidia", "custom"). When provided it overrides base_url
-/// heuristics for schema support detection.
-pub fn written_system_prompt(model: &str, base_url: &str, provider_id: Option<&str>) -> String {
-    let mut template = PromptTemplate::new()
+pub fn written_system_prompt() -> String {
+    PromptTemplate::new()
         .with_section(PromptSection::Identity("Expert VCE written-response exam writer"))
         .with_section(PromptSection::ComplianceContract)
         .with_section(PromptSection::Hygiene)
@@ -859,19 +807,13 @@ pub fn written_system_prompt(model: &str, base_url: &str, provider_id: Option<&s
         ))
         .with_section(PromptSection::FieldContract)
         .with_section(PromptSection::JsonOutputNote)
-        .with_section(PromptSection::JsonStringContentRules);
-
-    if !supports_schema(model, provider_id, base_url) {
-        template = template.with_section(PromptSection::SchemaGuidance { is_mc: false });
-    }
-
-    template.build()
+        .with_section(PromptSection::JsonStringContentRules)
+        .build()
 }
 
-/// Build a system prompt for MC question generation. See `written_system_prompt`
-/// for the role of `base_url` and `provider_id`.
-pub fn mc_system_prompt(model: &str, base_url: &str, provider_id: Option<&str>) -> String {
-    let mut template = PromptTemplate::new()
+/// Build a system prompt for MC question generation.
+pub fn mc_system_prompt() -> String {
+    PromptTemplate::new()
         .with_section(PromptSection::Identity("Expert VCE multiple-choice exam writer"))
         .with_section(PromptSection::ComplianceContract)
         .with_section(PromptSection::Hygiene)
@@ -883,13 +825,8 @@ pub fn mc_system_prompt(model: &str, base_url: &str, provider_id: Option<&str>) 
         ))
         .with_section(PromptSection::FieldContract)
         .with_section(PromptSection::JsonOutputNote)
-        .with_section(PromptSection::JsonStringContentRules);
-
-    if !supports_schema(model, provider_id, base_url) {
-        template = template.with_section(PromptSection::SchemaGuidance { is_mc: true });
-    }
-
-    template.build()
+        .with_section(PromptSection::JsonStringContentRules)
+        .build()
 }
 
 /// Build a system prompt for marking.

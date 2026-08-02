@@ -1,19 +1,16 @@
 use crate::catalog;
+use crate::engine::chatgpt::{complete, generate_request_id, ChatGptConfig, CompletionRequest};
 use crate::engine::context::EngineContext;
 use crate::engine::output::{parse_structured_with_meta, StructuredOutput};
 use crate::engine::prompt::GenerationPromptParams;
-use crate::engine::provider::{complete, CompletionRequest, LlmConfig};
 use crate::engine::{
-    emit_status, emit_stream_end, emit_stream_error, emit_stream_start, rust_log,
-    validate_credentials,
+    emit_status, emit_stream_end, emit_stream_error, emit_stream_start, rust_log, validate_model,
 };
-use crate::llm::generate_request_id;
 use crate::models::{
     AppError, CommandResult, GenerateMcQuestionsRequest, GenerateMcQuestionsResponse,
     GenerateQuestionsRequest, GenerateQuestionsResponse, GeneratedQuestion,
     GenerationQualityDiagnostics, McQuestion,
 };
-use crate::openrouter_info::compute_generation_cost;
 use crate::quality;
 use crate::question_traits::{NormalizableQuestion, TechAllowed};
 use crate::schemas;
@@ -26,33 +23,13 @@ pub async fn generate_written_questions(
     ctx: &EngineContext,
     request: GenerateQuestionsRequest,
 ) -> CommandResult<GenerateQuestionsResponse> {
-    validate_credentials(&request.api_key, &request.model)?;
+    validate_model(&request.model)?;
 
     let request_id = generate_request_id();
-    let provider_id = request.provider_id.clone().unwrap_or_else(|| {
-        let url = request
-            .base_url
-            .as_deref()
-            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL)
-            .trim()
-            .trim_end_matches('/')
-            .to_ascii_lowercase();
-        if url.contains("openrouter.ai") {
-            "openrouter".to_string()
-        } else if url.contains("deepseek.com") {
-            "deepseek".to_string()
-        } else if url.contains("nvidia.com") {
-            "nvidia".to_string()
-        } else {
-            "custom".to_string()
-        }
-    });
-
     emit_stream_start(
         &ctx.app,
         &request_id,
         "generation",
-        &provider_id,
         &request.model,
         request.topics.first().cloned(),
         None,
@@ -206,29 +183,17 @@ async fn run_written_attempt(
         params.prior_question_prompts = Some(overrides);
     }
 
-    let request_base_url = request
-        .base_url
-        .as_deref()
-        .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
-    let system_prompt = crate::engine::prompt::written_system_prompt(
-        &request.model,
-        request_base_url,
-        request.provider_id.as_deref(),
-    );
+    let system_prompt = crate::engine::prompt::written_system_prompt();
     let user_prompt = params.build_written();
 
-    let response_format = schemas::written_format(
-        &request.model,
-        request_base_url,
-        request.provider_id.as_deref(),
-    );
+    let response_format = schemas::written_format();
     let max_tokens = estimate_max_tokens(
         request.question_count,
         request.average_marks_per_question,
         false,
     );
 
-    let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
+    let llm_config = ChatGptConfig::new(&request.model)
         .with_max_tokens(max_tokens)
         .with_reasoning(
             request.reasoning_enabled.unwrap_or(false),
@@ -236,12 +201,6 @@ async fn run_written_attempt(
         )
         .with_temperature(default_written_temperature(&request.difficulty))
         .with_request_id(request_id);
-    if let Some(ref url) = request.base_url {
-        llm_config = llm_config.with_base_url(url);
-    }
-    if let Some(ref id) = request.provider_id {
-        llm_config = llm_config.with_provider_id(id);
-    }
 
     let user_content = build_user_content_with_pdfs(
         ctx,
@@ -308,13 +267,7 @@ async fn run_written_attempt(
 
     let diagnostics = build_quality_diagnostics(&questions, inputs, &request.topics);
 
-    let stats = crate::openrouter_info::get_cached_model_stats(&request.api_key, &request.model);
-    let cost_usd = compute_generation_cost(
-        Some(structured.prompt_tokens as u64),
-        Some(structured.completion_tokens as u64),
-        stats.as_ref().and_then(|s| s.prompt_price_per_token),
-        stats.as_ref().and_then(|s| s.completion_price_per_token),
-    );
+    let cost_usd = None;
 
     Ok(WrittenAttemptResult {
         questions,
@@ -346,33 +299,13 @@ pub async fn generate_mc_questions(
     ctx: &EngineContext,
     request: GenerateMcQuestionsRequest,
 ) -> CommandResult<GenerateMcQuestionsResponse> {
-    validate_credentials(&request.api_key, &request.model)?;
+    validate_model(&request.model)?;
 
     let request_id = generate_request_id();
-    let provider_id = request.provider_id.clone().unwrap_or_else(|| {
-        let url = request
-            .base_url
-            .as_deref()
-            .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL)
-            .trim()
-            .trim_end_matches('/')
-            .to_ascii_lowercase();
-        if url.contains("openrouter.ai") {
-            "openrouter".to_string()
-        } else if url.contains("deepseek.com") {
-            "deepseek".to_string()
-        } else if url.contains("nvidia.com") {
-            "nvidia".to_string()
-        } else {
-            "custom".to_string()
-        }
-    });
-
     emit_stream_start(
         &ctx.app,
         &request_id,
         "generation",
-        &provider_id,
         &request.model,
         request.topics.first().cloned(),
         None,
@@ -524,37 +457,19 @@ async fn run_mc_attempt(
         params.prior_question_prompts = Some(overrides);
     }
 
-    let request_base_url = request
-        .base_url
-        .as_deref()
-        .unwrap_or(crate::constants::DEFAULT_OPENROUTER_BASE_URL);
-    let system_prompt = crate::engine::prompt::mc_system_prompt(
-        &request.model,
-        request_base_url,
-        request.provider_id.as_deref(),
-    );
+    let system_prompt = crate::engine::prompt::mc_system_prompt();
     let user_prompt = params.build_mc();
 
-    let response_format = schemas::mc_format(
-        &request.model,
-        request_base_url,
-        request.provider_id.as_deref(),
-    );
+    let response_format = schemas::mc_format();
     let max_tokens = estimate_max_tokens(request.question_count, None, true);
 
-    let mut llm_config = LlmConfig::new(&request.api_key, &request.model)
+    let mut llm_config = ChatGptConfig::new(&request.model)
         .with_max_tokens(max_tokens)
         .with_reasoning(
             request.reasoning_enabled.unwrap_or(false),
             request.reasoning_effort.as_deref(),
         )
         .with_request_id(request_id);
-    if let Some(ref url) = request.base_url {
-        llm_config = llm_config.with_base_url(url);
-    }
-    if let Some(ref id) = request.provider_id {
-        llm_config = llm_config.with_provider_id(id);
-    }
 
     // R10: Use MC temperature default (0.3) if user did not override.
     if let Some(temp) = request.temperature {
@@ -624,13 +539,7 @@ async fn run_mc_attempt(
 
     let diagnostics = build_mc_quality_diagnostics(&questions, inputs, &request.topics);
 
-    let stats = crate::openrouter_info::get_cached_model_stats(&request.api_key, &request.model);
-    let cost_usd = compute_generation_cost(
-        Some(structured.prompt_tokens as u64),
-        Some(structured.completion_tokens as u64),
-        stats.as_ref().and_then(|s| s.prompt_price_per_token),
-        stats.as_ref().and_then(|s| s.completion_price_per_token),
-    );
+    let cost_usd = None;
 
     Ok(McAttemptResult {
         questions,

@@ -21,7 +21,6 @@ import type {
   PersistedSettings,
   PersistedWrittenSession,
   Preset,
-  ProviderState,
   QuestionHistoryEntry,
   QuestionMode,
   SavedQuestionSet,
@@ -31,16 +30,11 @@ import type {
   Topic,
 } from '../types';
 import {
-  BUILTIN_PROVIDERS,
-  createDefaultProviderState,
-} from '../types/provider';
-import {
   DEFAULT_CUSTOM_THEME_SEED_COLOR,
   normalizeHexColor,
 } from './color-helpers';
 
 const DEFAULT_SETTINGS: PersistedSettings = {
-  apiKey: '',
   model: DEFAULT_MODEL,
   markingModel: DEFAULT_MODEL,
   useSeparateMarkingModel: false,
@@ -52,7 +46,6 @@ const DEFAULT_SETTINGS: PersistedSettings = {
   responseTextSize: 16,
   includeExamContext: true,
   autoSyncIntervalMinutes: 0,
-  syncApiKey: false,
   localBackupFolderPath: '',
   localBackupIntervalMinutes: 0,
   theme: 'default',
@@ -293,72 +286,12 @@ export function normalizeGenerationHistory(raw: unknown): GenerationRecord[] {
     }));
 }
 
-function migrateProviders(raw: Record<string, unknown>): {
-  providers: Record<string, unknown>;
-  activeProviderId: string;
-} {
-  const providers = raw.providers;
-  if (isRecord(providers)) {
-    // Already have provider data — ensure built-in providers exist
-    const merged = { ...providers };
-    for (const [id, config] of Object.entries(BUILTIN_PROVIDERS)) {
-      if (!merged[id]) {
-        merged[id] = createDefaultProviderState(config);
-      }
-    }
-    return {
-      providers: merged,
-      activeProviderId:
-        typeof raw.activeProviderId === 'string'
-          ? raw.activeProviderId
-          : 'openrouter',
-    };
-  }
-
-  // Migration from old flat format: seed the openrouter provider
-  const key = asString(raw.apiKey);
-  const model = normalizeNonEmptyString(raw.model, DEFAULT_MODEL);
-  const orProvider = createDefaultProviderState(BUILTIN_PROVIDERS.openrouter);
-  orProvider.apiKey = key;
-  orProvider.modelSelections.model = model;
-  orProvider.modelSelections.markingModel = normalizeNonEmptyString(
-    raw.markingModel,
-    model,
-  );
-  orProvider.modelSelections.useSeparateMarkingModel =
-    raw.useSeparateMarkingModel === true;
-  orProvider.modelSelections.imageMarkingModel = normalizeNonEmptyString(
-    raw.imageMarkingModel,
-    model,
-  );
-  orProvider.modelSelections.useSeparateImageMarkingModel =
-    raw.useSeparateImageMarkingModel === true;
-  orProvider.modelSelections.tutorModel = normalizeNonEmptyString(
-    raw.tutorModel,
-    model,
-  );
-
-  const deepseekProvider = createDefaultProviderState(
-    BUILTIN_PROVIDERS.deepseek,
-  );
-
-  return {
-    providers: {
-      openrouter: orProvider,
-      deepseek: deepseekProvider,
-    },
-    activeProviderId: 'openrouter',
-  };
-}
-
 function normalizeSettings(raw: unknown): PersistedSettings {
   const data = isRecord(raw) ? raw : {};
   const model = normalizeNonEmptyString(data.model, DEFAULT_SETTINGS.model);
-  const migrated = migrateProviders(data);
   return {
     ...DEFAULT_SETTINGS,
     ...data,
-    apiKey: asString(data.apiKey),
     model,
     markingModel: normalizeNonEmptyString(
       data.markingModel,
@@ -376,10 +309,6 @@ function normalizeSettings(raw: unknown): PersistedSettings {
       typeof data.autoSyncIntervalMinutes === 'number'
         ? data.autoSyncIntervalMinutes
         : DEFAULT_SETTINGS.autoSyncIntervalMinutes,
-    syncApiKey:
-      typeof data.syncApiKey === 'boolean'
-        ? data.syncApiKey
-        : DEFAULT_SETTINGS.syncApiKey,
     localBackupFolderPath: asString(data.localBackupFolderPath),
     localBackupIntervalMinutes:
       typeof data.localBackupIntervalMinutes === 'number'
@@ -410,8 +339,6 @@ function normalizeSettings(raw: unknown): PersistedSettings {
         : DEFAULT_SETTINGS.shuffleQuestions,
     markerStyle: normalizeMarkerStyle(data.markerStyle),
     customMarkerStyle: asString(data.customMarkerStyle),
-    providers: migrated.providers as Record<string, ProviderState>,
-    activeProviderId: migrated.activeProviderId,
   };
 }
 
@@ -433,9 +360,18 @@ function normalizePreferences(raw: unknown): PersistedGeneratorPreferences {
 
 function normalizeWrittenSession(raw: unknown): PersistedWrittenSession {
   const data = isRecord(raw) ? raw : {};
+  const activeTabs = isRecord(data.activeTabByQuestionId)
+    ? Object.fromEntries(
+        Object.entries(data.activeTabByQuestionId).map(([questionId, tab]) => [
+          questionId,
+          tab === 'upload' ? ('upload' as const) : ('response' as const),
+        ]),
+      )
+    : {};
   return {
     ...DEFAULT_WRITTEN_SESSION,
     ...data,
+    activeTabByQuestionId: activeTabs,
   };
 }
 

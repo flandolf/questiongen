@@ -15,10 +15,6 @@ import { useAppStore } from './store';
 export function useAppSettings() {
   return useAppStore(
     useShallow((s) => ({
-      apiKey: s.apiKey,
-      setApiKey: s.setApiKey,
-      showApiKey: s.showApiKey,
-      setShowApiKey: s.setShowApiKey,
       model: s.model,
       setModel: s.setModel,
       markingModel: s.markingModel,
@@ -41,8 +37,6 @@ export function useAppSettings() {
       setIncludeExamContext: s.setIncludeExamContext,
       autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
       setAutoSyncIntervalMinutes: s.setAutoSyncIntervalMinutes,
-      syncApiKey: s.syncApiKey,
-      setSyncApiKey: s.setSyncApiKey,
       localBackupFolderPath: s.localBackupFolderPath,
       setLocalBackupFolderPath: s.setLocalBackupFolderPath,
       localBackupIntervalMinutes: s.localBackupIntervalMinutes,
@@ -71,7 +65,6 @@ export function useAppSettings() {
       setMarkingReasoningEnabled: s.setMarkingReasoningEnabled,
       markingReasoningEffort: s.markingReasoningEffort,
       setMarkingReasoningEffort: s.setMarkingReasoningEffort,
-      clearApiKey: s.clearApiKey,
     })),
   );
 }

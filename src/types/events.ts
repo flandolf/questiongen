@@ -45,7 +45,6 @@ export interface BatchTopicProgress {
 // ─── Unified LLM Stream Events (backend → frontend) ─────────────────────────
 
 export type ModelRoute = {
-  providerId: string;
   modelId: string;
 };
 

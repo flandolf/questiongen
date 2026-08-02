@@ -6,7 +6,7 @@ Summary: React + TypeScript UI built with Vite. Key areas:
 - State & Context: [src/store.ts](src/store.ts#L1), `src/store/*` (slices),
   [src/AppContext.tsx](src/AppContext.tsx#L1).
 - Components: [src/components](src/components#L1) (UI controls, layout,
-  sketchpad, question blocks, theme provider).
+  question blocks, tutor, and theme support).
 - Views: [src/views](src/views#L1) (GeneratorView, HistoryView, SettingsView,
   AnalyticsView, SavedView, WrongQuestionView).
 - Hooks: [src/hooks](src/hooks#L1) (appearance, model stats, timer, local

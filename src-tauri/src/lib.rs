@@ -1,23 +1,19 @@
 mod anki;
 pub use anki::export_deck_to_file;
 mod catalog;
+mod chatgpt;
 mod constants;
-mod deepseek_info;
 mod difficulty;
 mod engine;
 mod envelope;
 mod http_client;
 mod json_input;
 mod latex;
-mod llm;
 mod models;
 mod normalization;
-mod nvidia_info;
-mod openrouter_info;
 mod parsing;
 mod pdf;
 mod persistence;
-mod provider_models;
 mod quality;
 mod question_traits;
 mod schemas;
@@ -30,15 +26,11 @@ use std::process::Command;
 
 static APP_HANDLE: OnceCell<tauri::AppHandle> = OnceCell::new();
 
-use deepseek_info::{get_deepseek_balance, list_deepseek_models};
 use models::*;
-use nvidia_info::list_nvidia_models;
-use openrouter_info::{get_credits, get_model_stats};
 use persistence::{
     export_data_file, export_data_file_to_directory, list_json_files_in_directory,
     load_persisted_state, read_text_file, save_persisted_state, write_text_file,
 };
-use provider_models::{get_provider_model_stats, list_provider_models, validate_provider_key};
 
 #[tauri::command]
 async fn generate_questions(
@@ -180,7 +172,6 @@ async fn export_question_to_anki(
     app: tauri::AppHandle,
     request: ExportQuestionToAnkiRequest,
 ) -> CommandResult<ExportQuestionToAnkiResponse> {
-    #[cfg(not(target_os = "android"))]
     let file_path = {
         use tauri_plugin_dialog::DialogExt;
         let save_path = app
@@ -200,17 +191,6 @@ async fn export_question_to_anki(
                 });
             }
         }
-    };
-
-    #[cfg(target_os = "android")]
-    let file_path = {
-        use tauri::Manager;
-        let cache_dir = app
-            .path()
-            .cache_dir()
-            .map_err(|e| AppError::new("IO_ERROR", format!("Failed to get cache dir: {}", e)))?;
-        let full_path = cache_dir.join(format!("question-{}.apkg", request.id));
-        full_path.to_string_lossy().to_string()
     };
 
     let model = anki::model();
@@ -235,25 +215,6 @@ async fn export_question_to_anki(
     deck.add_note(note);
 
     export_deck_to_file(deck, &file_path)?;
-
-    #[cfg(target_os = "android")]
-    {
-        use tauri::Manager;
-        use tauri_plugin_sharekit::ShareExt;
-        if let Some(window) = app.get_webview_window("main") {
-            app.share()
-                .share_file(
-                    window,
-                    format!("file://{}", file_path),
-                    tauri_plugin_sharekit::ShareFileOptions {
-                        title: Some("Anki Export".to_string()),
-                        ..Default::default()
-                    },
-                )
-                .await
-                .map_err(|e| AppError::new("SHARE_ERROR", format!("Failed to share: {}", e)))?;
-        }
-    }
 
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     {
@@ -282,20 +243,21 @@ async fn generate_subtopics(
     engine::generate_subtopics(&ctx, request).await
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let _ = APP_HANDLE.set(app.handle().clone());
+            chatgpt::start(app.handle()).map_err(std::io::Error::other)?;
             Ok(())
         })
+        .manage(chatgpt::ChatGptSidecar::default())
         .manage(AbortSignal::new())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_sharekit::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             load_persisted_state,
             save_persisted_state,
@@ -310,14 +272,6 @@ pub fn run() {
             tutor_chat,
             analyze_image,
             generate_mc_questions,
-            get_model_stats,
-            get_credits,
-            get_deepseek_balance,
-            list_deepseek_models,
-            list_nvidia_models,
-            list_provider_models,
-            get_provider_model_stats,
-            validate_provider_key,
             cleanup_topics,
             export_question_to_anki,
             abort_generation,
@@ -325,6 +279,14 @@ pub fn run() {
             discover_pdf_questions,
             generate_subtopics,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                chatgpt::stop(app);
+            }
+        });
 }

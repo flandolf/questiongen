@@ -249,8 +249,6 @@ export async function deleteSavedSet(id: string) {
 }
 
 type PendingSettingsUpdate = {
-  apiKey?: string;
-  providerKeys?: Record<string, string>;
   studyGoals?: StudyGoals;
   streakData?: StreakData;
   presets?: Preset[];
@@ -291,42 +289,9 @@ export function updatePresets(presets: Preset[]) {
   queueSettingsUpdate({ presets });
 }
 
-export function updateProviderApiKeys(
-  activeApiKey: string,
-  providerKeys: Record<string, string>,
-) {
-  queueSettingsUpdate({ apiKey: activeApiKey, providerKeys });
-}
-
-export async function clearSyncedApiKeys() {
-  pendingSettingsUpdate = {};
-  try {
-    const existing = await getRecord('settings', 'profile');
-    const now = Date.now();
-    await upsertRecord('settings', 'profile', {
-      ...(existing?.deleted_at ? {} : (existing?.payload ?? {})),
-      apiKey: '',
-      providerKeys: {},
-      lastModified: now,
-    });
-    localStorage.setItem('sync_settings_lastWrite', now.toString());
-  } catch (error) {
-    logFailure('clear synced API keys', error);
-  }
-}
-
 function currentSettingsPayload(lastModified = Date.now()) {
   const state = useAppStore.getState();
   return {
-    apiKey: state.syncApiKey ? state.apiKey : '',
-    providerKeys: state.syncApiKey
-      ? Object.fromEntries(
-          Object.entries(state.providers).map(([id, provider]) => [
-            id,
-            provider.apiKey,
-          ]),
-        )
-      : {},
     studyGoals: state.studyGoals,
     streakData: state.streakData,
     presets: state.presets,

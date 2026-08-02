@@ -11,7 +11,6 @@ import {
   useWrittenSession,
 } from '@/AppContext';
 import { MarkdownMath } from '@/components/MarkdownMath';
-import { UnifiedMcqOptionsGrid } from '@/components/question/UnifiedQuestionBlocks';
 import { TutorPanel } from '@/components/tutor/TutorPanel';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useLlmStreamEvents } from '@/hooks/useLlmStreamEvents';
@@ -26,7 +25,6 @@ import {
   isMathTopic,
   removeKey,
 } from '@/lib/generator-helpers';
-import { buildSketchpadSessionKey } from '@/lib/sketchpad-session-keys';
 import { useAppStore } from '@/store';
 import { useTutorStore } from '@/store/tutor';
 import type {
@@ -76,11 +74,7 @@ export function GeneratorView() {
     }
   });
 
-  const [, setWrittenSketchpadActive] = useState(false);
-  const [mcSketchpadActive, setMcSketchpadActive] = useState(false);
-
   const {
-    apiKey,
     markingModel,
     useSeparateMarkingModel,
     imageMarkingModel,
@@ -233,20 +227,6 @@ export function GeneratorView() {
   const activeMcAnswer = activeMcQuestion
     ? (mcAnswersByQuestionId[activeMcQuestion.id] ?? '')
     : '';
-
-  const activeWrittenSketchSessionKey = useMemo(() => {
-    if (!activeQuestion) return undefined;
-    return buildSketchpadSessionKey('written', activeQuestion);
-  }, [activeQuestion]);
-
-  const activeMcSketchSessionKey = useMemo(() => {
-    if (!activeMcQuestion) return undefined;
-    return buildSketchpadSessionKey('multiple-choice', activeMcQuestion);
-  }, [activeMcQuestion]);
-
-  useEffect(() => {
-    setMcSketchpadActive(false);
-  }, [activeMcQuestion?.id]);
 
   const getMcAwardedMarks = useCallback(
     (qId: string, selectedAnswer: string, correctAnswer: string) => {
@@ -401,10 +381,6 @@ export function GeneratorView() {
     questionMode === 'written' ? activeQuestionAnswer : activeMcAnswer;
   const activeTutorImage =
     questionMode === 'written' ? activeQuestionImage : undefined;
-  const activeTutorSketchSessionKey =
-    questionMode === 'written'
-      ? activeWrittenSketchSessionKey
-      : activeMcSketchSessionKey;
 
   useEffect(() => {
     setShowCompletionScreen(false);
@@ -798,7 +774,6 @@ export function GeneratorView() {
         activeQuestionAnswer.trim().length > 0 || Boolean(effectiveImage);
       if (
         !hasAnswerContent ||
-        !apiKey.trim() ||
         !markModel.trim() ||
         isMarking ||
         activeFeedback
@@ -825,7 +800,6 @@ export function GeneratorView() {
       activeQuestion,
       activeQuestionImage,
       activeQuestionAnswer,
-      apiKey,
       markModel,
       isMarking,
       activeFeedback,
@@ -841,7 +815,7 @@ export function GeneratorView() {
   const handleArgueForMark = useCallback(async () => {
     if (!activeQuestion || !activeFeedback) return;
     const appealText = activeMarkAppeal.trim();
-    if (!appealText || !apiKey.trim() || !markModel.trim()) return;
+    if (!appealText || !markModel.trim()) return;
     setErrorMessage(null);
     setShowMarkingScreen(true);
     clearFailure();
@@ -857,7 +831,6 @@ export function GeneratorView() {
     activeQuestion,
     activeFeedback,
     activeMarkAppeal,
-    apiKey,
     markModel,
     argueForWrittenMark,
     setErrorMessage,
@@ -962,7 +935,6 @@ export function GeneratorView() {
         onSetAverageMarksPerQuestion={setAverageMarksPerQuestion}
         avoidSimilarQuestions={avoidSimilarQuestions}
         onSetAvoidSimilarQuestions={setAvoidSimilarQuestions}
-        hasApiKey={Boolean(apiKey)}
         canGenerate={canGenerate}
         isGenerating={isGenerating}
         isPaused={activeTimer.isPaused}
@@ -1119,57 +1091,6 @@ export function GeneratorView() {
                 onSubmit={(p) => void handleSubmitForMarking(p)}
                 isMarking={isMarking}
                 canSubmit={!activeFeedback && !isMarking}
-                sketchSessionKey={activeWrittenSketchSessionKey}
-                onSketchpadActiveChange={setWrittenSketchpadActive}
-              />
-            }
-          />
-        ) : mcSketchpadActive ? (
-          <QuestionSplitLayout
-            mode='mc'
-            leftSlot={
-              <div className='border-t border-border/15 pt-4'>
-                <div
-                  className='prose dark:prose-invert max-w-none'
-                  style={{
-                    fontSize: 'var(--question-text-size)',
-                  }}
-                >
-                  <MarkdownMath content={activeMcQuestion.promptMarkdown} />
-                </div>
-              </div>
-            }
-            leftBelowSlot={
-              <div className='min-w-0'>
-                <UnifiedMcqOptionsGrid
-                  options={activeMcQuestion.options}
-                  selectedAnswer={activeMcAnswer}
-                  correctAnswer={activeMcQuestion.correctAnswer}
-                  answered={Boolean(activeMcAnswer)}
-                  revealCorrectness={Boolean(activeMcAnswer)}
-                  lockSelection={false}
-                  onSelect={handleMcAnswer}
-                  columns={1}
-                />
-              </div>
-            }
-            rightSlot={
-              <McAnswerCard
-                questionId={activeMcQuestion.id}
-                options={activeMcQuestion.options}
-                selectedAnswer={activeMcAnswer}
-                correctAnswer={activeMcQuestion.correctAnswer}
-                onSelectAnswer={handleMcAnswer}
-                explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                isSketchpadOpen={mcSketchpadActive}
-                onToggleSketchpad={() =>
-                  setMcSketchpadActive(!mcSketchpadActive)
-                }
-                sketchSessionKey={activeMcSketchSessionKey}
-                onApplyOverride={overrideMcMark}
-                onImageDrop={() => {}}
-                onImageRemove={() => {}}
-                renderSketchpadInline={true}
               />
             }
           />
@@ -1196,14 +1117,7 @@ export function GeneratorView() {
                 correctAnswer={activeMcQuestion.correctAnswer}
                 onSelectAnswer={handleMcAnswer}
                 explanationMarkdown={activeMcQuestion.explanationMarkdown}
-                isSketchpadOpen={mcSketchpadActive}
-                onToggleSketchpad={() =>
-                  setMcSketchpadActive(!mcSketchpadActive)
-                }
-                sketchSessionKey={activeMcSketchSessionKey}
                 onApplyOverride={overrideMcMark}
-                onImageDrop={() => {}}
-                onImageRemove={() => {}}
               />
             }
           />
@@ -1254,7 +1168,6 @@ export function GeneratorView() {
           contextPrompt={activeTutorContextPrompt}
           studentAnswer={activeTutorStudentAnswer}
           image={activeTutorImage}
-          sketchSessionKey={activeTutorSketchSessionKey}
         />
       )}
     </div>

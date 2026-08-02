@@ -16,7 +16,6 @@ import type {
   PersistedAppState,
   Preset,
   PresetPreferences,
-  ProviderState,
   QuestionHistoryEntry,
   QuestionMode,
   SavedQuestionSet,
@@ -33,13 +32,7 @@ export interface AppState {
   // ── Hydration ──────────────────────────────────────────────────────────────
   isHydrated: boolean;
 
-  // ── Provider state ─────────────────────────────────────────────────────────
-  providers: Record<string, ProviderState>;
-  activeProviderId: string;
-
   // ── Settings ───────────────────────────────────────────────────────────────
-  apiKey: string;
-  showApiKey: boolean;
   model: string;
   markingModel: string;
   useSeparateMarkingModel: boolean;
@@ -51,7 +44,6 @@ export interface AppState {
   responseTextSize: number;
   includeExamContext: boolean;
   autoSyncIntervalMinutes: number;
-  syncApiKey: boolean;
   localBackupFolderPath: string;
   localBackupIntervalMinutes: number;
   theme: string;
@@ -108,7 +100,7 @@ export interface AppState {
   writtenQuestionPresentedAtById: Record<string, number>;
   answersByQuestionId: Record<string, string>;
   imagesByQuestionId: Record<string, StudentAnswerImage | undefined>;
-  activeTabByQuestionId: Record<string, 'response' | 'upload' | 'sketchpad'>;
+  activeTabByQuestionId: Record<string, 'response' | 'upload'>;
   feedbackByQuestionId: Record<string, MarkAnswerResponse>;
   questionHistory: QuestionHistoryEntry[];
   writtenRawModelOutput: string;
@@ -187,14 +179,7 @@ export interface AppActions {
   addPreset: (preset: Preset) => void;
   updatePreset: (preset: Preset) => void;
   deletePreset: (id: string) => void;
-  // Providers
-  setActiveProvider: (providerId: string) => void;
-  setProviderApiKey: (providerId: string, key: string) => void;
-  addCustomProvider: (name: string, baseUrl: string) => string;
-  removeCustomProvider: (providerId: string) => void;
   // Settings
-  setApiKey: (key: string) => void;
-  setShowApiKey: (show: boolean) => void;
   setModel: (model: string) => void;
   setMarkingModel: (model: string) => void;
   setUseSeparateMarkingModel: (enabled: boolean) => void;
@@ -202,12 +187,10 @@ export interface AppActions {
   setUseSeparateImageMarkingModel: (enabled: boolean) => void;
   setDebugMode: (enabled: boolean) => void;
   setShowRawLlmOutput: (enabled: boolean) => void;
-  clearApiKey: () => void;
   setQuestionTextSize: (size: number) => void;
   setResponseTextSize: (size: number) => void;
   setIncludeExamContext: (enabled: boolean) => void;
   setAutoSyncIntervalMinutes: (minutes: number) => void;
-  setSyncApiKey: (enabled: boolean) => void;
   setLocalBackupFolderPath: (path: string) => void;
   setLocalBackupIntervalMinutes: (minutes: number) => void;
   setTheme: (theme: string) => void;
@@ -291,7 +274,7 @@ export interface AppActions {
   ) => void;
   setActiveTabByQuestionId: (
     questionId: string,
-    tab: 'response' | 'upload' | 'sketchpad',
+    tab: 'response' | 'upload',
   ) => void;
   setFeedbackByQuestionId: (
     feedback:

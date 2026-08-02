@@ -4,7 +4,6 @@ import {
   Coins,
   ImageIcon,
   Loader2,
-  PencilRuler,
   Trash2,
   Type,
 } from 'lucide-react';
@@ -12,18 +11,14 @@ import { memo, useEffect, useRef, useState } from 'react';
 
 import { useAppSettings } from '@/AppContext';
 import { UnifiedWrittenResponseCard } from '@/components/question/UnifiedQuestionBlocks';
-import type { SketchpadHandle } from '@/components/Sketchpad';
-import Sketchpad from '@/components/Sketchpad';
 import { Button } from '@/components/ui/button';
 import { Dropzone } from '@/components/ui/dropzone';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store';
 import type { StudentAnswerImage } from '@/types';
 
 type WrittenAnswerCardProps = {
   questionId: string;
-  sketchSessionKey?: string;
   answer: string;
   image: StudentAnswerImage | undefined;
   isMarking: boolean;
@@ -33,7 +28,6 @@ type WrittenAnswerCardProps = {
   onImageDrop: (files: File[]) => void;
   onImageRemove: () => void;
   onSubmit: (payload?: { image?: StudentAnswerImage }) => void | Promise<void>;
-  onSketchpadActiveChange?: (active: boolean) => void;
 };
 
 function wordCount(s: string) {
@@ -52,7 +46,6 @@ function getFooterNote(isExamMode: boolean | undefined): string {
 // eslint-disable-next-line complexity
 export const WrittenAnswerCard = memo(function WrittenAnswerCard({
   questionId,
-  sketchSessionKey,
   answer,
   image,
   isMarking,
@@ -62,46 +55,20 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
   onImageDrop,
   onImageRemove,
   onSubmit,
-  onSketchpadActiveChange,
 }: WrittenAnswerCardProps) {
   const { showRawLlmOutput } = useAppSettings();
   const { activeTabByQuestionId, setActiveTabByQuestionId } = useAppStore();
   const activeTab = activeTabByQuestionId[questionId] || 'response';
-  const setActiveTab = (tab: 'response' | 'upload' | 'sketchpad') =>
+  const setActiveTab = (tab: 'response' | 'upload') =>
     setActiveTabByQuestionId(questionId, tab);
-
-  const [confirmSketchSubmit, setConfirmSketchSubmit] = useState(false);
   const [localIsMarking, setLocalIsMarking] = useState(false);
-  const sketchpadRef = useRef<SketchpadHandle | null>(null);
   const [markStreamText, setMarkStreamText] = useState('');
   const [hasReceivedTokens, setHasReceivedTokens] = useState(false);
   const streamBufferRef = useRef('');
   const streamFlushRafRef = useRef<number | null>(null);
   const words = wordCount(answer);
   const hasContent = answer.trim().length > 0 || Boolean(image);
-  const canSubmitFromSketchpad = canSubmit || activeTab === 'sketchpad';
   const footerNote = getFooterNote(isExamMode);
-
-  useEffect(() => {
-    setConfirmSketchSubmit(false);
-  }, [questionId]);
-
-  useEffect(() => {
-    onSketchpadActiveChange?.(activeTab === 'sketchpad');
-    if (activeTab !== 'sketchpad') {
-      setConfirmSketchSubmit(false);
-    }
-  }, [activeTab, onSketchpadActiveChange]);
-
-  useEffect(() => {
-    if (activeTab !== 'sketchpad' || !confirmSketchSubmit) {
-      return;
-    }
-    const timeout = window.setTimeout(() => {
-      setConfirmSketchSubmit(false);
-    }, 4500);
-    return () => window.clearTimeout(timeout);
-  }, [activeTab, confirmSketchSubmit]);
 
   useEffect(() => {
     const flush = () => {
@@ -160,45 +127,9 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
     }
   }, [localIsMarking, markStreamText]);
 
-  async function handleSketchSave(dataUrl: string) {
-    try {
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const file = new File([blob], `sketch-${Date.now()}.webp`, {
-        type: blob.type || 'image/webp',
-      });
-      onImageDrop([file]);
-    } catch {
-      // noop
-    }
-  }
-
-  async function handleSubmit() {
-    if (activeTab === 'sketchpad' && sketchpadRef.current) {
-      try {
-        const dataUrl = await sketchpadRef.current.exportDataUrl();
-        await onSubmit({
-          image: {
-            id: crypto.randomUUID(),
-            dataUrl,
-            timestamp: new Date().toISOString(),
-          },
-        });
-        return;
-      } catch {
-        // Fall back to the existing submit path if export fails.
-      }
-    }
-    await onSubmit();
-  }
-
   async function handleSubmitClick() {
-    if (activeTab === 'sketchpad' && !confirmSketchSubmit) {
-      setConfirmSketchSubmit(true);
-      return;
-    }
     setLocalIsMarking(true);
-    await handleSubmit();
+    await onSubmit();
   }
 
   return (
@@ -207,7 +138,7 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
       onChange={onAnswerChange}
       disabled={isMarking}
       topSlot={
-        <div className='grid grid-cols-3 gap-1 pb-2 border-b border-border/15'>
+        <div className='grid grid-cols-2 gap-1 pb-2 border-b border-border/15'>
           <Button
             type='button'
             variant={activeTab === 'response' ? 'default' : 'ghost'}
@@ -227,16 +158,6 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
           >
             <ImageIcon className='h-3.5 w-3.5' />
             Upload image
-          </Button>
-          <Button
-            type='button'
-            variant={activeTab === 'sketchpad' ? 'default' : 'ghost'}
-            size='sm'
-            className='gap-1.5'
-            onClick={() => setActiveTab('sketchpad')}
-          >
-            <PencilRuler className='h-3.5 w-3.5' />
-            Sketchpad
           </Button>
         </div>
       }
@@ -297,34 +218,6 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
         </div>
       )}
 
-      <div className={cn('space-y-2', activeTab !== 'sketchpad' && 'hidden')}>
-        <Sketchpad
-          ref={sketchpadRef}
-          embedded
-          sessionKey={sketchSessionKey ?? questionId}
-          onSave={(dataUrl) => void handleSketchSave(dataUrl)}
-        />
-      </div>
-
-      {image && (
-        <div className='relative group rounded-xl overflow-hidden border-2 border-primary/20 bg-muted/20 p-2'>
-          <img
-            src={image.dataUrl}
-            alt='Saved sketch'
-            className='w-full h-auto max-h-64 object-contain rounded-lg'
-          />
-          <div className='mt-2 flex justify-end'>
-            <Button
-              variant='destructive'
-              size='sm'
-              className='gap-1.5'
-              onClick={onImageRemove}
-            >
-              <Trash2 className='w-3.5 h-3.5' /> Remove saved sketch
-            </Button>
-          </div>
-        </div>
-      )}
       <div className='border-t pt-2'>
         <Button
           size='lg'
@@ -334,16 +227,11 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
               : ''
           }`}
           onClick={() => void handleSubmitClick()}
-          disabled={!canSubmitFromSketchpad || localIsMarking}
+          disabled={!canSubmit || localIsMarking}
         >
           {localIsMarking ? (
             <>
               <Loader2 className='w-4 h-4 animate-spin' /> Evaluating…
-            </>
-          ) : activeTab === 'sketchpad' && confirmSketchSubmit ? (
-            <>
-              <CheckCircle2 className='w-4 h-4' /> Tap again to confirm sketch
-              submission
             </>
           ) : (
             <>
@@ -351,13 +239,6 @@ export const WrittenAnswerCard = memo(function WrittenAnswerCard({
             </>
           )}
         </Button>
-        {activeTab === 'sketchpad' &&
-          confirmSketchSubmit &&
-          !localIsMarking && (
-            <p className='mt-2 text-center text-xs text-muted-foreground'>
-              Tap again to confirm within 4 seconds.
-            </p>
-          )}
         {localIsMarking &&
           (markStreamText.length > 0 ||
             !hasReceivedTokens ||

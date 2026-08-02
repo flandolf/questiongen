@@ -50,9 +50,7 @@ export function ImportExportSection() {
   const [importCounts, setImportCounts] = useState<ImportCounts | null>(null);
 
   const desktop = isTauriApp();
-  const isAndroid =
-    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
-  const supportsFolderBackups = desktop && !isAndroid;
+  const supportsFolderBackups = desktop;
 
   const notifyError = useCallback((message: string) => {
     setError(message);
@@ -170,7 +168,7 @@ export function ImportExportSection() {
       return 'No new data found. All entries in the import file already exist in your data. Nothing will be changed.';
     }
 
-    return `The following new items will be added:\n\n${parts.join('\n')}\n\nDuplicate entries (matching IDs) will be skipped. Settings and preferences will be overwritten. Your API key will be preserved.`;
+    return `The following new items will be added:\n\n${parts.join('\n')}\n\nDuplicate entries (matching IDs) will be skipped. Settings and preferences will be overwritten.`;
   };
 
   return (
@@ -195,12 +193,12 @@ export function ImportExportSection() {
 
       {!supportsFolderBackups && (
         <p
-          key='android-notice'
+          key='browser-notice'
           className='text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2'
         >
           Scheduled backups, saving to a chosen folder, and importing from that
-          folder are available on desktop. On Android and in the browser, use
-          Export and Choose File below.
+          folder are available in the desktop app. In the browser, use Export
+          and Choose File below.
         </p>
       )}
 
@@ -211,7 +209,7 @@ export function ImportExportSection() {
         </div>
         <p className='text-xs text-muted-foreground'>
           Download a complete backup of your data as a JSON file. Images in your
-          history are included. Your API key is stripped for security.
+          history are included. ChatGPT login stays on this device.
         </p>
         <div className='text-xs text-muted-foreground space-y-0.5'>
           <p>
@@ -256,7 +254,7 @@ export function ImportExportSection() {
         <p className='text-xs text-muted-foreground'>
           Restore data from a previously exported backup file. Duplicate entries
           are automatically skipped. Settings and preferences will be
-          overwritten (your API key is preserved).
+          overwritten. ChatGPT login is unchanged.
         </p>
         <input
           ref={fileInputRef}

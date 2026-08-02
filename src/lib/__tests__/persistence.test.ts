@@ -19,7 +19,7 @@ describe('persistence normalization', () => {
     expect(normalized.preferences.questionMode).toBe('written');
   });
 
-  it('fills blank settings with app defaults', () => {
+  it('keeps models blank until ChatGPT model discovery', () => {
     const normalized = normalizePersistedAppState({
       settings: {
         model: '',
@@ -32,13 +32,13 @@ describe('persistence normalization', () => {
       },
     });
 
-    expect(normalized.settings.model).toBe('openai/gpt-5.4-mini');
-    expect(normalized.settings.markingModel).toBe('openai/gpt-5.4-mini');
-    expect(normalized.settings.imageMarkingModel).toBe('openai/gpt-5.4-mini');
+    expect(normalized.settings.model).toBe('');
+    expect(normalized.settings.markingModel).toBe('');
+    expect(normalized.settings.imageMarkingModel).toBe('');
     expect(normalized.settings.theme).toBe('default');
     expect(normalized.settings.interfaceFont).toBe('Inter Variable');
     expect(normalized.settings.headingFont).toBe('Manrope Variable');
-    expect(normalized.settings.tutorModel).toBe('openai/gpt-5.4-mini');
+    expect(normalized.settings.tutorModel).toBe('');
   });
 
   it('normalizes shorthand and invalid custom theme seed colors', () => {

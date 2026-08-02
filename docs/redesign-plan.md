@@ -68,7 +68,7 @@ Every detail matters. Spacing, alignment, motion, and interaction states must be
 **Refinements:**
 - Refactor command surface in `lib.rs` to clearer REST-like naming
 - Add structured error types mappable to user-friendly frontend messages
-- Consider streaming responses if OpenRouter supports it
+- Consider incremental ChatGPT response streaming
 
 ---
 
@@ -151,7 +151,7 @@ Currently questions appear inline or in modals. **New: Immersive player route** 
 - Full focus mode with minimal chrome
 - Questions displayed one at a time
 - MathJax in a contained card with subtle shadow
-- Sketchpad slides out from right (not bottom)
+- Answer upload slides out from right (not bottom)
 - Timer in floating header pill
 - Navigation: previous/next, flag for review
 - After completion: review screen with accuracy summary
@@ -204,7 +204,7 @@ Unified "needs attention" view:
 ### 4.8 Settings → "Preferences"
 
 Sidebar-organized sections:
-- **Account** — API keys, sync status, usage
+- **Account** — ChatGPT connection and sync status
 - **Appearance** — theme, text size, density (compact/comfortable)
 - **Generation** — default model, cost limits, diversity
 - **Notifications** — study reminders (if implemented)
@@ -224,7 +224,7 @@ src/
 ├── components/
 │   ├── ui/              # Atomic primitives (~20 components)
 │   ├── layout/          # App shell, sidebar, header
-│   ├── question/        # Question display, player, sketchpad
+│   ├── question/        # Question display and player
 │   ├── generator/       # Session composer pieces
 │   ├── study-log/       # History/session views
 │   ├── insights/        # Analytics charts
@@ -250,7 +250,7 @@ src/
 | `sessions-slice` | Study sessions, active session, filters |
 | `questions-slice` | Question bank, tags, selection |
 | `study-queue-slice` | Wrong questions, review schedule |
-| `settings-slice` | User preferences, API keys |
+| `settings-slice` | User preferences and selected ChatGPT models |
 
 ### Rules
 
@@ -316,7 +316,7 @@ src/
 
 ### Phase 2: Core Views (3–4 weeks)
 - [ ] Redesign Generator View (Session Composer)
-- [ ] Build Question Player with sketchpad
+- [ ] Build Question Player with answer upload
 - [ ] Implement Study Log database view
 - [ ] Redesign Question Bank
 
@@ -351,7 +351,6 @@ src/
 | `src/views/generator/SetupPanel.tsx` | Replace with `SessionComposer` |
 | Inline `style={{}}` props | Replace with Tailwind classes |
 | Manual view state in store | Replace with router |
-| `src/components/Sketchpad.tsx` | Refactor into `SketchpadPanel` |
 | Legacy modal system | Replace with Dialog primitive |
 
 ---

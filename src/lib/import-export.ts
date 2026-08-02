@@ -7,7 +7,6 @@ import type {
   McHistoryEntry,
   PersistedAppState,
   Preset,
-  ProviderState,
   QuestionHistoryEntry,
   SavedQuestionSet,
   StreakData,
@@ -44,7 +43,6 @@ async function invokeTauri<T>(
 
 // Subset of AppState used by import/export — avoids circular dependency with store.ts
 export interface ImportExportState {
-  apiKey: string;
   model: string;
   markingModel: string;
   useSeparateMarkingModel: boolean;
@@ -55,10 +53,7 @@ export interface ImportExportState {
   questionTextSize: number;
   responseTextSize: number;
   includeExamContext: boolean;
-  providers: Record<string, ProviderState>;
-  activeProviderId: string;
   autoSyncIntervalMinutes: number;
-  syncApiKey: boolean;
   localBackupFolderPath: string;
   localBackupIntervalMinutes: number;
   theme: string;
@@ -155,35 +150,12 @@ export function exportAppState(s: ImportExportState): PersistedAppState {
   const preserveImages = true;
   const snapshot = buildExportSnapshot(s, { preserveImages });
 
-  // Strip API keys from top-level settings and all providers
-  const strippedProviders: Record<
-    string,
-    NonNullable<typeof snapshot.settings.providers>[string]
-  > = {};
-  if (snapshot.settings.providers) {
-    for (const [id, provider] of Object.entries(snapshot.settings.providers)) {
-      strippedProviders[id] = {
-        ...provider,
-        apiKey: '',
-        keyStatus: 'untested' as const,
-        keyLastTestedAt: null,
-      };
-    }
-  }
-
-  snapshot.settings = {
-    ...snapshot.settings,
-    apiKey: '',
-    providers: strippedProviders,
-  };
-
-  // Strip API key from saved set preferences
   snapshot.savedSets = snapshot.savedSets.map((ss) => ({
     ...ss,
     preferences: { ...ss.preferences },
   }));
 
-  // Strip API key from preset preferences
+  // Clone preset preferences into the export snapshot.
   snapshot.presets = (snapshot.presets ?? []).map((p) => ({
     ...p,
     preferences: { ...p.preferences },
@@ -303,30 +275,6 @@ export function parseImportText(text: string): PersistedAppState {
   }
 
   const normalized = normalizePersistedAppState(rawState);
-
-  // Strip API keys from top-level settings and all providers
-  const strippedProviders: Record<
-    string,
-    NonNullable<typeof normalized.settings.providers>[string]
-  > = {};
-  if (normalized.settings.providers) {
-    for (const [id, provider] of Object.entries(
-      normalized.settings.providers,
-    )) {
-      strippedProviders[id] = {
-        ...provider,
-        apiKey: '',
-        keyStatus: 'untested' as const,
-        keyLastTestedAt: null,
-      };
-    }
-  }
-
-  normalized.settings = {
-    ...normalized.settings,
-    apiKey: '',
-    providers: strippedProviders,
-  };
 
   return normalized;
 }
@@ -453,7 +401,6 @@ function mergeSettings(
     includeExamContext: imported.settings.includeExamContext ?? false,
     showRawLlmOutput: imported.settings.showRawLlmOutput ?? false,
     autoSyncIntervalMinutes: imported.settings.autoSyncIntervalMinutes ?? 0,
-    syncApiKey: imported.settings.syncApiKey ?? false,
     localBackupFolderPath: imported.settings.localBackupFolderPath ?? '',
     localBackupIntervalMinutes:
       imported.settings.localBackupIntervalMinutes ?? 0,
@@ -495,9 +442,8 @@ export function mergeImportedState(
     imported.generationHistory ?? [],
   );
 
-  // Settings: overwrite, but preserve local API key
+  // Settings: overwrite.
   Object.assign(merged, mergeSettings(current, imported));
-  // API key is NOT overwritten — keep current.apiKey
 
   // Preferences: overwrite
   merged.selectedTopics = imported.preferences.selectedTopics;
@@ -569,7 +515,6 @@ function buildExportSnapshot(
   return {
     version: EMPTY_PERSISTED_APP_STATE.version,
     settings: {
-      apiKey: s.apiKey,
       model: s.model,
       markingModel: s.markingModel,
       useSeparateMarkingModel: s.useSeparateMarkingModel,
@@ -580,10 +525,7 @@ function buildExportSnapshot(
       questionTextSize: s.questionTextSize,
       responseTextSize: s.responseTextSize,
       includeExamContext: s.includeExamContext,
-      providers: s.providers,
-      activeProviderId: s.activeProviderId,
       autoSyncIntervalMinutes: s.autoSyncIntervalMinutes,
-      syncApiKey: s.syncApiKey,
       localBackupFolderPath: s.localBackupFolderPath,
       localBackupIntervalMinutes: s.localBackupIntervalMinutes,
       theme: s.theme,

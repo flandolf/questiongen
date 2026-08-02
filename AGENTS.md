@@ -4,7 +4,7 @@
 
 - **Frameworks**: Tauri 2 (Rust) + React 19 (Vite, TS, Tailwind 4).
 - **Domain**: VCE (Victorian Certificate of Education) exam question generation.
-- **AI**: OpenRouter for generation/marking.
+- **AI**: Login with ChatGPT through a bundled local Tauri sidecar.
 - **State**: Zustand (slices pattern) in `src/store/`. `src/store.ts` is the
   aggregate entry point.
 - **Math Architecture**: MathJax 4 for rendering.

@@ -1,68 +1,5 @@
-export interface ModelStats {
-  tpsP50: number | null;
-  promptPricePerToken: number | null;
-  completionPricePerToken: number | null;
-  contextLength: number | null;
-  supportsStructuredOutput: boolean;
-  name: string | null;
-  latencyP50: number | null;
-  uptimeLast30m: number | null;
-  supportsImages: boolean | null;
-  supportsFiles: boolean | null;
-}
-
-export interface CreditsInfo {
-  totalCredits: number;
-  totalUsage: number;
-  remaining: number;
-}
-
-export interface DeepSeekBalanceInfo {
-  isAvailable: boolean;
-  balanceInfos: {
-    currency: string;
-    totalBalance: string;
-    grantedBalance: string;
-    toppedUpBalance: string;
-  }[];
-}
-
-export interface DeepSeekModelEntry {
-  id: string;
-  object: string;
-  ownedBy: string;
-}
-
-export interface DeepSeekModelList {
-  object: string;
-  data: DeepSeekModelEntry[];
-}
-
-export interface ModelSearchResult {
-  id: string;
-  name: string;
-  tpsP50: number | null;
-  uptimeLast30m: number | null;
-  promptPricePerToken: number | null;
-  completionPricePerToken: number | null;
-  contextLength: number | null;
-  latencyP50: number | null;
-  supportsStructuredOutput: boolean;
-  supportsImages: boolean;
-}
-
-export type SortKey =
-  | 'speed'
-  | 'priceIn'
-  | 'priceOut'
-  | 'priceCombined'
-  | 'latency'
-  | 'context';
-export type SortDir = 'asc' | 'desc';
 export type Section =
-  | 'api'
   | 'models'
-  | 'credits'
   | 'appearance'
   | 'goals'
   | 'generation'
@@ -74,18 +11,5 @@ export type Section =
   | 'import-export'
   | 'logs'
   | 'subtopics';
-
-export type ImageValidationState =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'supported' }
-  | { status: 'unsupported' }
-  | { status: 'error'; message: string };
-
-export interface StatsColumn {
-  stats: ModelStats | null;
-  label: string;
-  loading: boolean;
-}
 
 export const APP_VERSION = '5.2.10';

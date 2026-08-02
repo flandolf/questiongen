@@ -14,12 +14,6 @@ IF /I "%~1"=="-B" (
     SET VER_ARG=minor
 ) ELSE IF /I "%~1"=="-M" (
     SET VER_ARG=major
-) ELSE IF /I "%~1"=="-c" (
-    SET MODE=-c
-) ELSE IF /I "%~1"=="-a" (
-    SET MODE=-a
-) ELSE IF /I "%~1"=="-b" (
-    SET MODE=-b
 )
 SHIFT
 GOTO parse_args
@@ -32,21 +26,6 @@ IF "%BUMP%"=="1" (
     ) ELSE (
         bun run scripts/version.ts
     )
-)
-
-IF "%MODE%"=="-a" (
-    ECHO Building Android (Windows host^)
-    bun run tauri android build -t aarch64
-    adb install -r "src-tauri\gen\android\app\build\outputs\apk\universal\release\app-universal-release.apk"
-    GOTO end
-)
-
-IF "%MODE%"=="-b" (
-    ECHO Full build (desktop + android^)
-    bun run tauri build
-    bun run tauri android build -t aarch64
-    adb install -r "src-tauri\gen\android\app\build\outputs\apk\universal\release\app-universal-release.apk"
-    GOTO end
 )
 
 REM Default: desktop build
