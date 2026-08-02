@@ -6,10 +6,11 @@ import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { createChatGPTProxyProvider } from '@opencoredev/loginwithchatgpt-ai';
 import {
+  type LanguageModelUsage,
   type ModelMessage,
   Output,
-  generateText,
   jsonSchema,
+  streamText,
 } from 'ai';
 import type {
   RateLimitBucket,
@@ -127,7 +128,7 @@ function toMessages(body: CompletionBody): ModelMessage[] {
   });
 }
 
-function usagePayload(usage: Awaited<ReturnType<typeof generateText>>['usage']): UsagePayload {
+function usagePayload(usage: LanguageModelUsage): UsagePayload {
   return {
     promptTokens: usage.inputTokens ?? 0,
     completionTokens: usage.outputTokens ?? 0,
@@ -194,7 +195,7 @@ async function completion(request: Request): Promise<Response> {
   const schema = body.responseFormat?.json_schema;
 
   try {
-    const result = await generateText({
+    const result = streamText({
       model: chatgpt(body.model),
       instructions: body.instructions,
       messages: toMessages(body),
@@ -220,13 +221,19 @@ async function completion(request: Request): Promise<Response> {
           }
         : {}),
     });
-    const text =
-      schema?.schema && result.output !== undefined
-        ? JSON.stringify(result.output)
-        : result.text;
-    return Response.json({ text, usage: usagePayload(result.usage) });
+    const text = schema?.schema
+      ? JSON.stringify(await result.output)
+      : await result.text;
+    return Response.json({ text, usage: usagePayload(await result.usage) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const responseBody =
+      error && typeof error === 'object' && 'responseBody' in error
+        ? error.responseBody
+        : undefined;
+    const message =
+      (error instanceof Error && error.message.trim()) ||
+      (typeof responseBody === 'string' && responseBody.trim()) ||
+      'ChatGPT request failed.';
     return Response.json({ error: message }, { status: 502 });
   }
 }

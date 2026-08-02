@@ -10,38 +10,6 @@ type MathJaxMenuSettings = {
   assistiveMml: boolean;
 };
 
-type MathJaxRuntimeOptions = {
-  enableAssistiveMml: boolean;
-  enableEnrichment?: boolean;
-  enableSpeech?: boolean;
-  enableBraille?: boolean;
-  speechError?: (doc: unknown, math: unknown, err: unknown) => void;
-  menuOptions?: {
-    settings?: Partial<MathJaxMenuSettings>;
-  };
-};
-
-type MathJaxRuntime = {
-  tex?: {
-    inlineMath?: [string, string][];
-    displayMath?: [string, string][];
-    packages?: Record<string, string[]>;
-  };
-  loader?: {
-    load?: string[];
-  };
-  startup?: {
-    typeset?: boolean;
-    promise?: Promise<unknown>;
-  };
-  sre?: {
-    enabled?: boolean;
-  };
-  options?: MathJaxRuntimeOptions;
-  typesetPromise?: (elements?: Element[]) => Promise<void>;
-  typesetClear?: (elements?: Element[]) => void;
-};
-
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const MATHJAX_CDN_URL = 'https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js';
@@ -92,19 +60,12 @@ function ensureMathJaxLoaded(): Promise<void> {
   }
 
   if (!window.MathJax) {
-    const defaultConfig: MathJaxRuntime = {
+    const defaultConfig: MathJaxConfig = {
       tex: {
         inlineMath: [['$', '$']],
         displayMath: [['$$', '$$']],
-        packages: {
-          '[+]': ['ams', 'textmacros'],
-        },
-      },
-      loader: {
-        load: ['[tex]/ams', '[tex]/textmacros'],
       },
       options: {
-        enableAssistiveMml: false,
         enableEnrichment: false,
         enableSpeech: false,
         enableBraille: false,
@@ -128,11 +89,10 @@ function ensureMathJaxLoaded(): Promise<void> {
     window.MathJax = defaultConfig;
   }
 
-  const runtime = window.MathJax as unknown as MathJaxRuntime;
+  const runtime = window.MathJax;
 
   runtime.options = {
     ...(runtime.options ?? {}),
-    enableAssistiveMml: false,
     enableEnrichment: false,
     enableSpeech: false,
     enableBraille: false,

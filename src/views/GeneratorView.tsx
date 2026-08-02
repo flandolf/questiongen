@@ -951,6 +951,7 @@ export function GeneratorView() {
         streamText={aggregatedStreamText}
         liveCostUsd={liveCostUsd}
         liveCostQuality={liveCostQuality}
+        liveStream={latestStream}
       />
     );
   }

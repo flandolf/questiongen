@@ -6,6 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
+    <link rel="icon" href="data:," />
     <title>Question Generator</title>
     <script>
       (function () {
@@ -53,7 +54,8 @@
             'rose-pine': 'dark',
             sunset: 'dark',
           };
-          const resolvedTheme = migrationMap[designTheme] || designTheme || 'light';
+          const resolvedTheme =
+            migrationMap[designTheme] || designTheme || 'light';
 
           document.documentElement.setAttribute(
             'data-design-theme',

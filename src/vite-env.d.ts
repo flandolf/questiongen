@@ -5,17 +5,18 @@ declare global {
     tex?: {
       inlineMath?: [string, string][];
       displayMath?: [string, string][];
-      packages?: Record<string, string[]>;
-    };
-    loader?: {
-      load?: string[];
     };
     options?: {
-      enableAssistiveMml?: boolean;
+      enableEnrichment?: boolean;
+      enableSpeech?: boolean;
+      enableBraille?: boolean;
       enableMenu?: boolean;
+      speechError?: (doc: unknown, math: unknown, error: unknown) => void;
       menuOptions?: {
         settings?: {
           assistiveMml?: boolean;
+          enrich?: boolean;
+          collapsible?: boolean;
           explorer?: boolean;
           speech?: boolean;
           braille?: boolean;

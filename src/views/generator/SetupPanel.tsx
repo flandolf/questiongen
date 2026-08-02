@@ -36,6 +36,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import type { LlmStreamState } from '@/hooks/useLlmStreamEvents';
 import { estimateTokensAndCost, formatCostUsd } from '@/lib/app-utils';
 import { listChatGPTModels } from '@/lib/chatgpt';
 import { normalizeDifficulty } from '@/lib/persistence';
@@ -200,7 +201,18 @@ type SetupPanelProps = {
   liveCostUsd?: number;
   /** Quality label for the live cost. */
   liveCostQuality?: CostQuality;
+  /** Live ChatGPT stream state used by the generation timeline. */
+  liveStream?: LlmStreamState | null;
 };
+
+type ReasoningEffort =
+  | 'xhigh'
+  | 'high'
+  | 'max'
+  | 'medium'
+  | 'low'
+  | 'minimal'
+  | 'none';
 
 export type AdvancedOptionsGroupProps = {
   questionMode: QuestionMode;
@@ -220,6 +232,10 @@ export type AdvancedOptionsGroupProps = {
   onSetDiversityEnabled: (enabled: boolean) => void;
   strictLatexValidation: boolean;
   onSetStrictLatexValidation: (enabled: boolean) => void;
+  modelReasoningEnabled: boolean;
+  onSetModelReasoningEnabled: (enabled: boolean) => void;
+  modelReasoningEffort: ReasoningEffort;
+  onSetModelReasoningEffort: (effort: ReasoningEffort) => void;
 };
 
 // ─── Small primitives (segmented control + chip + toggle row) ───────────────
@@ -422,13 +438,13 @@ function GroupedSubtopicSelector({
                 key={unit}
                 className='border-t border-border/60 first:border-t-0'
               >
-                <button
-                  type='button'
-                  onClick={() => toggleUnit(unit)}
-                  className='w-full flex items-center justify-between gap-2 py-2 text-left'
-                  aria-expanded={open}
-                >
-                  <span className='inline-flex items-center gap-2'>
+                <div className='flex w-full items-center gap-2 py-2'>
+                  <button
+                    type='button'
+                    onClick={() => toggleUnit(unit)}
+                    className='flex flex-1 items-center gap-2 text-left'
+                    aria-expanded={open}
+                  >
                     <ChevronDown
                       className={cn(
                         'h-3 w-3 text-muted-foreground/60 transition-transform duration-150',
@@ -441,18 +457,15 @@ function GroupedSubtopicSelector({
                     <span className='text-[10px] font-mono tabular-nums text-muted-foreground/50'>
                       {unitSelectedCount}/{unitTotal}
                     </span>
-                  </span>
+                  </button>
                   <button
                     type='button'
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleAllInUnit(unitGroups);
-                    }}
+                    onClick={() => toggleAllInUnit(unitGroups)}
                     className='text-[10px] font-semibold text-muted-foreground/60 hover:text-foreground transition-colors'
                   >
                     All
                   </button>
-                </button>
+                </div>
                 {open &&
                   unitGroups.map((group) => (
                     <div key={group.groupId} className='pb-2 pl-5'>
@@ -516,6 +529,10 @@ function AdvancedSection(props: AdvancedOptionsGroupProps) {
     onSetDiversityEnabled,
     strictLatexValidation,
     onSetStrictLatexValidation,
+    modelReasoningEnabled,
+    onSetModelReasoningEnabled,
+    modelReasoningEffort,
+    onSetModelReasoningEffort,
   } = props;
 
   // Static option list — no React state, so a plain const is correct.
@@ -563,6 +580,41 @@ function AdvancedSection(props: AdvancedOptionsGroupProps) {
           onChange={onSetTechMode}
         />
       )}
+
+      <div className='border-t border-border/60 pt-3'>
+        <ToggleRow
+          id='generation-reasoning'
+          label='Extended reasoning'
+          description='Let ChatGPT spend more tokens thinking before answering.'
+          checked={modelReasoningEnabled}
+          onCheckedChange={onSetModelReasoningEnabled}
+        />
+        {modelReasoningEnabled && (
+          <div className='mt-1.5 space-y-1.5'>
+            <label
+              htmlFor='generation-reasoning-effort'
+              className='text-xs text-muted-foreground/70'
+            >
+              Reasoning effort
+            </label>
+            <Select
+              value={modelReasoningEffort}
+              onValueChange={onSetModelReasoningEffort}
+            >
+              <SelectTrigger id='generation-reasoning-effort' className='h-7 text-xs'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='none'>None</SelectItem>
+                <SelectItem value='low'>Low</SelectItem>
+                <SelectItem value='medium'>Medium</SelectItem>
+                <SelectItem value='high'>High</SelectItem>
+                <SelectItem value='xhigh'>Maximum</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
 
       <div className='flex flex-col gap-1'>
         <label
@@ -679,8 +731,17 @@ function SetupPanelImpl({
   generationStrategy = 'single-pass',
   liveCostUsd,
   liveCostQuality,
+  liveStream,
 }: SetupPanelProps) {
-  const { model, setModel, showRawLlmOutput } = useAppSettings();
+  const {
+    model,
+    setModel,
+    showRawLlmOutput,
+    modelReasoningEnabled,
+    setModelReasoningEnabled,
+    modelReasoningEffort,
+    setModelReasoningEffort,
+  } = useAppSettings();
   const generationHistory = useAppStore((s) => s.generationHistory);
   const customSubtopics = useAppStore((s) => s.customSubtopics);
   const prefersReducedMotion = useReducedMotion();
@@ -750,11 +811,8 @@ function SetupPanelImpl({
   ]);
 
   const displayModels = useMemo(() => {
-    const models = model && !accountModels.includes(model)
-      ? [...accountModels, model]
-      : accountModels;
-    return models.map((id) => ({ id, name: id }));
-  }, [accountModels, model]);
+    return accountModels.map((id) => ({ id, name: id }));
+  }, [accountModels]);
 
   // Display name for the currently-selected model. Falls back to the raw
   // model id if the lookup misses, and to `undefined` when neither the lookup
@@ -768,8 +826,11 @@ function SetupPanelImpl({
 
   const generationDisabledReasons = useMemo(() => {
     const reasons: string[] = [];
-    if (!model || model.trim().length === 0)
+    if (accountModels.length === 0) {
+      reasons.push('Connect ChatGPT in Settings');
+    } else if (!model || !accountModels.includes(model)) {
       reasons.push('AI model not selected');
+    }
     if (selectedTopics.length === 0)
       reasons.push('Select at least one subject');
     if (questionCount < 1) reasons.push('Choose at least one question');
@@ -777,6 +838,7 @@ function SetupPanelImpl({
     if (isGenerating) reasons.push('Generation in progress');
     return reasons;
   }, [
+    accountModels,
     model,
     selectedTopics.length,
     questionCount,
@@ -992,10 +1054,13 @@ function SetupPanelImpl({
                       onSetDiversityEnabled={onSetDiversityEnabled}
                       strictLatexValidation={strictLatexValidation}
                       onSetStrictLatexValidation={onSetStrictLatexValidation}
+                      modelReasoningEnabled={modelReasoningEnabled}
+                      onSetModelReasoningEnabled={setModelReasoningEnabled}
+                      modelReasoningEffort={modelReasoningEffort}
+                      onSetModelReasoningEffort={setModelReasoningEffort}
                     />
                   )}
                 </div>
-
               </aside>
 
               {/* ── RIGHT COLUMN ── */}
@@ -1120,6 +1185,7 @@ function SetupPanelImpl({
                       onTogglePause={onTogglePause}
                       onAbort={onAbort}
                       showRawLlmOutput={showRawLlmOutput}
+                      liveStream={liveStream}
                     />
                   ) : (
                     <GenerationTimeline
@@ -1135,6 +1201,7 @@ function SetupPanelImpl({
                       showRawLlmOutput={showRawLlmOutput}
                       liveCostUsd={liveCostUsd}
                       liveCostQuality={liveCostQuality}
+                      liveStream={liveStream}
                     />
                   )}
                 </div>

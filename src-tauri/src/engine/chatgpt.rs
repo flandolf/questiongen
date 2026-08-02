@@ -192,24 +192,26 @@ pub async fn complete(
     });
     let result = send(app, body).await?;
 
-    if request.stream {
-        let request_id = request
-            .request_id
-            .as_deref()
-            .or(config.request_id.as_deref())
-            .unwrap_or("generation");
-        emit_stream_token(app, request_id, &result.content);
-        emit_stream_usage(
-            app,
-            request_id,
-            result.prompt_tokens,
-            result.completion_tokens,
-            result.total_tokens,
-            result.reasoning_tokens,
-            None,
-            CostQuality::Unknown,
-        );
-    }
+    // The sidecar currently returns one completed response rather than
+    // incremental chunks, but every request still needs its final text and
+    // usage in the unified stream state. This is especially important for
+    // short generations where `request.stream` is intentionally false.
+    let request_id = request
+        .request_id
+        .as_deref()
+        .or(config.request_id.as_deref())
+        .unwrap_or("generation");
+    emit_stream_token(app, request_id, &result.content);
+    emit_stream_usage(
+        app,
+        request_id,
+        result.prompt_tokens,
+        result.completion_tokens,
+        result.total_tokens,
+        result.reasoning_tokens,
+        None,
+        CostQuality::Unknown,
+    );
     Ok(result)
 }
 

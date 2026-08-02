@@ -1,6 +1,6 @@
 import { LoginWithChatGPT } from '@opencoredev/loginwithchatgpt-react';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAppSettings } from '@/AppContext';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,8 @@ import {
   ToggleRow,
 } from '@/views/settings/SettingsUI';
 
-type ModelTarget = 'model' | 'markingModel' | 'imageMarkingModel' | 'tutorModel';
+type ModelTarget =
+  'model' | 'markingModel' | 'imageMarkingModel' | 'tutorModel';
 
 function ModelSelect({
   id,
@@ -41,7 +42,11 @@ function ModelSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <Select value={models.includes(value) ? value : ''} onValueChange={onChange} disabled={disabled}>
+    <Select
+      value={models.includes(value) ? value : ''}
+      onValueChange={onChange}
+      disabled={disabled}
+    >
       <SelectTrigger id={id} className='w-full'>
         <SelectValue placeholder='Connect ChatGPT to choose a model' />
       </SelectTrigger>
@@ -58,6 +63,9 @@ function ModelSelect({
 
 export function ModelsSection() {
   const settings = useAppSettings();
+  const settingsRef = useRef(settings);
+  const sessionChecked = useRef(false);
+  settingsRef.current = settings;
   const [models, setModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -70,6 +78,7 @@ export function ModelsSection() {
       setModels(available);
       const fallback = available[0];
       if (fallback) {
+        const settings = settingsRef.current;
         if (!available.includes(settings.model)) settings.setModel(fallback);
         if (!available.includes(settings.markingModel)) {
           settings.setMarkingModel(fallback);
@@ -86,15 +95,19 @@ export function ModelsSection() {
         cause && typeof cause === 'object' && 'status' in cause
           ? Number(cause.status)
           : 0;
-      if (status !== 401) {
+      if (status === 401) {
+        setModels([]);
+      } else {
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     } finally {
       setLoading(false);
     }
-  }, [settings]);
+  }, []);
 
   useEffect(() => {
+    if (sessionChecked.current) return;
+    sessionChecked.current = true;
     void refreshModels();
   }, [refreshModels]);
 
@@ -221,7 +234,10 @@ export function ModelsSection() {
         />
         <div className='space-y-2'>
           <Label htmlFor='marker-style'>Marking style</Label>
-          <Select value={settings.markerStyle} onValueChange={settings.setMarkerStyle}>
+          <Select
+            value={settings.markerStyle}
+            onValueChange={settings.setMarkerStyle}
+          >
             <SelectTrigger id='marker-style'>
               <SelectValue />
             </SelectTrigger>
@@ -245,7 +261,9 @@ function ReasoningSelect({
 }: {
   id: string;
   value: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none';
-  onChange: (value: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none') => void;
+  onChange: (
+    value: 'xhigh' | 'high' | 'max' | 'medium' | 'low' | 'minimal' | 'none',
+  ) => void;
 }) {
   return (
     <FieldGroup label='Reasoning effort' htmlFor={id}>

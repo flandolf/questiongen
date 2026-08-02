@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import type { LlmStreamState } from '@/hooks/useLlmStreamEvents';
 import { formatCostUsd } from '@/lib/app-utils';
 import type {
   BatchTopicProgress,
@@ -22,29 +23,54 @@ import type { CostQuality } from '@/types/events';
 
 type TimelinePhase = 'waiting' | 'active' | 'done' | 'error';
 
-const STAGE_ORDER = ['generating', 'parsing', 'completed'] as const;
+const STAGE_ORDER = [
+  'preparing',
+  'generating',
+  'parsing',
+  'quality_check',
+  'completed',
+] as const;
 type KnownStage = (typeof STAGE_ORDER)[number];
 
 /** Stages emitted by the backend or client; labels for timeline and batch rows. */
 const GENERATION_STAGE_LABELS: Record<string, string> = {
+  preparing: 'Preparing prompt',
   generating: 'Generating',
   parsing: 'Parsing & validating',
+  quality_check: 'Checking quality',
   completed: 'Complete',
   failed: 'Failed',
 };
 
+function normalizeStage(stage?: string): KnownStage {
+  switch (stage) {
+    case 'generating':
+    case 'calling_model':
+      return 'generating';
+    case 'parsing':
+    case 'parsing_marking':
+      return 'parsing';
+    case 'quality_check':
+      return 'quality_check';
+    case 'completed':
+      return 'completed';
+    case 'preparing':
+    case 'allocating_subtopics':
+    case 'building_prompt':
+    default:
+      return 'preparing';
+  }
+}
+
 function phaseForStage(
   stage: KnownStage,
-  currentStage: string,
+  currentStage: KnownStage,
   isFailed: boolean,
 ): TimelinePhase {
-  const currentIdx =
-    currentStage === 'failed'
-      ? STAGE_ORDER.indexOf('generating')
-      : STAGE_ORDER.indexOf(currentStage as KnownStage);
+  const currentIdx = STAGE_ORDER.indexOf(currentStage);
   const thisIdx = STAGE_ORDER.indexOf(stage);
-  if (isFailed && stage === currentStage) return 'error';
   if (isFailed && thisIdx === currentIdx) return 'error';
+  if (stage === 'completed' && currentStage === 'completed') return 'done';
   if (thisIdx < currentIdx) return 'done';
   if (thisIdx === currentIdx) return isFailed ? 'error' : 'active';
   return 'waiting';
@@ -71,9 +97,19 @@ function TimelineDot({ phase }: { phase: TimelinePhase }) {
 }
 
 const STAGE_LABELS: Record<KnownStage, string> = {
+  preparing: GENERATION_STAGE_LABELS.preparing,
   generating: GENERATION_STAGE_LABELS.generating,
   parsing: GENERATION_STAGE_LABELS.parsing,
+  quality_check: GENERATION_STAGE_LABELS.quality_check,
   completed: GENERATION_STAGE_LABELS.completed,
+};
+
+const STAGE_PROGRESS: Record<KnownStage, number> = {
+  preparing: 12,
+  generating: 42,
+  parsing: 72,
+  quality_check: 88,
+  completed: 100,
 };
 
 function formatElapsed(ms: number): string {
@@ -231,7 +267,7 @@ function TimelineStages({
   isGenerating,
   isDone,
 }: {
-  currentStage: string;
+  currentStage: KnownStage;
   isFailed: boolean;
   isGenerating: boolean;
   isDone: boolean;
@@ -287,6 +323,83 @@ function SubCallProgressHint({
   );
 }
 
+// eslint-disable-next-line complexity
+function GenerationActivity({
+  currentStage,
+  isDone,
+  isFailed,
+  streamText,
+  liveStream,
+}: {
+  currentStage: KnownStage;
+  isDone: boolean;
+  isFailed: boolean;
+  streamText: string;
+  liveStream?: LlmStreamState | null;
+}) {
+  const liveText = liveStream?.text ?? '';
+  const outputText = liveText || streamText;
+  const exactTokens = liveStream?.usage?.totalTokens;
+  const reasoningTokens = liveStream?.usage?.reasoningTokens;
+  const estimatedOutputTokens = Math.round(outputText.length / 4);
+  const hasOutput = outputText.length > 0;
+  const tokenLabel =
+    exactTokens != null
+      ? `${exactTokens.toLocaleString()} total tok`
+      : `~${estimatedOutputTokens.toLocaleString()} output tok`;
+  const reasoningLabel =
+    reasoningTokens != null && reasoningTokens > 0
+      ? `${reasoningTokens.toLocaleString()} reasoning`
+      : null;
+  const message = isFailed || liveStream?.status === 'error'
+    ? 'Generation stopped. Review the error and try again.'
+    : isDone
+    ? 'Response received. Final checks complete.'
+    : currentStage === 'generating'
+      ? hasOutput
+        ? 'ChatGPT is writing your questions…'
+        : 'ChatGPT is working — waiting for the first response tokens…'
+      : currentStage === 'parsing'
+        ? 'Parsing and validating the response…'
+        : currentStage === 'quality_check'
+          ? 'Checking question quality and variety…'
+          : 'Preparing the request…';
+
+  return (
+    <div
+      className='space-y-1.5 rounded-md bg-muted/30 px-2.5 py-2'
+      role='status'
+      aria-live='polite'
+    >
+      <div className='flex items-center justify-between gap-3 text-[10px] font-mono tabular-nums'>
+        <span className='min-w-0 truncate text-muted-foreground'>{message}</span>
+        <span className='shrink-0 text-foreground/80'>
+          {tokenLabel}
+          {reasoningLabel && (
+            <span className='text-muted-foreground/70'>
+              {' · '}
+              {reasoningLabel}
+            </span>
+          )}
+        </span>
+      </div>
+      <div
+        className='h-1 overflow-hidden rounded-full bg-border'
+        role='progressbar'
+        aria-label='Generation progress'
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={STAGE_PROGRESS[currentStage]}
+      >
+        <div
+          className='h-full rounded-full bg-primary transition-[width] duration-300'
+          style={{ width: `${STAGE_PROGRESS[currentStage]}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function GenerationTokenStream({
   streamText,
   currentStage,
@@ -330,33 +443,40 @@ function GenerationTokenStream({
 
 function CompletedStats({
   completedEvent,
+  liveStream,
 }: {
   completedEvent: GenerationStatusEvent | null;
+  liveStream?: LlmStreamState | null;
 }) {
   if (!completedEvent) return null;
+  const usage = liveStream?.usage;
+  const totalTokens = completedEvent.totalTokens ?? usage?.totalTokens;
+  const promptTokens = completedEvent.promptTokens ?? usage?.promptTokens;
+  const completionTokens =
+    completedEvent.completionTokens ?? usage?.completionTokens;
+  const reasoningTokens =
+    completedEvent.reasoningTokens ?? usage?.reasoningTokens;
   return (
     <div className='flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 border-t border-border/40'>
       <span className='flex items-center gap-1 text-[11px] font-mono text-muted-foreground'>
         <Coins className='w-3 h-3' />
         <span className='tabular-nums font-semibold text-foreground'>
-          {completedEvent.totalTokens != null
-            ? completedEvent.totalTokens.toLocaleString()
+          {totalTokens != null
+            ? totalTokens.toLocaleString()
             : '?'}
         </span>
         {' tok'}
-        {completedEvent.promptTokens != null &&
-          completedEvent.completionTokens != null && (
+        {promptTokens != null && completionTokens != null && (
             <span className='text-muted-foreground/60'>
               {' '}
-              ({completedEvent.promptTokens.toLocaleString()} in /{' '}
-              {completedEvent.completionTokens.toLocaleString()} out)
+              ({promptTokens.toLocaleString()} in /{' '}
+              {completionTokens.toLocaleString()} out)
             </span>
           )}
-        {completedEvent.reasoningTokens != null &&
-          completedEvent.reasoningTokens > 0 && (
+        {reasoningTokens != null && reasoningTokens > 0 && (
             <span className='text-muted-foreground/60'>
               {' '}
-              ({completedEvent.reasoningTokens.toLocaleString()} reasoning)
+              ({reasoningTokens.toLocaleString()} reasoning)
             </span>
           )}
       </span>
@@ -374,6 +494,7 @@ function CompletedStats({
   );
 }
 
+// eslint-disable-next-line complexity
 export function GenerationTimeline({
   generationStatus,
   generationSubCallProgress,
@@ -387,6 +508,7 @@ export function GenerationTimeline({
   showRawLlmOutput = false,
   liveCostUsd,
   liveCostQuality,
+  liveStream,
 }: {
   generationStatus: GenerationStatusEvent | null;
   /** Present when several API calls run for one subject (per locally chosen subtopic). */
@@ -403,10 +525,14 @@ export function GenerationTimeline({
   liveCostUsd?: number;
   /** Quality label for the live cost (priced, actual, estimated, unknown). */
   liveCostQuality?: CostQuality;
+  /** Live stream state emitted by the ChatGPT integration. */
+  liveStream?: LlmStreamState | null;
 }) {
-  const currentStage = generationStatus?.stage ?? 'preparing';
-  const isFailed = currentStage === 'failed';
+  const rawStage = generationStatus?.stage as string | undefined;
+  const currentStage = normalizeStage(rawStage);
+  const isFailed = rawStage === 'failed';
   const isDone = currentStage === 'completed';
+  const displayStreamText = liveStream?.text || streamText;
 
   const completedEvent = isDone ? generationStatus : null;
   const elapsedTimeLabel = useGenerationElapsedTime({
@@ -429,29 +555,40 @@ export function GenerationTimeline({
             <XCircle className='w-3 h-3 text-destructive shrink-0' />
           )}
           <span className='text-xs font-medium text-foreground'>
-            {generationStatus?.message ?? 'Generating…'}
+            {generationStatus?.message?.trim() ||
+              (isFailed
+                ? 'Generation failed'
+                : isDone
+                  ? 'Generation complete'
+                  : STAGE_LABELS[currentStage])}
           </span>
         </div>
         <span className='text-[10px] font-mono text-muted-foreground tabular-nums flex items-center gap-1'>
           <Clock3 className='w-2.5 h-2.5' />
           {elapsedTimeLabel}
           {(() => {
-            const actualTokens = generationStatus?.totalTokens;
-            const showEstimate =
-              isGenerating &&
-              !isDone &&
-              (currentStage === 'generating' || currentStage === 'parsing') &&
-              streamText.length > 0;
-            if ((!actualTokens || isDone) && !showEstimate) return null;
-            const tokens = actualTokens ?? Math.round(streamText.length / 4);
-            const isEstimate = !actualTokens;
+            const actualTokens =
+              liveStream?.usage?.totalTokens ?? generationStatus?.totalTokens;
+            const actualReasoningTokens =
+              liveStream?.usage?.reasoningTokens ??
+              generationStatus?.reasoningTokens;
+            const showEstimate = isGenerating && !isDone;
+            if (actualTokens == null && !showEstimate) return null;
+            const tokens = actualTokens ?? Math.round(displayStreamText.length / 4);
+            const isEstimate = actualTokens == null;
             return (
               <span className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground ml-0.5'>
                 <Coins className='w-2.5 h-2.5' />
                 {isEstimate && (
                   <span className='text-muted-foreground/50'>~</span>
                 )}
-                {tokens.toLocaleString()} tok
+                {tokens.toLocaleString()} {isEstimate ? 'output tok' : 'tok'}
+                {actualReasoningTokens != null && actualReasoningTokens > 0 && (
+                  <span className='text-muted-foreground/70'>
+                    {' · '}
+                    {actualReasoningTokens.toLocaleString()} reasoning
+                  </span>
+                )}
               </span>
             );
           })()}
@@ -511,14 +648,27 @@ export function GenerationTimeline({
         isDone={isDone}
       />
 
-      <GenerationTokenStream
+      <GenerationActivity
+        currentStage={currentStage}
+        isDone={isDone}
+        isFailed={isFailed}
         streamText={streamText}
+        liveStream={liveStream}
+      />
+
+      <GenerationTokenStream
+        streamText={displayStreamText}
         currentStage={currentStage}
         isGenerating={isGenerating}
         showRawLlmOutput={showRawLlmOutput}
       />
 
-      {isDone && <CompletedStats completedEvent={completedEvent} />}
+      {isDone && (
+        <CompletedStats
+          completedEvent={completedEvent}
+          liveStream={liveStream}
+        />
+      )}
     </div>
   );
 }
@@ -535,6 +685,7 @@ export function BatchTimeline({
   onTogglePause,
   onAbort,
   showRawLlmOutput = false,
+  liveStream,
 }: {
   entries: BatchTopicProgress[];
   generationSubCallProgress?: GenerationSubCallProgress | null;
@@ -546,6 +697,7 @@ export function BatchTimeline({
   onTogglePause: () => void;
   onAbort: () => void;
   showRawLlmOutput?: boolean;
+  liveStream?: LlmStreamState | null;
 }) {
   const streamRef = useRef<HTMLDivElement>(null);
 
@@ -558,6 +710,8 @@ export function BatchTimeline({
   const errorCount = entries.filter((e) => e.status === 'error').length;
   const activeEntry = entries.find((e) => e.status === 'active');
   const allDone = doneCount + errorCount === entries.length;
+  const currentStage = normalizeStage(activeEntry?.stage);
+  const displayStreamText = liveStream?.text || streamText;
   const elapsedTimeLabel = useGenerationElapsedTime({
     generationStartedAt,
     isGenerating,
@@ -579,7 +733,9 @@ export function BatchTimeline({
           <span className='text-xs font-medium text-foreground'>
             {isGenerating
               ? activeEntry
-                ? `Generating ${activeEntry.topic} (${activeEntry.questionCount}q)…`
+                ? liveStream?.status === 'active'
+                  ? `ChatGPT is generating ${activeEntry.topic} (${activeEntry.questionCount}q)…`
+                  : `Preparing ${activeEntry.topic} (${activeEntry.questionCount}q)…`
                 : 'Starting…'
               : allDone && errorCount === 0
                 ? `Done — ${entries.length} subjects complete`
@@ -590,18 +746,26 @@ export function BatchTimeline({
           <Clock3 className='w-2.5 h-2.5' />
           {elapsedTimeLabel}
           {(() => {
-            const stage = activeEntry?.stage;
-            const showEstimate =
-              isGenerating &&
-              (stage === 'generating' || stage === 'parsing') &&
-              streamText.length > 0;
-            if (!showEstimate) return null;
-            const tokens = Math.round(streamText.length / 4);
+            const actualTokens = liveStream?.usage?.totalTokens;
+            const actualReasoningTokens = liveStream?.usage?.reasoningTokens;
+            const showEstimate = isGenerating;
+            if (actualTokens == null && !showEstimate) return null;
+            const tokens =
+              actualTokens ?? Math.round(displayStreamText.length / 4);
             return (
               <span className='flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground ml-0.5'>
                 <Coins className='w-2.5 h-2.5' />
-                <span className='text-muted-foreground/50'>~</span>
-                {tokens.toLocaleString()} tok
+                {actualTokens == null && (
+                  <span className='text-muted-foreground/50'>~</span>
+                )}
+                {tokens.toLocaleString()}{' '}
+                {actualTokens == null ? 'output tok' : 'tok'}
+                {actualReasoningTokens != null && actualReasoningTokens > 0 && (
+                  <span className='text-muted-foreground/70'>
+                    {' · '}
+                    {actualReasoningTokens.toLocaleString()} reasoning
+                  </span>
+                )}
               </span>
             );
           })()}
@@ -639,10 +803,10 @@ export function BatchTimeline({
           const isError = entry.status === 'error';
           const isWaiting = entry.status === 'waiting';
 
+          const entryStage = normalizeStage(entry.stage);
           const stageLabel =
-            entry.stage && entry.stage !== 'completed'
-              ? (STAGE_LABELS[entry.stage as KnownStage] ??
-                GENERATION_STAGE_LABELS[entry.stage])
+            entry.stage && entryStage !== 'completed'
+              ? STAGE_LABELS[entryStage]
               : undefined;
           const stageSuffix =
             isActive && stageLabel ? ` — ${stageLabel}` : '';
@@ -698,6 +862,14 @@ export function BatchTimeline({
         })}
       </div>
 
+      <GenerationActivity
+        currentStage={currentStage}
+        isDone={allDone && errorCount === 0}
+        isFailed={errorCount > 0}
+        streamText={streamText}
+        liveStream={liveStream}
+      />
+
       {isGenerating && activeEntry && (
         <SubCallProgressHint
           progress={generationSubCallProgress}
@@ -707,15 +879,14 @@ export function BatchTimeline({
       )}
 
       {activeEntry &&
-        (activeEntry.stage === 'generating' ||
-          activeEntry.stage === 'parsing') &&
+        (currentStage === 'generating' || currentStage === 'parsing') &&
         showRawLlmOutput && (
           <div
             ref={streamRef}
             className='max-h-20 overflow-y-auto rounded-md border border-border bg-background/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground leading-relaxed whitespace-pre-wrap break-all'
           >
-            {streamText ? (
-              streamText
+            {displayStreamText ? (
+              displayStreamText
             ) : (
               <span className='opacity-40'>Waiting for tokens…</span>
             )}

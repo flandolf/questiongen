@@ -6,7 +6,7 @@
  */
 
 import { listen } from '@tauri-apps/api/event';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 
 import { useLocalBackupExport } from '../hooks/useLocalBackupExport';
 import { checkForAppUpdate } from '../lib/updater';
@@ -16,11 +16,14 @@ import type { GenerationStatusEvent, LogEntry } from '../types';
 export function AppProvider({ children }: { children: ReactNode }) {
   const hydrate = useAppStore((s) => s.hydrate);
   const setGenerationStatus = useAppStore((s) => s.setGenerationStatus);
+  const startupStarted = useRef(false);
 
   useLocalBackupExport();
 
   // Hydrate from persisted storage on mount
   useEffect(() => {
+    if (startupStarted.current) return;
+    startupStarted.current = true;
     void hydrate();
     void checkForAppUpdate();
   }, [hydrate]);
